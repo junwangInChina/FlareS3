@@ -1,0 +1,7 @@
+node_modules/
+frontend/node_modules/
+worker/node_modules/
+worker/.dev.vars
+worker/.wrangler/
+frontend/dist/
+worker/.wrangler/
