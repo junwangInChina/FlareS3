@@ -5,3 +5,4 @@ worker/.dev.vars
 worker/.wrangler/
 frontend/dist/
 worker/.wrangler/
+scripts/
