@@ -29,10 +29,10 @@ npm install
 ### 1) 初始化 D1（本地模拟）
 ```
 cd worker
-npx wrangler d1 execute flares3 --local --file=src/db/schema.sql
+npx wrangler d1 execute flares3-r2 --local --file=src/db/schema.sql
 ```
 - 这会把本地数据库写到 `worker/.wrangler/state/v3/d1/`（Miniflare 持久化），不依赖远程 D1。
-- 需要重置本地数据可删除该目录或执行 `npx wrangler d1 execute flares3 --local --command "DELETE FROM users;"` 等。
+- 需要重置本地数据可删除该目录或执行 `npx wrangler d1 execute flares3-r2 --local --command "DELETE FROM users;"` 等。
 
 ### 2) 配置环境变量
 - 复制 `worker/.dev.vars.example` 为 `worker/.dev.vars`
@@ -158,7 +158,7 @@ export PAGES_PROJECT_NAME="flares3"
 若不想交互式确认 CORS，请设置 `R2_CORS_CONFIRMED=1`。
 
 ```bash
-cd "~/flares3"
+cd "~/sflares3"
 chmod +x "scripts/deploy_cf_ci.sh"
 ./scripts/deploy_cf_ci.sh
 ```
