@@ -19,10 +19,10 @@
 
 ### 0) 安装依赖（分别在子目录）
 ```bash
-cd "/Users/mhp/Documents/workspace/wj/github/flares3/worker"
+cd "~/flares3/worker"
 npm install
 
-cd "/Users/mhp/Documents/workspace/wj/github/flares3/frontend"
+cd "~/flares3/frontend"
 npm install
 ```
 
@@ -47,10 +47,10 @@ npx wrangler d1 execute flares3 --local --file=src/db/schema.sql
 
 ### 3) 启动服务（分别启动）
 ```bash
-cd "/Users/mhp/Documents/workspace/wj/github/flares3/worker"
+cd "~/flares3/worker"
 npm run dev
 
-cd "/Users/mhp/Documents/workspace/wj/github/flares3/frontend"
+cd "~/flares3/frontend"
 npm run dev
 ```
 > 如需并发启动，可在根目录执行：`npm run dev`（依赖已在子目录安装）。
@@ -65,7 +65,7 @@ npm run dev
 
 ### 一键部署（脚本）
 ```bash
-cd "/Users/mhp/Documents/workspace/wj/github/flares3"
+cd "~/flares3"
 chmod +x "scripts/deploy_cf.sh"
 ./scripts/deploy_cf.sh
 ```
@@ -158,7 +158,7 @@ export PAGES_PROJECT_NAME="flares3"
 若不想交互式确认 CORS，请设置 `R2_CORS_CONFIRMED=1`。
 
 ```bash
-cd "/Users/mhp/Documents/workspace/wj/github/flares3"
+cd "~/flares3"
 chmod +x "scripts/deploy_cf_ci.sh"
 ./scripts/deploy_cf_ci.sh
 ```
