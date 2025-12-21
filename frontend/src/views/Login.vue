@@ -2,45 +2,45 @@
   <div class="login-container">
     <div class="login-card">
       <div class="logo">
-        <img src="/logo.png" alt="R2Box" class="logo-icon" />
-        <span class="logo-text">R2Box</span>
+        <div class="logo-box">F</div>
+        <span class="logo-text">FlareS3</span>
       </div>
       <p class="subtitle">轻量级临时文件分享</p>
 
-      <n-form ref="formRef" :model="formValue" :rules="rules" style="margin-top: 32px;">
-        <n-form-item label="用户名" path="username">
-          <n-input
-            v-model:value="formValue.username"
+      <form class="login-form" @submit.prevent="handleSubmit">
+        <BrutalFormItem label="用户名">
+          <BrutalInput
+            v-model="formValue.username"
             placeholder="请输入用户名"
             size="large"
             @keyup.enter="handleSubmit"
           />
-        </n-form-item>
+        </BrutalFormItem>
 
-        <n-form-item label="密码" path="password">
-          <n-input
-            v-model:value="formValue.password"
+        <BrutalFormItem label="密码">
+          <BrutalInput
+            v-model="formValue.password"
             type="password"
             placeholder="请输入密码"
-            show-password-on="click"
             size="large"
             @keyup.enter="handleSubmit"
           />
-        </n-form-item>
+        </BrutalFormItem>
 
-        <n-button
+        <BrutalButton
           type="primary"
-          block
           size="large"
+          block
           :loading="loading"
           @click="handleSubmit"
-          style="margin-top: 8px;"
         >
           登录
-        </n-button>
+        </BrutalButton>
 
-        <n-alert v-if="errorMessage" type="error" :title="errorMessage" style="margin-top: 16px;" />
-      </n-form>
+        <BrutalAlert v-if="errorMessage" type="error" class="error-alert">
+          {{ errorMessage }}
+        </BrutalAlert>
+      </form>
 
       <p class="footer-text">管理员账号通过环境变量初始化</p>
       <a class="github-link" href="https://github.com/Today-ddr/r2box" target="_blank">
@@ -55,13 +55,15 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { NForm, NFormItem, NInput, NButton, NAlert } from 'naive-ui'
+import BrutalInput from '../components/ui/BrutalInput.vue'
+import BrutalButton from '../components/ui/BrutalButton.vue'
+import BrutalAlert from '../components/ui/BrutalAlert.vue'
+import BrutalFormItem from '../components/ui/BrutalFormItem.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
-const formRef = ref(null)
 const formValue = ref({
   username: '',
   password: ''
@@ -70,14 +72,13 @@ const formValue = ref({
 const loading = ref(false)
 const errorMessage = ref('')
 
-const rules = {
-  username: { required: true, message: '请输入用户名', trigger: 'blur' },
-  password: { required: true, message: '请输入密码', trigger: 'blur' }
-}
-
 const handleSubmit = async () => {
+  if (!formValue.value.username || !formValue.value.password) {
+    errorMessage.value = '请输入用户名和密码'
+    return
+  }
+
   try {
-    await formRef.value?.validate()
     loading.value = true
     errorMessage.value = ''
 
@@ -103,52 +104,66 @@ const handleSubmit = async () => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: #fafafa;
-  background-image:
-    radial-gradient(circle at 25% 25%, rgba(0, 112, 243, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(0, 112, 243, 0.03) 0%, transparent 50%);
+  background: var(--nb-bg);
+  padding: var(--nb-space-md);
 }
 
 .login-card {
   width: 100%;
-  max-width: 400px;
-  padding: 48px 40px;
-  background: #fff;
-  border-radius: 24px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  border: 1px solid #eaeaea;
+  max-width: 420px;
+  padding: var(--nb-space-2xl);
+  background: var(--nb-white);
+  border: var(--nb-border);
+  box-shadow: var(--nb-shadow-lg);
 }
 
 .logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: var(--nb-space-sm);
 }
 
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+.logo-box {
+  width: 56px;
+  height: 56px;
+  background-color: var(--nb-black);
+  color: var(--nb-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--nb-font-mono);
+  font-weight: 900;
+  font-size: 32px;
 }
 
 .logo-text {
+  font-family: var(--nb-font-mono);
   font-size: 36px;
-  font-weight: 700;
-  color: #111;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -2px;
 }
 
 .subtitle {
   text-align: center;
-  color: #666;
-  margin-top: 8px;
+  color: var(--nb-gray-500);
+  margin-top: var(--nb-space-sm);
   font-size: 14px;
 }
 
+.login-form {
+  margin-top: var(--nb-space-xl);
+}
+
+.error-alert {
+  margin-top: var(--nb-space-md);
+}
+
 .footer-text {
-  margin-top: 24px;
+  margin-top: var(--nb-space-xl);
   text-align: center;
-  color: #999;
+  color: var(--nb-gray-400);
   font-size: 12px;
 }
 
@@ -156,11 +171,19 @@ const handleSubmit = async () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
-  color: #666;
+  margin-top: var(--nb-space-sm);
+  color: var(--nb-gray-500);
   text-decoration: none;
   font-size: 12px;
   justify-content: center;
   width: 100%;
+  padding: 8px;
+  border: 2px solid transparent;
+  transition: var(--nb-transition-fast);
+}
+
+.github-link:hover {
+  background: var(--nb-gray-100);
+  border-color: var(--nb-black);
 }
 </style>
