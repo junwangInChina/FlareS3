@@ -1,124 +1,105 @@
 <template>
-  <div class="setup-container">
-    <n-card class="setup-card" title="R2 存储配置" size="large">
-      <n-steps :current="currentStep" :status="stepStatus">
-        <n-step title="输入配置" description="填写 Cloudflare R2 信息" />
-        <n-step title="测试连接" description="验证配置是否正确" />
-        <n-step title="完成" description="开始使用" />
-      </n-steps>
+  <AppLayout>
+    <BrutalCard title="R2 存储配置">
+      <BrutalSteps :current="currentStep" :status="stepStatus" :items="stepItems" />
 
-      <n-divider />
+      <BrutalDivider />
 
-      <n-alert v-if="isEnvConfig" type="info" title="已使用环境变量配置，无法在界面修改" style="margin-bottom: 16px;" />
+      <BrutalAlert v-if="isEnvConfig" type="info" title="已使用环境变量配置，无法在界面修改" />
 
-      <n-form
-        ref="formRef"
-        :model="formValue"
-        :rules="rules"
-        label-placement="left"
-        label-width="140"
-      >
-        <n-form-item label="R2 端点 URL" path="endpoint">
-          <n-input
-            v-model:value="formValue.endpoint"
+      <div class="form-section">
+        <BrutalFormItem label="R2 端点 URL" required>
+          <BrutalInput
+            v-model="formValue.endpoint"
             placeholder="https://xxxxxxxx.r2.cloudflarestorage.com"
             :disabled="isEnvConfig"
           />
-        </n-form-item>
+        </BrutalFormItem>
 
-        <n-form-item label="Access Key ID" path="access_key_id">
-          <n-input
-            v-model:value="formValue.access_key_id"
+        <BrutalFormItem label="Access Key ID" required>
+          <BrutalInput
+            v-model="formValue.access_key_id"
             placeholder="R2 访问密钥 ID"
             :disabled="isEnvConfig"
           />
-        </n-form-item>
+        </BrutalFormItem>
 
-        <n-form-item label="Secret Access Key" path="secret_access_key">
-          <n-input
-            v-model:value="formValue.secret_access_key"
+        <BrutalFormItem label="Secret Access Key" required>
+          <BrutalInput
+            v-model="formValue.secret_access_key"
             type="password"
             placeholder="R2 访问密钥"
-            show-password-on="click"
             :disabled="isEnvConfig"
           />
-        </n-form-item>
+        </BrutalFormItem>
 
-        <n-form-item label="Bucket Name" path="bucket_name">
-          <n-input
-            v-model:value="formValue.bucket_name"
+        <BrutalFormItem label="Bucket Name" required>
+          <BrutalInput
+            v-model="formValue.bucket_name"
             placeholder="存储桶名称"
             :disabled="isEnvConfig"
           />
-        </n-form-item>
-      </n-form>
+        </BrutalFormItem>
+      </div>
 
-      <n-alert type="info" title="如何获取这些信息？" style="margin-bottom: 20px;">
-        <ol style="margin-left: 20px; margin-top: 10px;">
+      <BrutalAlert type="info" title="如何获取这些信息？">
+        <ol class="help-list">
           <li>登录 <a href="https://dash.cloudflare.com" target="_blank">Cloudflare Dashboard</a></li>
           <li>进入 R2 Object Storage</li>
           <li>创建或选择一个存储桶</li>
           <li>在 "Manage R2 API Tokens" 中创建 API Token（需要 Object Read/Write 权限）</li>
           <li><strong>R2 端点 URL</strong>：格式为 <code>https://&lt;account_id&gt;.r2.cloudflarestorage.com</code></li>
         </ol>
-      </n-alert>
+      </BrutalAlert>
 
-      <n-space justify="space-between">
-        <n-button @click="handleLogout">退出登录</n-button>
-        <n-space>
-          <n-button
-            type="info"
+      <div class="action-row">
+        <div class="action-group">
+          <BrutalButton
+            type="default"
             :loading="testing"
             :disabled="!isFormValid || isEnvConfig"
             @click="handleTest"
           >
             测试连接
-          </n-button>
-          <n-button
+          </BrutalButton>
+          <BrutalButton
             type="primary"
             :loading="saving"
             :disabled="!testPassed || isEnvConfig"
             @click="handleSave"
           >
             保存配置
-          </n-button>
-        </n-space>
-      </n-space>
+          </BrutalButton>
+        </div>
+      </div>
 
-      <n-alert
+      <BrutalAlert
         v-if="testResult"
         :type="testResult.success ? 'success' : 'error'"
         :title="testResult.message"
-        style="margin-top: 20px;"
+        class="result-alert"
       />
-    </n-card>
-  </div>
+    </BrutalCard>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
-import {
-  NCard,
-  NSteps,
-  NStep,
-  NDivider,
-  NForm,
-  NFormItem,
-  NInput,
-  NButton,
-  NSpace,
-  NAlert,
-  useMessage
-} from 'naive-ui'
+import AppLayout from '../components/layout/AppLayout.vue'
+import BrutalCard from '../components/ui/BrutalCard.vue'
+import BrutalSteps from '../components/ui/BrutalSteps.vue'
+import BrutalDivider from '../components/ui/BrutalDivider.vue'
+import BrutalFormItem from '../components/ui/BrutalFormItem.vue'
+import BrutalInput from '../components/ui/BrutalInput.vue'
+import BrutalButton from '../components/ui/BrutalButton.vue'
+import BrutalAlert from '../components/ui/BrutalAlert.vue'
+import { useMessage } from '../composables/useMessage'
 
 const router = useRouter()
-const authStore = useAuthStore()
 const message = useMessage()
 
-const formRef = ref(null)
 const formValue = ref({
   endpoint: '',
   access_key_id: '',
@@ -126,12 +107,11 @@ const formValue = ref({
   bucket_name: ''
 })
 
-const rules = {
-  endpoint: { required: true, message: '请输入 R2 端点 URL', trigger: 'blur' },
-  access_key_id: { required: true, message: '请输入 Access Key ID', trigger: 'blur' },
-  secret_access_key: { required: true, message: '请输入 Secret Access Key', trigger: 'blur' },
-  bucket_name: { required: true, message: '请输入 Bucket Name', trigger: 'blur' }
-}
+const stepItems = [
+  { title: '输入配置', description: '填写 Cloudflare R2 信息' },
+  { title: '测试连接', description: '验证配置是否正确' },
+  { title: '完成', description: '开始使用' }
+]
 
 const currentStep = ref(1)
 const stepStatus = ref('process')
@@ -162,8 +142,12 @@ onMounted(async () => {
 })
 
 const handleTest = async () => {
+  if (!isFormValid.value) {
+    message.error('请填写所有必填项')
+    return
+  }
+
   try {
-    await formRef.value?.validate()
     testing.value = true
     testResult.value = null
 
@@ -219,26 +203,44 @@ const handleSave = async () => {
     saving.value = false
   }
 }
-
-const handleLogout = async () => {
-  await authStore.logout()
-  router.push('/login')
-}
 </script>
 
 <style scoped>
-.setup-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: #f5f7fa;
+.form-section {
+  display: grid;
+  gap: var(--nb-space-md);
+  margin-bottom: var(--nb-space-lg);
 }
 
-.setup-card {
-  width: 100%;
-  max-width: 900px;
-  border-radius: 16px;
+.help-list {
+  margin: var(--nb-space-sm) 0 0 var(--nb-space-lg);
+  line-height: 1.8;
+}
+
+.help-list a {
+  color: var(--nb-secondary);
+  font-weight: 700;
+}
+
+.help-list code {
+  background: var(--nb-gray-200);
+  padding: 2px 6px;
+  font-family: var(--nb-font-mono);
+  font-size: 13px;
+}
+
+.action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--nb-space-lg);
+}
+
+.action-group {
+  display: flex;
+  gap: var(--nb-space-sm);
+}
+
+.result-alert {
+  margin-top: var(--nb-space-lg);
 }
 </style>
