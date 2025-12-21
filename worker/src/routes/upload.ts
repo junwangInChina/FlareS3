@@ -33,7 +33,7 @@ function calcExpiresAt(expiresIn: number): Date {
 
 async function createFileRecord(env: Env, userId: string, filename: string, size: number, contentType: string, expiresIn: number, requireLogin: boolean): Promise<{ id: string; r2Key: string; shortCode: string; expiresAt: Date }> {
   const id = crypto.randomUUID()
-  const r2Key = `r2box/${id}${getFileExtension(filename)}`
+  const r2Key = `flares3/${id}${getFileExtension(filename)}`
   const expiresAt = calcExpiresAt(expiresIn)
   let shortCode = ''
   for (let i = 0; i < 10; i += 1) {
