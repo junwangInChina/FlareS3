@@ -1,102 +1,55 @@
 <template>
-  <div class="audit-page">
-    <n-layout>
-      <n-layout-header class="header">
-        <div class="header-left">
-          <div class="logo">
-            <img src="/logo.png" alt="R2Box" class="logo-icon" />
-            <span class="logo-text">R2Box</span>
-          </div>
+  <AppLayout>
+    <BrutalCard title="审计日志">
+      <template #header-extra>
+        <div class="filter-row">
+          <BrutalInput v-model="filters.action" placeholder="动作" size="small" />
+          <BrutalInput v-model="filters.actor" placeholder="操作者 ID" size="small" />
+          <BrutalButton type="default" size="small" @click="handleSearch">查询</BrutalButton>
+          <BrutalButton type="ghost" size="small" @click="handleReset">重置</BrutalButton>
         </div>
-        <n-space align="center" :size="16">
-          <n-button quaternary @click="router.push('/')">上传文件</n-button>
-          <n-button quaternary @click="router.push('/files')">文件列表</n-button>
-          <n-button quaternary @click="router.push('/stats')">存储统计</n-button>
-          <n-button quaternary @click="router.push('/users')">用户管理</n-button>
-          <n-button quaternary type="error" @click="handleLogout">退出</n-button>
-        </n-space>
-      </n-layout-header>
+      </template>
 
-      <n-layout-content class="content">
-        <n-card title="操作审计">
-          <template #header-extra>
-            <n-space align="center" :size="12">
-              <n-input
-                v-model:value="filters.action"
-                placeholder="动作"
-                size="small"
-                clearable
-                style="width: 140px;"
-              />
-              <n-input
-                v-model:value="filters.actor"
-                placeholder="操作者 ID"
-                size="small"
-                clearable
-                style="width: 160px;"
-              />
-              <n-button size="small" @click="handleSearch">查询</n-button>
-              <n-button size="small" @click="handleReset">重置</n-button>
-            </n-space>
-          </template>
+      <BrutalTable :columns="columns" :data="logs" :loading="loading" />
 
-          <n-data-table
-            :columns="columns"
-            :data="logs"
-            :loading="loading"
-            :pagination="pagination"
-            :bordered="false"
-          />
-        </n-card>
-      </n-layout-content>
-    </n-layout>
-  </div>
+      <div v-if="pagination.itemCount > 0" class="pagination">
+        <span>共 {{ pagination.itemCount }} 条</span>
+        <div class="page-btns">
+          <BrutalButton
+            size="small"
+            type="ghost"
+            :disabled="pagination.page <= 1"
+            @click="changePage(pagination.page - 1)"
+          >上一页</BrutalButton>
+          <span class="page-info">{{ pagination.page }}</span>
+          <BrutalButton
+            size="small"
+            type="ghost"
+            :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
+            @click="changePage(pagination.page + 1)"
+          >下一页</BrutalButton>
+        </div>
+      </div>
+    </BrutalCard>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, h, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
-import {
-  NLayout,
-  NLayoutHeader,
-  NLayoutContent,
-  NCard,
-  NButton,
-  NSpace,
-  NInput,
-  NDataTable,
-  NTag,
-  useMessage
-} from 'naive-ui'
+import AppLayout from '../components/layout/AppLayout.vue'
+import BrutalCard from '../components/ui/BrutalCard.vue'
+import BrutalButton from '../components/ui/BrutalButton.vue'
+import BrutalInput from '../components/ui/BrutalInput.vue'
+import BrutalTable from '../components/ui/BrutalTable.vue'
+import BrutalTag from '../components/ui/BrutalTag.vue'
+import { useMessage } from '../composables/useMessage'
 
-const router = useRouter()
-const authStore = useAuthStore()
 const message = useMessage()
-
 const logs = ref([])
 const loading = ref(false)
-const filters = ref({
-  action: '',
-  actor: ''
-})
-
-const pagination = ref({
-  page: 1,
-  pageSize: 20,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50],
-  onChange: (page) => {
-    pagination.value.page = page
-    loadLogs()
-  },
-  onUpdatePageSize: (pageSize) => {
-    pagination.value.pageSize = pageSize
-    pagination.value.page = 1
-    loadLogs()
-  }
-})
+const filters = ref({ action: '', actor: '' })
+const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 
 const formatTarget = (row) => {
   if (row.target_type && row.target_id) return `${row.target_type}:${row.target_id}`
@@ -104,59 +57,20 @@ const formatTarget = (row) => {
 }
 
 const columns = [
-  {
-    title: '时间',
-    key: 'created_at',
-    width: 180,
-    render: (row) => new Date(row.created_at).toLocaleString('zh-CN')
-  },
-  {
-    title: '动作',
-    key: 'action',
-    width: 140,
-    render: (row) => h(NTag, { size: 'small', type: 'info' }, { default: () => row.action })
-  },
-  {
-    title: '操作者',
-    key: 'actor',
-    width: 160,
-    render: (row) => row.actor_username || row.actor_user_id || '-'
-  },
-  {
-    title: '目标',
-    key: 'target',
-    width: 200,
-    render: (row) => formatTarget(row)
-  },
-  {
-    title: 'IP',
-    key: 'ip',
-    width: 140,
-    render: (row) => row.ip || '-'
-  },
-  {
-    title: 'User-Agent',
-    key: 'user_agent',
-    ellipsis: { tooltip: true }
-  },
-  {
-    title: '元数据',
-    key: 'metadata',
-    ellipsis: { tooltip: true }
-  }
+  { title: '时间', key: 'created_at', width: 160, render: (row) => h('span', new Date(row.created_at).toLocaleString('zh-CN')) },
+  { title: '动作', key: 'action', width: 120, render: (row) => h(BrutalTag, { type: 'info', size: 'small' }, () => row.action) },
+  { title: '操作者', key: 'actor', width: 140, render: (row) => h('span', row.actor_username || row.actor_user_id || '-') },
+  { title: '目标', key: 'target', width: 180, render: (row) => h('span', formatTarget(row)) },
+  { title: 'IP', key: 'ip', width: 120, render: (row) => h('span', row.ip || '-') },
+  { title: 'User-Agent', key: 'user_agent', render: (row) => h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, row.user_agent || '-') }
 ]
 
 const loadLogs = async () => {
   loading.value = true
   try {
-    const params = {
-      page: pagination.value.page,
-      limit: pagination.value.pageSize
-    }
-    const action = filters.value.action?.trim()
-    const actor = filters.value.actor?.trim()
-    if (action) params.action = action
-    if (actor) params.actor_user_id = actor
+    const params = { page: pagination.value.page, limit: pagination.value.pageSize }
+    if (filters.value.action?.trim()) params.action = filters.value.action.trim()
+    if (filters.value.actor?.trim()) params.actor_user_id = filters.value.actor.trim()
 
     const result = await api.getAudit(params)
     logs.value = result.logs || []
@@ -179,58 +93,44 @@ const handleReset = () => {
   loadLogs()
 }
 
-const handleLogout = async () => {
-  await authStore.logout()
-  router.push('/login')
+const changePage = (page) => {
+  pagination.value.page = page
+  loadLogs()
 }
 
-onMounted(() => {
-  loadLogs()
-})
+onMounted(() => loadLogs())
 </script>
 
 <style scoped>
-.audit-page {
-  min-height: 100vh;
-  background: #fafafa;
+.filter-row {
+  display: flex;
+  gap: var(--nb-space-sm);
+  align-items: center;
 }
 
-.header {
-  height: 64px;
-  padding: 0 24px;
+.filter-row > :first-child,
+.filter-row > :nth-child(2) {
+  width: 140px;
+}
+
+.pagination {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid #eaeaea;
+  align-items: center;
+  margin-top: var(--nb-space-lg);
+  padding-top: var(--nb-space-md);
+  border-top: 2px dashed var(--nb-black);
 }
 
-.header-left {
+.page-btns {
   display: flex;
   align-items: center;
+  gap: var(--nb-space-sm);
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.logo-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-}
-
-.logo-text {
-  font-size: 22px;
+.page-info {
+  font-family: var(--nb-font-mono);
   font-weight: 700;
-  color: #333;
-}
-
-.content {
-  padding: 32px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 0 var(--nb-space-sm);
 }
 </style>
