@@ -1,6 +1,6 @@
 import type { Env } from '../config/env'
 
-const COOKIE_NAME = 'r2box_session'
+const COOKIE_NAME = 'flares3_session'
 
 export type AuthUser = {
   id: string
