@@ -1,33 +1,35 @@
-/* NeoBrutalism Design System for FlareS3 */
-/* Inspired by retroui.dev */
+/* Apple-Style Design System for FlareS3 */
+/* Minimalist, Premium, Monochrome */
 
 :root {
-  /* Color Palette - High Saturation NeoBrutalism */
-  --nb-black: #000000;
+  /* Color Palette - Minimal Monochrome */
+  --nb-black: #1d1d1f;
   --nb-white: #ffffff;
-  --nb-bg: #fffae0; /* Light Yellow Background */
+  --nb-bg: #f5f5f7;
 
   /* Primary Colors */
-  --nb-primary: #ff90e8; /* Hot Pink */
-  --nb-secondary: #23a6d5; /* Cyan */
-  --nb-accent: #f3d03e; /* Bright Yellow */
+  --nb-primary: #1d1d1f;
+  --nb-secondary: #6e6e73;
+  --nb-accent: #f5f5f7;
 
   /* Semantic Colors */
-  --nb-success: #3df38d; /* Bright Green */
-  --nb-warning: #ffbe0b; /* Amber */
-  --nb-danger: #ff4757; /* Red */
-  --nb-info: #70a1ff; /* Blue */
+  --nb-success: #32d74b;
+  --nb-warning: #ff9f0a;
+  --nb-danger: #ff3b30;
+  --nb-info: #0a84ff;
 
   /* Neutral Colors */
-  --nb-gray-100: #f5f5f5;
-  --nb-gray-200: #e5e5e5;
-  --nb-gray-300: #d4d4d4;
-  --nb-gray-400: #a3a3a3;
-  --nb-gray-500: #737373;
+  --nb-gray-50: #fafafa;
+  --nb-gray-100: #f5f5f7;
+  --nb-gray-200: #e5e5ea;
+  --nb-gray-300: #d2d2d7;
+  --nb-gray-400: #a1a1a6;
+  --nb-gray-500: #86868b;
+  --nb-gray-600: #6e6e73;
 
   /* Typography */
-  --nb-font-mono: 'Courier New', Courier, monospace;
-  --nb-font-sans: 'Verdana', 'Arial', sans-serif;
+  --nb-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --nb-font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --nb-font-size-xs: 0.75rem;
   --nb-font-size-sm: 0.875rem;
   --nb-font-size-base: 1rem;
@@ -37,14 +39,15 @@
   --nb-font-size-3xl: 2.5rem;
 
   /* Borders & Shadows */
-  --nb-border-width: 3px;
-  --nb-border: var(--nb-border-width) solid var(--nb-black);
-  --nb-border-thin: 2px solid var(--nb-black);
-  --nb-shadow-offset: 4px;
-  --nb-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0px var(--nb-black);
-  --nb-shadow-sm: 2px 2px 0px var(--nb-black);
-  --nb-shadow-lg: 6px 6px 0px var(--nb-black);
-  --nb-radius: 0px; /* Hard corners - NeoBrutalism signature */
+  --nb-border-width: 1px;
+  --nb-border: var(--nb-border-width) solid var(--nb-gray-300);
+  --nb-border-thin: 1px solid var(--nb-gray-200);
+  --nb-shadow-offset: 0px;
+  --nb-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  --nb-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --nb-shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.12);
+  --nb-radius: 8px;
+  --nb-focus-ring: 0 0 0 3px rgba(0, 0, 0, 0.12);
 
   /* Spacing Scale */
   --nb-space-xs: 0.25rem;
@@ -55,8 +58,42 @@
   --nb-space-2xl: 3rem;
 
   /* Transitions */
-  --nb-transition-fast: all 0.1s ease;
-  --nb-transition: all 0.2s ease;
+  --nb-transition-fast: all 0.15s ease;
+  --nb-transition: all 0.25s ease;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nb-black: #f5f5f7;
+    --nb-white: #1c1c1e;
+    --nb-bg: #0b0b0d;
+    --nb-primary: #f5f5f7;
+    --nb-secondary: #a1a1a6;
+    --nb-accent: #1c1c1e;
+    --nb-gray-50: #111113;
+    --nb-gray-100: #1c1c1e;
+    --nb-gray-200: #2c2c2e;
+    --nb-gray-300: #3a3a3c;
+    --nb-gray-400: #636366;
+    --nb-gray-500: #8e8e93;
+    --nb-gray-600: #a1a1a6;
+    --nb-border: 1px solid rgba(255, 255, 255, 0.16);
+    --nb-border-thin: 1px solid rgba(255, 255, 255, 0.1);
+    --nb-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
+    --nb-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    --nb-shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.55);
+    --nb-focus-ring: 0 0 0 3px rgba(255, 255, 255, 0.25);
+  }
+
+  *:focus-visible {
+    outline-color: rgba(255, 255, 255, 0.5);
+  }
+
+  ::selection {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: var(--nb-black);
+  }
 }
 
 /* Reset & Base Styles */
@@ -71,18 +108,18 @@ body {
   color: var(--nb-black);
   font-family: var(--nb-font-sans);
   font-size: var(--nb-font-size-base);
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: -0.5px;
-  line-height: 1.2;
+  font-family: var(--nb-font-sans);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.2px;
+  line-height: 1.25;
 }
 
 h1 { font-size: var(--nb-font-size-3xl); }
@@ -91,40 +128,40 @@ h3 { font-size: var(--nb-font-size-xl); }
 h4 { font-size: var(--nb-font-size-lg); }
 
 a {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
+  color: var(--nb-black);
+  text-decoration: none;
   transition: var(--nb-transition-fast);
 }
 
 a:hover {
-  background-color: var(--nb-primary);
+  color: var(--nb-gray-600);
+  background-color: transparent;
 }
 
 /* Selection */
 ::selection {
-  background-color: var(--nb-primary);
+  background-color: rgba(0, 0, 0, 0.12);
   color: var(--nb-black);
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--nb-gray-200);
-  border: 2px solid var(--nb-black);
+  background: var(--nb-gray-100);
+  border: none;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--nb-black);
+  background: var(--nb-gray-300);
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--nb-gray-500);
+  background: var(--nb-gray-400);
 }
 
 /* Utility Classes */
@@ -161,7 +198,7 @@ a:hover {
 
 /* Focus States */
 *:focus-visible {
-  outline: 3px solid var(--nb-primary);
+  outline: 2px solid rgba(0, 0, 0, 0.25);
   outline-offset: 2px;
 }
 
