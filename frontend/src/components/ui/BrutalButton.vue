@@ -36,12 +36,14 @@ defineEmits(['click'])
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
+  font-family: var(--nb-font-sans);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.2px;
   border: var(--nb-border);
+  border-radius: var(--nb-radius);
   cursor: pointer;
-  transition: var(--nb-transition-fast);
+  transition: var(--nb-transition);
   position: relative;
 }
 
@@ -49,7 +51,7 @@ defineEmits(['click'])
 .size-small {
   padding: 6px 12px;
   font-size: 12px;
-  box-shadow: 2px 2px 0 var(--nb-black);
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .size-medium {
@@ -66,45 +68,50 @@ defineEmits(['click'])
 
 /* Types */
 .type-primary {
-  background-color: var(--nb-primary);
-  color: var(--nb-black);
+  background-color: var(--nb-black);
+  color: var(--nb-white);
+  border-color: var(--nb-black);
 }
 
 .type-secondary {
-  background-color: var(--nb-secondary);
+  background-color: var(--nb-gray-100);
   color: var(--nb-black);
+  border-color: var(--nb-gray-300);
 }
 
 .type-danger {
   background-color: var(--nb-danger);
   color: var(--nb-white);
+  border-color: var(--nb-danger);
 }
 
 .type-ghost {
   background-color: transparent;
   box-shadow: none;
   border-color: transparent;
+  color: var(--nb-black);
 }
 
 .type-ghost:hover {
-  border-color: var(--nb-black);
+  border-color: var(--nb-gray-300);
   background-color: var(--nb-gray-100);
 }
 
 .type-default {
   background-color: var(--nb-white);
   color: var(--nb-black);
+  border-color: var(--nb-gray-300);
 }
 
 /* States */
 .brutal-btn:not(.type-ghost):not(.disabled):hover {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--nb-black);
+  transform: translateY(-1px);
+  box-shadow: var(--nb-shadow);
 }
 
 .brutal-btn:not(.type-ghost):not(.disabled):active {
-  transform: translate(4px, 4px);
-  box-shadow: none;
+  transform: translateY(0);
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .block {
@@ -112,13 +119,11 @@ defineEmits(['click'])
   width: 100%;
 }
 
-.disabled {
+.disabled,
+.loading {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* Loading */
-.loading {
+  box-shadow: none;
   pointer-events: none;
 }
 
