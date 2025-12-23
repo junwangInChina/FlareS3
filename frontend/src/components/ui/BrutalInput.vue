@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   modelValue: [String, Number],
   label: String,
   type: { type: String, default: 'text' },
@@ -11,13 +13,16 @@ defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'keyup'])
+
+const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}`)
 </script>
 
 <template>
   <div class="brutal-input-wrapper" :class="[`size-${size}`]">
-    <label v-if="label" class="input-label">{{ label }}</label>
+    <label v-if="label" class="input-label" :for="inputId">{{ label }}</label>
     <textarea
       v-if="type === 'textarea'"
+      :id="inputId"
       class="brutal-input"
       :value="modelValue"
       :placeholder="placeholder"
@@ -29,6 +34,7 @@ const emit = defineEmits(['update:modelValue', 'keyup'])
     />
     <input
       v-else
+      :id="inputId"
       :type="type"
       class="brutal-input"
       :value="modelValue"
@@ -48,10 +54,11 @@ const emit = defineEmits(['update:modelValue', 'keyup'])
 
 .input-label {
   display: block;
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
-  font-size: 14px;
-  text-transform: uppercase;
+  font-family: var(--nb-font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: none;
+  color: var(--nb-gray-600);
   margin-bottom: var(--nb-space-xs);
 }
 
@@ -60,9 +67,11 @@ const emit = defineEmits(['update:modelValue', 'keyup'])
   font-family: var(--nb-font-sans);
   font-size: 16px;
   border: var(--nb-border);
+  border-radius: var(--nb-radius);
   background: var(--nb-white);
+  color: var(--nb-black);
   outline: none;
-  transition: var(--nb-transition-fast);
+  transition: var(--nb-transition);
 }
 
 .size-small .brutal-input {
@@ -81,12 +90,15 @@ const emit = defineEmits(['update:modelValue', 'keyup'])
 }
 
 .brutal-input:focus {
-  box-shadow: var(--nb-shadow);
-  background-color: #fffde7;
+  border-color: var(--nb-black);
+  box-shadow: var(--nb-focus-ring);
+  background-color: var(--nb-white);
 }
 
 .brutal-input:disabled {
-  background-color: var(--nb-gray-200);
+  background-color: var(--nb-gray-100);
+  color: var(--nb-gray-500);
+  border-color: var(--nb-gray-200);
   cursor: not-allowed;
 }
 
