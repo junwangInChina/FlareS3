@@ -86,7 +86,6 @@ const handleLogout = async () => {
           </svg>
         </span>
         <span v-show="!collapsed" class="nav-label">{{ item.label }}</span>
-        <span v-if="isActive(item.path)" class="active-indicator"></span>
       </button>
     </nav>
 
@@ -122,7 +121,7 @@ const handleLogout = async () => {
   border-right: var(--nb-border);
   display: flex;
   flex-direction: column;
-  transition: width 0.2s ease;
+  transition: width 0.25s ease;
   position: fixed;
   left: 0;
   top: 0;
@@ -136,7 +135,7 @@ const handleLogout = async () => {
 .sidebar-header {
   padding: var(--nb-space-md);
   border-bottom: var(--nb-border);
-  background: var(--nb-accent);
+  background: var(--nb-white);
 }
 
 .logo {
@@ -156,18 +155,19 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  font-size: 22px;
-  border: 2px solid var(--nb-black);
+  border-radius: var(--nb-radius);
+  font-family: var(--nb-font-sans);
+  font-weight: 600;
+  font-size: 20px;
+  border: 1px solid var(--nb-gray-300);
 }
 
 .logo-text {
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  font-size: 20px;
-  text-transform: uppercase;
-  letter-spacing: -1px;
+  font-family: var(--nb-font-sans);
+  font-weight: 600;
+  font-size: 18px;
+  text-transform: none;
+  letter-spacing: -0.3px;
   white-space: nowrap;
 }
 
@@ -186,13 +186,14 @@ const handleLogout = async () => {
   gap: var(--nb-space-sm);
   padding: 12px 14px;
   background: transparent;
-  border: 2px solid transparent;
-  font-family: var(--nb-font-mono);
-  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--nb-radius);
+  font-family: var(--nb-font-sans);
+  font-weight: 500;
   font-size: 14px;
-  text-transform: uppercase;
+  text-transform: none;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: var(--nb-transition);
   position: relative;
   text-align: left;
   width: 100%;
@@ -206,10 +207,11 @@ const handleLogout = async () => {
 }
 
 .nav-item.active {
-  background: var(--nb-primary);
-  border-color: var(--nb-black);
+  background: var(--nb-gray-100);
+  border-color: var(--nb-gray-300);
   color: var(--nb-black);
-  box-shadow: 3px 3px 0 var(--nb-black);
+  font-weight: 600;
+  box-shadow: none;
 }
 
 .nav-icon {
@@ -231,16 +233,6 @@ const handleLogout = async () => {
   overflow: hidden;
 }
 
-.active-indicator {
-  position: absolute;
-  right: -2px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 24px;
-  background: var(--nb-black);
-}
-
 .sidebar-footer {
   border-top: var(--nb-border);
   background: var(--nb-gray-100);
@@ -252,7 +244,7 @@ const handleLogout = async () => {
   flex-direction: column;
   align-items: center;
   gap: var(--nb-space-sm);
-  border-bottom: 2px dashed var(--nb-gray-300);
+  border-bottom: 1px solid var(--nb-gray-200);
 }
 
 .user-info {
@@ -260,12 +252,12 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--nb-gray-600);
+  color: var(--nb-gray-500);
 }
 
 .username {
-  font-family: var(--nb-font-mono);
-  font-weight: 600;
+  font-family: var(--nb-font-sans);
+  font-weight: 500;
   font-size: 13px;
   white-space: nowrap;
 }
@@ -277,19 +269,22 @@ const handleLogout = async () => {
   gap: 6px;
   width: 100%;
   padding: 8px;
-  background: var(--nb-danger);
-  color: var(--nb-white);
-  border: 2px solid var(--nb-black);
+  background: var(--nb-white);
+  color: var(--nb-black);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius);
   cursor: pointer;
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-sans);
+  font-weight: 600;
   font-size: 12px;
-  text-transform: uppercase;
-  transition: all 0.15s ease;
+  text-transform: none;
+  transition: var(--nb-transition);
 }
 
 .logout-btn:hover {
-  transform: translate(1px, 1px);
+  background: var(--nb-gray-100);
+  border-color: var(--nb-gray-300);
+  transform: translateY(-1px);
 }
 
 .collapse-btn {
@@ -297,16 +292,17 @@ const handleLogout = async () => {
   padding: 10px;
   background: transparent;
   border: none;
+  border-radius: var(--nb-radius);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: var(--nb-transition);
   color: var(--nb-gray-500);
 }
 
 .collapse-btn:hover {
-  background: var(--nb-gray-200);
+  background: var(--nb-gray-100);
   color: var(--nb-black);
 }
 
@@ -323,10 +319,6 @@ const handleLogout = async () => {
 .collapsed .nav-item {
   justify-content: center;
   padding: 12px;
-}
-
-.collapsed .active-indicator {
-  display: none;
 }
 
 .collapsed .user-section {
