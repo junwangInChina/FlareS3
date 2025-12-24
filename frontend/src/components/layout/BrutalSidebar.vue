@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
+import { useThemeStore } from "../../stores/theme";
 
 const props = defineProps({
   collapsed: { type: Boolean, default: false },
@@ -12,6 +13,7 @@ const emit = defineEmits(["update:collapsed"]);
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
 const menuItems = computed(() => {
   const items = [
@@ -44,6 +46,15 @@ const toggleCollapse = () => {
 const handleLogout = async () => {
   await authStore.logout();
   router.push("/login");
+};
+
+const themeLabel = computed(() => (themeStore.isDark ? "黑夜" : "白天"));
+const themeTitle = computed(() =>
+  themeStore.isDark ? "切换到白天模式" : "切换到黑夜模式"
+);
+
+const handleToggleTheme = () => {
+  themeStore.toggle();
 };
 </script>
 
@@ -145,6 +156,39 @@ const handleLogout = async () => {
             />
           </svg>
           <span v-show="!collapsed">退出</span>
+        </button>
+
+        <button
+          class="logout-btn theme-btn"
+          type="button"
+          :title="themeTitle"
+          :aria-label="themeTitle"
+          :aria-pressed="themeStore.isDark"
+          @click="handleToggleTheme"
+        >
+          <svg
+            v-if="themeStore.isDark"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="currentColor"
+          >
+            <path
+              d="M21.64 13.65A9 9 0 0 1 10.35 2.36a.75.75 0 0 0-.93-.93A10.5 10.5 0 1 0 22.57 14.58a.75.75 0 0 0-.93-.93z"
+            />
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="currentColor"
+          >
+            <path
+              d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm10.45 0l1.79-1.8-1.41-1.41-1.8 1.79 1.42 1.42zM12 4V1h-1.99v3H12zm0 19v-3h-1.99v3H12zM4 13H1v-2h3v2zm19 0h-3v-2h3v2zM6.76 19.16l-1.79 1.8 1.41 1.41 1.8-1.79-1.42-1.42zm10.45 0l1.42 1.42 1.8 1.79 1.41-1.41-1.79-1.8-1.42 1.42zM12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"
+            />
+          </svg>
+          <span v-show="!collapsed">{{ themeLabel }}</span>
         </button>
       </div>
       <button
@@ -336,6 +380,14 @@ const handleLogout = async () => {
   background: var(--nb-gray-100);
   border-color: var(--nb-gray-300);
   transform: translateY(-1px);
+}
+
+.theme-btn {
+  background: var(--nb-gray-100);
+}
+
+.theme-btn:hover {
+  background: var(--nb-white);
 }
 
 .collapse-btn {
