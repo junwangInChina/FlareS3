@@ -8,3 +8,4 @@ worker/.wrangler/
 scripts/
 
 .claude/
+.snow
