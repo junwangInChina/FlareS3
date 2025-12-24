@@ -1,126 +1,161 @@
-import axios from 'axios'
+import axios from "axios";
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: "/api",
   timeout: 30000,
-  withCredentials: true
-})
+  withCredentials: true,
+});
 
 api.interceptors.response.use(
-  response => response.data,
-  error => {
-    const isAuthApi = error.config?.url?.includes('/auth/')
+  (response) => response.data,
+  (error) => {
+    const isAuthApi = error.config?.url?.includes("/auth/");
     if (error.response?.status === 401 && !isAuthApi) {
-      window.location.href = '/login'
+      window.location.href = "/login";
     }
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
 export default {
   // 认证
   login(username, password) {
-    return api.post('/auth/login', { username, password })
+    return api.post("/auth/login", { username, password });
   },
 
   logout() {
-    return api.post('/auth/logout')
+    return api.post("/auth/logout");
   },
 
   getAuthStatus() {
-    return api.get('/auth/status')
+    return api.get("/auth/status");
   },
 
-  // R2 配置
+  // R2 配置（旧版）
   getSetupStatus() {
-    return api.get('/setup/status')
+    return api.get("/setup/status");
   },
 
   saveR2Config(config) {
-    return api.post('/setup/config', config)
+    return api.post("/setup/config", config);
   },
 
   testR2Connection(config) {
-    return api.post('/setup/test', config)
+    return api.post("/setup/test", config);
+  },
+
+  // R2 配置（多配置）
+  getR2Options() {
+    return api.get("/r2/options");
+  },
+
+  getR2Configs() {
+    return api.get("/r2/configs");
+  },
+
+  createR2Config(payload) {
+    return api.post("/r2/configs", payload);
+  },
+
+  updateR2Config(configId, payload) {
+    return api.patch(`/r2/configs/${configId}`, payload);
+  },
+
+  deleteR2Config(configId) {
+    return api.delete(`/r2/configs/${configId}`);
+  },
+
+  testR2Config(configId) {
+    return api.post(`/r2/configs/${configId}/test`);
+  },
+
+  setDefaultR2Config(configId) {
+    return api.post("/r2/default", { id: configId });
+  },
+
+  setLegacyFilesR2Config(configId) {
+    return api.post("/r2/legacy-files", { id: configId });
   },
 
   // 文件上传
   getUploadURL(data) {
-    return api.post('/upload/presign', data)
+    return api.post("/upload/presign", data);
   },
 
   initMultipartUpload(data) {
-    return api.post('/upload/multipart/init', data)
+    return api.post("/upload/multipart/init", data);
   },
 
   getMultipartUploadURL(data) {
-    return api.post('/upload/multipart/presign', data)
+    return api.post("/upload/multipart/presign", data);
   },
 
   completeMultipartUpload(data) {
-    return api.post('/upload/multipart/complete', data)
+    return api.post("/upload/multipart/complete", data);
   },
 
   confirmUpload(fileId) {
-    return api.post('/upload/confirm', { file_id: fileId })
+    return api.post("/upload/confirm", { file_id: fileId });
   },
 
   // 文件管理
-  getFiles(page = 1, limit = 20, scope = 'mine') {
-    return api.get('/files', { params: { page, limit, scope } })
+  getFiles(page = 1, limit = 20, scope = "mine") {
+    return api.get("/files", { params: { page, limit, scope } });
   },
 
   deleteFile(fileId) {
-    return api.delete(`/files/${fileId}`)
+    return api.delete(`/files/${fileId}`);
   },
 
   getDownloadURL(fileId) {
-    return `/api/files/${fileId}/download`
+    return `/api/files/${fileId}/download`;
   },
 
   // 存储统计
   getStats() {
-    return api.get('/stats')
+    return api.get("/stats");
   },
 
   // 用户管理
   getUsers(params = {}) {
-    return api.get('/users', { params })
+    return api.get("/users", { params });
   },
 
   createUser(payload) {
-    return api.post('/users', payload)
+    return api.post("/users", payload);
   },
 
   updateUser(userId, payload) {
-    return api.patch(`/users/${userId}`, payload)
+    return api.patch(`/users/${userId}`, payload);
   },
 
   resetUserPassword(userId, password) {
-    return api.post(`/users/${userId}/reset-password`, { password })
+    return api.post(`/users/${userId}/reset-password`, { password });
   },
 
   deleteUser(userId) {
-    return api.delete(`/users/${userId}`)
+    return api.delete(`/users/${userId}`);
   },
 
   // 审计
   getAudit(params = {}) {
-    return api.get('/audit', { params })
+    return api.get("/audit", { params });
   },
 
   // 直接上传到 R2
   uploadToR2(url, file, onProgress) {
     return axios.put(url, file, {
       headers: {
-        'Content-Type': file.type || 'application/octet-stream'
+        "Content-Type": file.type || "application/octet-stream",
       },
-      onUploadProgress: progressEvent => {
+      onUploadProgress: (progressEvent) => {
         if (onProgress) {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          onProgress(percent, progressEvent.loaded, progressEvent.total)
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          onProgress(percent, progressEvent.loaded, progressEvent.total);
         }
-      }
-    })
-  }
-}
+      },
+    });
+  },
+};
