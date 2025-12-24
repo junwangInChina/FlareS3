@@ -1,12 +1,34 @@
 <script setup>
-import { ref } from 'vue'
-import BrutalSidebar from './BrutalSidebar.vue'
+import { onMounted, ref, watch } from "vue";
+import BrutalSidebar from "./BrutalSidebar.vue";
 
 defineProps({
-  maxWidth: { type: String, default: '100%' }
-})
+  maxWidth: { type: String, default: "100%" },
+});
 
-const sidebarCollapsed = ref(false)
+const sidebarCollapsed = ref(false);
+const sidebarCollapsedKey = "flares3:sidebar-collapsed";
+
+onMounted(() => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const stored = window.localStorage.getItem(sidebarCollapsedKey);
+  if (stored === null) {
+    return;
+  }
+
+  sidebarCollapsed.value = stored === "true";
+});
+
+watch(sidebarCollapsed, (value) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(sidebarCollapsedKey, String(value));
+});
 </script>
 
 <template>
