@@ -50,9 +50,10 @@ const close = () => {
 }
 
 .modal-content {
-  background: var(--nb-white);
+  background: var(--nb-surface);
   border: var(--nb-border);
-  box-shadow: 8px 8px 0 var(--nb-black);
+  box-shadow: var(--nb-shadow-lg);
+  border-radius: var(--nb-radius);
   width: 100%;
   max-height: 90vh;
   overflow: auto;
@@ -65,11 +66,17 @@ const close = () => {
   padding: var(--nb-space-md);
   background: var(--nb-secondary);
   border-bottom: var(--nb-border);
+  color: var(--nb-ink);
+  border-bottom-color: var(--nb-ink);
 }
 
 .modal-title {
   margin: 0;
   font-size: var(--nb-font-size-lg);
+  font-family: var(--nb-font-mono);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .close-btn {
@@ -77,7 +84,7 @@ const close = () => {
   height: 32px;
   background: var(--nb-danger);
   color: var(--nb-white);
-  border: 2px solid var(--nb-black);
+  border: var(--nb-border);
   font-size: 20px;
   font-weight: 900;
   cursor: pointer;
@@ -85,10 +92,17 @@ const close = () => {
   align-items: center;
   justify-content: center;
   transition: var(--nb-transition-fast);
+  box-shadow: none;
 }
 
 .close-btn:hover {
-  transform: scale(1.1);
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
+}
+
+.close-btn:active {
+  transform: translate(0, 0);
+  box-shadow: none;
 }
 
 .modal-body {
