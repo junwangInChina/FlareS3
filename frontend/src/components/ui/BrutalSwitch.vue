@@ -50,7 +50,8 @@ const toggle = () => {
   border: var(--nb-border);
   position: relative;
   transition: var(--nb-transition-fast);
-  box-shadow: 2px 2px 0 var(--nb-black);
+  box-shadow: var(--nb-shadow-sm);
+  border-radius: var(--nb-radius);
 }
 
 .switch-track.checked {
@@ -64,18 +65,21 @@ const toggle = () => {
   width: 20px;
   height: 20px;
   background: var(--nb-white);
-  border: 2px solid var(--nb-black);
+  border: var(--nb-border);
   transition: var(--nb-transition-fast);
+  border-radius: var(--nb-radius);
 }
 
 .switch-track.checked .switch-thumb {
   left: 26px;
-  background: var(--nb-black);
+  background: var(--nb-ink);
 }
 
 .switch-label {
-  font-weight: 600;
+  font-family: var(--nb-font-mono);
+  font-weight: 700;
   font-size: 14px;
+  text-transform: uppercase;
 }
 
 .disabled {
