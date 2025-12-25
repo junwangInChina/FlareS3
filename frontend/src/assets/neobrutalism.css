@@ -1,97 +1,115 @@
-/* Apple-Style Design System for FlareS3 */
-/* Minimalist, Premium, Monochrome */
+/* MotherDuck Neo-Brutalist Design System for FlareS3 */
+/* High-contrast, hard shadows, sharp edges */
+
+/* Import local fonts */
+@import './fonts.css';
 
 :root {
-  /* Color Palette - Minimal Monochrome */
-  --nb-black: #1d1d1f;
-  --nb-white: #ffffff;
-  --nb-bg: #f5f5f7;
+  /* Base */
+  --nb-ink: #383838; /* Charcoal (constant) */
+  --nb-black: #383838; /* Text / Border / Shadow (theme) */
+  --nb-white: #ffffff; /* Pure white */
+  --nb-surface: #ffffff; /* Card/Panel background */
+  --nb-bg: #f4efea; /* Off-White / Page background */
 
-  /* Primary Colors */
-  --nb-primary: #1d1d1f;
-  --nb-secondary: #6e6e73;
-  --nb-accent: #f5f5f7;
+  /* Brand */
+  --nb-brand-yellow: #ffde00;
+  --nb-duck-blue: #6fc2ff;
+  --nb-deep-blue: #2ba5ff;
+  --nb-teal: #53dbc9;
+  --nb-purple: #b291de;
+  --nb-lime: #b3c419;
+  --nb-orange: #ff9538;
+  --nb-salmon: #ff7169;
 
-  /* Semantic Colors */
-  --nb-success: #32d74b;
-  --nb-warning: #ff9f0a;
-  --nb-danger: #ff3b30;
-  --nb-info: #0a84ff;
+  /* Semantic */
+  --nb-primary: var(--nb-brand-yellow);
+  --nb-secondary: var(--nb-duck-blue);
+  --nb-accent: var(--nb-bg);
+  --nb-success: var(--nb-teal);
+  --nb-warning: var(--nb-orange);
+  --nb-danger: var(--nb-salmon);
+  --nb-info: var(--nb-duck-blue);
 
-  /* Neutral Colors */
-  --nb-gray-50: #fafafa;
-  --nb-gray-100: #f5f5f7;
-  --nb-gray-200: #e5e5ea;
-  --nb-gray-300: #d2d2d7;
-  --nb-gray-400: #a1a1a6;
-  --nb-gray-500: #86868b;
-  --nb-gray-600: #6e6e73;
+  /* Neutral */
+  --nb-gray-50: #fffefc;
+  --nb-gray-100: #f8f8f7;
+  --nb-gray-200: #e9e3dd;
+  --nb-gray-300: #d8d2cc;
+  --nb-gray-400: #a1a1a1; /* Disabled/Placeholder */
+  --nb-gray-500: #6b6b6b;
+  --nb-gray-600: #383838;
+  --nb-input-bg: rgba(248, 248, 247, 0.7);
 
   /* Typography */
-  --nb-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-  --nb-font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --nb-font-size-xs: 0.75rem;
-  --nb-font-size-sm: 0.875rem;
-  --nb-font-size-base: 1rem;
-  --nb-font-size-lg: 1.25rem;
-  --nb-font-size-xl: 1.5rem;
-  --nb-font-size-2xl: 2rem;
-  --nb-font-size-3xl: 2.5rem;
+  --nb-font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  --nb-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --nb-font-size-xs: 12px;
+  --nb-font-size-sm: 14px;
+  --nb-font-size-base: 16px;
+  --nb-font-size-lg: 18px;
+  --nb-font-size-xl: 24px;
+  --nb-font-size-2xl: 32px;
+  --nb-font-size-3xl: 40px;
+
+  /* Layout */
+  --nb-header-height-mobile: 70px;
+  --nb-header-height-desktop: 90px;
+  --nb-container-padding: 24px;
 
   /* Borders & Shadows */
-  --nb-border-width: 1px;
-  --nb-border: var(--nb-border-width) solid var(--nb-gray-300);
-  --nb-border-thin: 1px solid var(--nb-gray-200);
-  --nb-shadow-offset: 0px;
-  --nb-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  --nb-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.08);
-  --nb-shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.12);
-  --nb-radius: 8px;
-  --nb-focus-ring: 0 0 0 3px rgba(0, 0, 0, 0.12);
+  --nb-border-width: 2px;
+  --nb-border-color: var(--nb-black);
+  --nb-border: var(--nb-border-width) solid var(--nb-border-color);
+  --nb-border-thin: var(--nb-border);
+  --nb-shadow-color: var(--nb-black);
+  --nb-shadow-sm: -4px 4px 0px 0px var(--nb-shadow-color);
+  --nb-shadow: -5px 5px 0px 0px var(--nb-shadow-color);
+  --nb-shadow-lg: -8px 8px 0px 0px var(--nb-shadow-color);
+  --nb-radius: 2px;
+  --nb-focus-ring: 0 0 0 2px var(--nb-deep-blue);
+
+  /* Interaction */
+  --nb-lift-x: 4px;
+  --nb-lift-y: -4px;
 
   /* Spacing Scale */
-  --nb-space-xs: 0.25rem;
-  --nb-space-sm: 0.5rem;
-  --nb-space-md: 1rem;
-  --nb-space-lg: 1.5rem;
-  --nb-space-xl: 2rem;
-  --nb-space-2xl: 3rem;
+  --nb-space-xs: 8px;
+  --nb-space-sm: 12px;
+  --nb-space-md: 16px;
+  --nb-space-lg: 24px;
+  --nb-space-xl: 32px;
+  --nb-space-2xl: 64px;
 
   /* Transitions */
-  --nb-transition-fast: all 0.15s ease;
-  --nb-transition: all 0.25s ease;
+  --nb-transition-fast: all 120ms ease-in-out;
+  --nb-transition: all 200ms ease-in-out;
 }
 
 /* Dark Mode Support */
 :root[data-theme="dark"] {
-  --nb-black: #f5f5f7;
-  --nb-white: #1c1c1e;
-  --nb-bg: #0b0b0d;
-  --nb-primary: #f5f5f7;
-  --nb-secondary: #a1a1a6;
-  --nb-accent: #1c1c1e;
-  --nb-gray-50: #111113;
-  --nb-gray-100: #1c1c1e;
-  --nb-gray-200: #2c2c2e;
-  --nb-gray-300: #3a3a3c;
-  --nb-gray-400: #636366;
-  --nb-gray-500: #8e8e93;
-  --nb-gray-600: #a1a1a6;
-  --nb-border: 1px solid rgba(255, 255, 255, 0.16);
-  --nb-border-thin: 1px solid rgba(255, 255, 255, 0.1);
-  --nb-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
-  --nb-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-  --nb-shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.55);
-  --nb-focus-ring: 0 0 0 3px rgba(255, 255, 255, 0.25);
+  --nb-black: #f4efea;
+  --nb-surface: #171717;
+  --nb-bg: #0f0f10;
+  --nb-accent: var(--nb-surface);
+  --nb-gray-50: #111112;
+  --nb-gray-100: #171717;
+  --nb-gray-200: #1f1f20;
+  --nb-gray-300: #2a2a2b;
+  --nb-gray-500: #c7c1bc;
+  --nb-gray-600: #f4efea;
+  --nb-input-bg: rgba(23, 23, 23, 0.75);
+  --nb-border-color: var(--nb-black);
+  --nb-shadow-color: var(--nb-black);
 }
 
 :root[data-theme="dark"] *:focus-visible {
-  outline-color: rgba(255, 255, 255, 0.5);
+  outline-color: var(--nb-deep-blue);
 }
 
 :root[data-theme="dark"] ::selection {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: var(--nb-black);
+  background-color: rgba(255, 222, 0, 0.45);
+  color: var(--nb-ink);
 }
 
 /* Reset & Base Styles */
@@ -113,33 +131,32 @@ body {
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--nb-font-sans);
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: -0.2px;
-  line-height: 1.25;
+  font-family: var(--nb-font-mono);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
 }
 
-h1 { font-size: var(--nb-font-size-3xl); }
-h2 { font-size: var(--nb-font-size-2xl); }
-h3 { font-size: var(--nb-font-size-xl); }
-h4 { font-size: var(--nb-font-size-lg); }
+h1 { font-size: clamp(30px, 5vw, 80px); }
+h2 { font-size: clamp(24px, 3.2vw, 40px); }
+h3 { font-size: clamp(24px, 2.6vw, 32px); }
+h4 { font-size: 18px; }
 
 a {
-  color: var(--nb-black);
+  color: var(--nb-duck-blue);
   text-decoration: none;
   transition: var(--nb-transition-fast);
 }
 
 a:hover {
-  color: var(--nb-gray-600);
-  background-color: transparent;
+  color: var(--nb-deep-blue);
 }
 
 /* Selection */
 ::selection {
-  background-color: rgba(0, 0, 0, 0.12);
-  color: var(--nb-black);
+  background-color: rgba(255, 222, 0, 0.45);
+  color: var(--nb-ink);
 }
 
 /* Scrollbar */
@@ -149,24 +166,41 @@ a:hover {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--nb-gray-100);
-  border: none;
+  background: var(--nb-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--nb-gray-300);
-  border-radius: 999px;
+  background: var(--nb-black);
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--nb-gray-400);
+  background: var(--nb-deep-blue);
 }
 
 /* Utility Classes */
 .nb-container {
-  max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 var(--nb-space-md);
+  padding: 0 var(--nb-container-padding);
+}
+
+@media (min-width: 728px) {
+  .nb-container {
+    max-width: 728px;
+  }
+}
+
+@media (min-width: 960px) {
+  .nb-container {
+    max-width: 960px;
+  }
+}
+
+@media (min-width: 1302px) {
+  .nb-container {
+    max-width: 1302px;
+  }
 }
 
 .nb-flex { display: flex; }
@@ -196,7 +230,7 @@ a:hover {
 
 /* Focus States */
 *:focus-visible {
-  outline: 2px solid rgba(0, 0, 0, 0.25);
+  outline: 2px solid var(--nb-deep-blue);
   outline-offset: 2px;
 }
 
