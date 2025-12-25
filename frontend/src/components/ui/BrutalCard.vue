@@ -1,13 +1,18 @@
 <script setup>
 defineProps({
   title: String,
-  headerBg: { type: String, default: 'var(--nb-accent)' }
+  headerBg: { type: String, default: 'var(--nb-accent)' },
+  headerColor: String
 })
 </script>
 
 <template>
   <div class="brutal-card">
-    <div v-if="title || $slots.header" class="card-header" :style="{ backgroundColor: headerBg }">
+    <div
+      v-if="title || $slots.header"
+      class="card-header"
+      :style="{ backgroundColor: headerBg, color: headerColor }"
+    >
       <slot name="header">
         <h3 class="card-title">{{ title }}</h3>
       </slot>
@@ -26,9 +31,11 @@ defineProps({
 
 <style scoped>
 .brutal-card {
-  background-color: var(--nb-white);
+  background-color: var(--nb-surface);
   border: var(--nb-border);
   box-shadow: var(--nb-shadow);
+  border-radius: var(--nb-radius);
+  overflow: hidden;
 }
 
 .card-header {
@@ -37,11 +44,16 @@ defineProps({
   justify-content: space-between;
   padding: var(--nb-space-md);
   border-bottom: var(--nb-border);
+  border-bottom-color: currentColor;
 }
 
 .card-title {
   margin: 0;
   font-size: var(--nb-font-size-lg);
+  font-family: var(--nb-font-mono);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .header-extra {
