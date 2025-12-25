@@ -212,7 +212,7 @@ const handleToggleTheme = () => {
 .brutal-sidebar {
   width: 240px;
   height: 100vh;
-  background: var(--nb-white);
+  background: var(--nb-surface);
   border-right: var(--nb-border);
   display: flex;
   flex-direction: column;
@@ -230,7 +230,7 @@ const handleToggleTheme = () => {
 .sidebar-header {
   padding: var(--nb-space-md);
   border-bottom: var(--nb-border);
-  background: var(--nb-white);
+  background: var(--nb-surface);
 }
 
 .logo {
@@ -245,24 +245,25 @@ const handleToggleTheme = () => {
   width: 40px;
   height: 40px;
   min-width: 40px;
-  background: var(--nb-black);
-  color: var(--nb-white);
+  background: var(--nb-brand-yellow);
+  color: var(--nb-ink);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--nb-radius);
-  font-family: var(--nb-font-sans);
-  font-weight: 600;
+  font-family: var(--nb-font-mono);
+  font-weight: 900;
   font-size: 20px;
-  border: 1px solid var(--nb-gray-300);
+  border: var(--nb-border);
+  border-color: var(--nb-ink);
 }
 
 .logo-text {
-  font-family: var(--nb-font-sans);
-  font-weight: 600;
+  font-family: var(--nb-font-mono);
+  font-weight: 900;
   font-size: 18px;
-  text-transform: none;
-  letter-spacing: -0.3px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
@@ -281,31 +282,35 @@ const handleToggleTheme = () => {
   gap: var(--nb-space-sm);
   padding: 12px 14px;
   background: transparent;
-  border: 1px solid transparent;
+  border: var(--nb-border-width) solid transparent;
   border-radius: var(--nb-radius);
-  font-family: var(--nb-font-sans);
-  font-weight: 500;
+  font-family: var(--nb-font-mono);
+  font-weight: 700;
   font-size: 14px;
-  text-transform: none;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   cursor: pointer;
   transition: var(--nb-transition);
   position: relative;
   text-align: left;
   width: 100%;
-  color: var(--nb-gray-600);
+  color: var(--nb-gray-500);
+  box-shadow: none;
 }
 
 .nav-item:hover {
   background: var(--nb-gray-100);
-  border-color: var(--nb-gray-300);
+  border-color: var(--nb-black);
   color: var(--nb-black);
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .nav-item.active {
-  background: var(--nb-gray-100);
-  border-color: var(--nb-gray-300);
-  color: var(--nb-black);
-  font-weight: 600;
+  background: var(--nb-primary);
+  border-color: var(--nb-ink);
+  color: var(--nb-ink);
+  font-weight: 900;
   box-shadow: none;
 }
 
@@ -339,7 +344,7 @@ const handleToggleTheme = () => {
   flex-direction: column;
   align-items: center;
   gap: var(--nb-space-sm);
-  border-bottom: 1px solid var(--nb-gray-200);
+  border-bottom: var(--nb-border);
 }
 
 .user-info {
@@ -351,8 +356,8 @@ const handleToggleTheme = () => {
 }
 
 .username {
-  font-family: var(--nb-font-sans);
-  font-weight: 500;
+  font-family: var(--nb-font-mono);
+  font-weight: 700;
   font-size: 13px;
   white-space: nowrap;
 }
@@ -364,22 +369,30 @@ const handleToggleTheme = () => {
   gap: 6px;
   width: 100%;
   padding: 8px;
-  background: var(--nb-white);
+  background: var(--nb-surface);
   color: var(--nb-black);
   border: var(--nb-border);
   border-radius: var(--nb-radius);
   cursor: pointer;
-  font-family: var(--nb-font-sans);
-  font-weight: 600;
+  font-family: var(--nb-font-mono);
+  font-weight: 700;
   font-size: 12px;
-  text-transform: none;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   transition: var(--nb-transition);
+  box-shadow: none;
 }
 
 .logout-btn:hover {
   background: var(--nb-gray-100);
-  border-color: var(--nb-gray-300);
-  transform: translateY(-1px);
+  border-color: var(--nb-black);
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
+}
+
+.logout-btn:active {
+  transform: translate(0, 0);
+  box-shadow: none;
 }
 
 .theme-btn {
@@ -387,7 +400,7 @@ const handleToggleTheme = () => {
 }
 
 .theme-btn:hover {
-  background: var(--nb-white);
+  background: var(--nb-surface);
 }
 
 .collapse-btn {
