@@ -519,7 +519,7 @@ onMounted(() => refresh());
 .control-item {
   border: 2px dashed var(--nb-black);
   padding: var(--nb-space-md);
-  background: var(--nb-white);
+  background: var(--nb-surface);
 }
 
 .control-actions {
