@@ -53,13 +53,14 @@ defineProps({
   width: 40px;
   height: 40px;
   border: var(--nb-border);
-  background: var(--nb-white);
+  background: var(--nb-surface);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: var(--nb-space-sm);
   position: relative;
   z-index: 1;
+  border-radius: var(--nb-radius);
 }
 
 .step-number {
@@ -97,6 +98,8 @@ defineProps({
 /* States */
 .completed .step-indicator {
   background: var(--nb-success);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .completed .step-connector {
@@ -105,7 +108,9 @@ defineProps({
 
 .active .step-indicator {
   background: var(--nb-primary);
-  box-shadow: var(--nb-shadow-sm);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
+  box-shadow: -4px 4px 0px 0px var(--nb-ink);
 }
 
 .pending .step-indicator {
