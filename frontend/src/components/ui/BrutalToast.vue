@@ -77,8 +77,8 @@ defineExpose({ add, remove, success, error, warning, info })
 }
 
 .brutal-toast:hover {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--nb-black);
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .toast-icon {
@@ -88,19 +88,26 @@ defineExpose({ add, remove, success, error, warning, info })
 
 .type-success {
   background: var(--nb-success);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .type-error {
   background: var(--nb-danger);
   color: var(--nb-white);
+  border-color: var(--nb-ink);
 }
 
 .type-warning {
   background: var(--nb-warning);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .type-info {
   background: var(--nb-info);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 /* Transitions */
