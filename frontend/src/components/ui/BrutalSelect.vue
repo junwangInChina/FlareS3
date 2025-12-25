@@ -54,21 +54,26 @@ const emit = defineEmits(['update:modelValue'])
   padding: 12px 40px 12px 16px;
   font-family: var(--nb-font-sans);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 300;
   border: var(--nb-border);
-  background: var(--nb-white);
+  border-radius: var(--nb-radius);
+  background: var(--nb-input-bg);
+  color: var(--nb-black);
   cursor: pointer;
-  box-shadow: var(--nb-shadow-sm);
+  box-shadow: none;
   transition: var(--nb-transition-fast);
 }
 
 .brutal-select:focus {
   outline: none;
-  box-shadow: var(--nb-shadow);
+  border-color: var(--nb-deep-blue);
+  box-shadow: var(--nb-focus-ring);
 }
 
 .brutal-select:disabled {
   background-color: var(--nb-gray-200);
+  color: var(--nb-gray-400);
+  border-color: var(--nb-gray-400);
   cursor: not-allowed;
 }
 
