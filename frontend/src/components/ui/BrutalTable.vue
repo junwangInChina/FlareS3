@@ -50,6 +50,8 @@ defineProps({
   overflow-x: auto;
   border: var(--nb-border);
   box-shadow: var(--nb-shadow);
+  border-radius: var(--nb-radius);
+  background: var(--nb-surface);
 }
 
 .loading-overlay {
@@ -58,7 +60,7 @@ defineProps({
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(244, 239, 234, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -81,7 +83,7 @@ defineProps({
 .brutal-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--nb-white);
+  background: transparent;
 }
 
 .brutal-table th,
@@ -92,11 +94,13 @@ defineProps({
 }
 
 .brutal-table th {
-  background-color: var(--nb-secondary);
+  background-color: var(--nb-primary);
   font-family: var(--nb-font-mono);
   font-weight: 900;
   text-transform: uppercase;
   font-size: 13px;
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .brutal-table tr:hover td {
