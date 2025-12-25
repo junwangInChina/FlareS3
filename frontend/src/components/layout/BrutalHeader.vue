@@ -19,7 +19,6 @@ const handleLogout = async () => {
 <template>
   <header class="brutal-header">
     <div class="brand" @click="router.push('/')">
-      <div class="logo-box">F</div>
       <span class="brand-name">{{ title }}</span>
     </div>
 
@@ -86,21 +85,6 @@ const handleLogout = async () => {
   align-items: center;
   gap: var(--nb-space-sm);
   cursor: pointer;
-}
-
-.logo-box {
-  width: 40px;
-  height: 40px;
-  background-color: var(--nb-brand-yellow);
-  color: var(--nb-ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  font-size: 24px;
-  border: var(--nb-border);
-  border-color: var(--nb-ink);
 }
 
 .brand-name {
