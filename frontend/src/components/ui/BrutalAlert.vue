@@ -38,6 +38,7 @@ const emit = defineEmits(['close'])
   padding: var(--nb-space-md);
   border: var(--nb-border);
   box-shadow: var(--nb-shadow-sm);
+  border-radius: var(--nb-radius);
   position: relative;
 }
 
@@ -50,7 +51,7 @@ const emit = defineEmits(['close'])
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--nb-black);
+  border: 2px solid currentColor;
 }
 
 .alert-content {
@@ -83,22 +84,25 @@ const emit = defineEmits(['close'])
 /* Types */
 .type-info {
   background-color: var(--nb-info);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .type-success {
   background-color: var(--nb-success);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .type-warning {
   background-color: var(--nb-warning);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .type-error {
   background-color: var(--nb-danger);
   color: var(--nb-white);
-}
-
-.type-error .alert-icon {
-  border-color: var(--nb-white);
+  border-color: var(--nb-ink);
 }
 </style>
