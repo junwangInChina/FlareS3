@@ -523,7 +523,10 @@ const copyDownloadUrl = () => {
 
 .link-label {
   display: block;
+  font-family: var(--nb-font-mono);
   font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--nb-gray-500);
   margin-bottom: 4px;
 }
