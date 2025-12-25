@@ -26,7 +26,8 @@ defineProps({
   font-weight: 700;
   text-transform: uppercase;
   border: 2px solid var(--nb-black);
-  background-color: var(--nb-white);
+  background-color: var(--nb-surface);
+  border-radius: var(--nb-radius);
 }
 
 .size-small {
@@ -39,9 +40,9 @@ defineProps({
   font-size: 12px;
 }
 
-.type-primary { background-color: var(--nb-primary); }
-.type-success { background-color: var(--nb-success); }
-.type-warning { background-color: var(--nb-warning); }
-.type-danger { background-color: var(--nb-danger); color: var(--nb-white); }
-.type-info { background-color: var(--nb-info); }
+.type-primary { background-color: var(--nb-primary); color: var(--nb-ink); border-color: var(--nb-ink); }
+.type-success { background-color: var(--nb-success); color: var(--nb-ink); border-color: var(--nb-ink); }
+.type-warning { background-color: var(--nb-warning); color: var(--nb-ink); border-color: var(--nb-ink); }
+.type-danger { background-color: var(--nb-danger); color: var(--nb-white); border-color: var(--nb-ink); }
+.type-info { background-color: var(--nb-info); color: var(--nb-ink); border-color: var(--nb-ink); }
 </style>
