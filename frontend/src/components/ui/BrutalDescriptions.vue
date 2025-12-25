@@ -26,8 +26,10 @@ defineProps({
 <style scoped>
 .brutal-descriptions {
   border: var(--nb-border);
-  background: var(--nb-white);
+  background: var(--nb-surface);
   box-shadow: var(--nb-shadow-sm);
+  border-radius: var(--nb-radius);
+  overflow: hidden;
 }
 
 .desc-header {
@@ -37,6 +39,8 @@ defineProps({
   font-weight: 900;
   text-transform: uppercase;
   border-bottom: var(--nb-border);
+  color: var(--nb-ink);
+  border-bottom-color: var(--nb-ink);
 }
 
 .desc-grid {
@@ -56,7 +60,9 @@ defineProps({
 .desc-label {
   background: var(--nb-gray-100);
   padding: var(--nb-space-sm) var(--nb-space-md);
+  font-family: var(--nb-font-mono);
   font-weight: 700;
+  text-transform: uppercase;
   font-size: 14px;
   width: 40%;
   border-right: 2px solid var(--nb-black);
