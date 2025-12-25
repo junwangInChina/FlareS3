@@ -1,8 +1,12 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { useThemeStore } from "../../stores/theme";
+import BrutalModal from "../ui/BrutalModal.vue";
+import BrutalFormItem from "../ui/BrutalFormItem.vue";
+import BrutalRadio from "../ui/BrutalRadio.vue";
+import BrutalButton from "../ui/BrutalButton.vue";
 
 const props = defineProps({
   collapsed: { type: Boolean, default: false },
@@ -55,6 +59,44 @@ const themeTitle = computed(() =>
 
 const handleToggleTheme = () => {
   themeStore.toggle();
+};
+
+const uiThemeOptions = computed(() =>
+  themeStore.availableUiThemes.map((theme) => ({
+    label: theme.label,
+    value: theme.id,
+  }))
+);
+
+const uiThemeDisabled = computed(() => uiThemeOptions.value.length <= 1);
+
+const uiThemeTitle = computed(() => {
+  const current = themeStore.currentUiTheme;
+  if (!current) {
+    return "主题";
+  }
+
+  return `主题：${current.label}`;
+});
+
+const uiThemeModalVisible = ref(false);
+const uiThemeDraft = ref(themeStore.uiTheme);
+
+watch(uiThemeModalVisible, (visible) => {
+  if (!visible) {
+    return;
+  }
+
+  uiThemeDraft.value = themeStore.uiTheme;
+});
+
+const openUiThemeModal = () => {
+  uiThemeModalVisible.value = true;
+};
+
+const applyUiTheme = () => {
+  themeStore.setUiTheme(uiThemeDraft.value);
+  uiThemeModalVisible.value = false;
 };
 
 const logoText = "FlareS3";
@@ -198,6 +240,21 @@ const logoLetters = computed(() => logoText.split(""));
           </svg>
           <span v-show="!collapsed">{{ themeLabel }}</span>
         </button>
+
+        <button
+          class="logout-btn theme-type-btn"
+          type="button"
+          :title="uiThemeTitle"
+          :aria-label="uiThemeTitle"
+          @click="openUiThemeModal"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path
+              d="M12 22c-5.52 0-10-4.48-10-10S6.48 2 12 2c5.52 0 10 4.48 10 10 0 1.1-.9 2-2 2h-1.5c-.83 0-1.5.67-1.5 1.5 0 .41.17.79.44 1.06.27.27.44.65.44 1.06 0 .83-.67 1.5-1.5 1.5H12zm0-18c-4.41 0-8 3.59-8 8s3.59 8 8 8h4c.28 0 .5-.22.5-.5 0-.13-.05-.26-.15-.35-.64-.64-1-1.51-1-2.41 0-1.93 1.57-3.5 3.5-3.5H20c.55 0 1-.45 1-1 0-4.41-3.59-8-9-8zM6.5 11.5c.83 0 1.5-.67 1.5-1.5S7.33 8.5 6.5 8.5 5 9.17 5 10s.67 1.5 1.5 1.5zm3-4c.83 0 1.5-.67 1.5-1.5S10.33 4.5 9.5 4.5 8 5.17 8 6s.67 1.5 1.5 1.5zm5 0c.83 0 1.5-.67 1.5-1.5S15.33 4.5 14.5 4.5 13 5.17 13 6s.67 1.5 1.5 1.5zm3 4c.83 0 1.5-.67 1.5-1.5S18.33 8.5 17.5 8.5 16 9.17 16 10s.67 1.5 1.5 1.5z"
+            />
+          </svg>
+          <span v-show="!collapsed">主题</span>
+        </button>
       </div>
       <button
         class="collapse-btn"
@@ -212,6 +269,24 @@ const logoLetters = computed(() => logoText.split(""));
           <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
         </svg>
       </button>
+
+      <BrutalModal v-model:show="uiThemeModalVisible" title="主题" width="520px">
+        <BrutalFormItem label="选择主题">
+          <BrutalRadio
+            v-model="uiThemeDraft"
+            name="ui-theme"
+            :options="uiThemeOptions"
+            :disabled="uiThemeDisabled"
+          />
+        </BrutalFormItem>
+
+        <template #footer>
+          <BrutalButton type="default" @click="uiThemeModalVisible = false"
+            >取消</BrutalButton
+          >
+          <BrutalButton type="primary" @click="applyUiTheme">应用</BrutalButton>
+        </template>
+      </BrutalModal>
     </div>
   </aside>
 </template>
@@ -395,6 +470,15 @@ const logoLetters = computed(() => logoText.split(""));
 .sidebar-footer {
   border-top: var(--nb-border);
   background: var(--nb-gray-100);
+}
+
+.theme-type-btn {
+  width: 100%;
+  background: var(--nb-gray-100);
+}
+
+.theme-type-btn:hover {
+  background: var(--nb-surface);
 }
 
 .user-section {
