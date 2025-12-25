@@ -76,9 +76,9 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: space-between;
   padding: var(--nb-space-md) var(--nb-space-lg);
-  background-color: var(--nb-white);
+  background-color: var(--nb-surface);
   border-bottom: var(--nb-border);
-  height: 72px;
+  height: var(--nb-header-height-mobile);
 }
 
 .brand {
@@ -91,14 +91,16 @@ const handleLogout = async () => {
 .logo-box {
   width: 40px;
   height: 40px;
-  background-color: var(--nb-black);
-  color: var(--nb-white);
+  background-color: var(--nb-brand-yellow);
+  color: var(--nb-ink);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--nb-font-mono);
   font-weight: 900;
   font-size: 24px;
+  border: var(--nb-border);
+  border-color: var(--nb-ink);
 }
 
 .brand-name {
@@ -162,18 +164,29 @@ const handleLogout = async () => {
   font-size: 14px;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: var(--nb-shadow-sm);
+  box-shadow: none;
   transition: var(--nb-transition-fast);
 }
 
 .logout-btn:hover {
-  transform: translate(2px, 2px);
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
+}
+
+.logout-btn:active {
+  transform: translate(0, 0);
   box-shadow: none;
 }
 
 @media (max-width: 768px) {
   .nav-links {
     display: none;
+  }
+}
+
+@media (min-width: 960px) {
+  .brutal-header {
+    height: var(--nb-header-height-desktop);
   }
 }
 </style>
