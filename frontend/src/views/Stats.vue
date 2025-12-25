@@ -34,7 +34,11 @@
       </div>
     </BrutalCard>
 
-    <BrutalCard title="使用提示" header-bg="var(--nb-secondary)">
+    <BrutalCard
+      title="使用提示"
+      header-bg="var(--nb-secondary)"
+      header-color="var(--nb-ink)"
+    >
       <div class="tips-grid">
         <BrutalAlert type="warning" title="用量说明">
           显示的存储用量基于本地数据库统计，可能与 R2 实际用量存在差异。
