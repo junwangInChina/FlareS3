@@ -56,14 +56,22 @@ const themeTitle = computed(() =>
 const handleToggleTheme = () => {
   themeStore.toggle();
 };
+
+const logoText = "FlareS3";
+const logoLetters = computed(() => logoText.split(""));
 </script>
 
 <template>
   <aside class="brutal-sidebar" :class="{ collapsed }">
     <div class="sidebar-header">
       <div class="logo" @click="navigate('/')">
-        <div class="logo-icon">F</div>
-        <span v-show="!collapsed" class="logo-text">FlareS3</span>
+        <span class="logo-text" aria-label="FLARES3">
+          <span
+            v-for="(letter, index) in logoLetters"
+            :key="`${letter}-${index}`"
+            class="logo-letter"
+            >{{ letter }}</span>
+        </span>
       </div>
     </div>
 
@@ -227,10 +235,23 @@ const handleToggleTheme = () => {
   width: 72px;
 }
 
+.brutal-sidebar.collapsed .sidebar-header {
+  padding: var(--nb-space-sm) var(--nb-space-xs);
+}
+
+.brutal-sidebar.collapsed .logo-text {
+  font-size: 11px;
+  gap: 1px;
+  align-items: baseline;
+}
+
 .sidebar-header {
   padding: var(--nb-space-md);
   border-bottom: var(--nb-border);
   background: var(--nb-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logo {
@@ -239,32 +260,70 @@ const handleToggleTheme = () => {
   gap: var(--nb-space-sm);
   cursor: pointer;
   overflow: hidden;
-}
-
-.logo-icon {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  background: var(--nb-brand-yellow);
-  color: var(--nb-ink);
-  display: flex;
-  align-items: center;
+  width: 100%;
   justify-content: center;
-  border-radius: var(--nb-radius);
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  font-size: 20px;
-  border: var(--nb-border);
-  border-color: var(--nb-ink);
 }
 
 .logo-text {
   font-family: var(--nb-font-mono);
   font-weight: 900;
-  font-size: 18px;
+  font-size: 22px;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
   white-space: nowrap;
+}
+
+.logo-letter {
+  --logo-color: var(--nb-black);
+  color: var(--logo-color);
+}
+
+@supports (-webkit-background-clip: text) {
+  .logo-letter {
+    background-image:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.55),
+        rgba(255, 255, 255, 0)
+      ),
+      linear-gradient(0deg, var(--logo-color), var(--logo-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.logo-letter:nth-child(7n + 1) {
+  --logo-color: var(--nb-salmon);
+}
+
+.logo-letter:nth-child(7n + 2) {
+  --logo-color: var(--nb-orange);
+}
+
+.logo-letter:nth-child(7n + 3) {
+  --logo-color: var(--nb-brand-yellow);
+}
+
+.logo-letter:nth-child(7n + 4) {
+  --logo-color: var(--nb-lime);
+}
+
+.logo-letter:nth-child(7n + 5) {
+  --logo-color: var(--nb-teal);
+}
+
+.logo-letter:nth-child(7n + 6) {
+  --logo-color: var(--nb-duck-blue);
+}
+
+.logo-letter:nth-child(7n) {
+  --logo-color: var(--nb-purple);
 }
 
 .sidebar-nav {
@@ -456,7 +515,16 @@ const handleToggleTheme = () => {
     width: 72px;
   }
 
-  .logo-text,
+  .sidebar-header {
+    padding: var(--nb-space-sm) var(--nb-space-xs);
+  }
+
+  .logo-text {
+    font-size: 11px;
+    gap: 1px;
+    align-items: baseline;
+  }
+
   .nav-label,
   .username {
     display: none !important;
