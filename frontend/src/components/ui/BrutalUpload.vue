@@ -73,12 +73,14 @@ defineExpose({ clear })
 
 <style scoped>
 .brutal-upload {
-  border: 4px dashed var(--nb-black);
-  background: var(--nb-white);
+  border: var(--nb-border-width) dashed var(--nb-black);
+  background: var(--nb-surface);
   padding: var(--nb-space-2xl);
   text-align: center;
   cursor: pointer;
   transition: var(--nb-transition-fast);
+  border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow);
 }
 
 .brutal-upload:hover,
