@@ -112,7 +112,7 @@ const handleSubmit = async () => {
   width: 100%;
   max-width: 420px;
   padding: var(--nb-space-2xl);
-  background: var(--nb-white);
+  background: var(--nb-surface);
   border: var(--nb-border);
   border-radius: var(--nb-radius);
   box-shadow: var(--nb-shadow);
@@ -128,28 +128,30 @@ const handleSubmit = async () => {
 .logo-box {
   width: 56px;
   height: 56px;
-  background-color: var(--nb-black);
-  color: var(--nb-white);
+  background-color: var(--nb-brand-yellow);
+  color: var(--nb-ink);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--nb-radius);
-  font-family: var(--nb-font-sans);
-  font-weight: 600;
+  font-family: var(--nb-font-mono);
+  font-weight: 900;
   font-size: 30px;
+  border: var(--nb-border);
+  border-color: var(--nb-ink);
 }
 
 .logo-text {
-  font-family: var(--nb-font-sans);
+  font-family: var(--nb-font-mono);
   font-size: 32px;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: -0.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .subtitle {
   text-align: center;
-  color: var(--nb-gray-600);
+  color: var(--nb-gray-500);
   margin-top: var(--nb-space-sm);
   font-size: 14px;
 }
@@ -165,7 +167,7 @@ const handleSubmit = async () => {
 .footer-text {
   margin-top: var(--nb-space-xl);
   text-align: center;
-  color: var(--nb-gray-600);
+  color: var(--nb-gray-500);
   font-size: 12px;
 }
 
@@ -180,14 +182,14 @@ const handleSubmit = async () => {
   justify-content: center;
   width: 100%;
   padding: 8px;
-  border: 1px solid var(--nb-gray-200);
+  border: var(--nb-border);
   border-radius: var(--nb-radius);
   transition: var(--nb-transition-fast);
 }
 
 .github-link:hover {
   background: var(--nb-gray-100);
-  border-color: var(--nb-gray-300);
+  border-color: var(--nb-black);
   color: var(--nb-black);
 }
 </style>
