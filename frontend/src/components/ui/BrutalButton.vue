@@ -36,53 +36,53 @@ defineEmits(['click'])
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-family: var(--nb-font-sans);
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: -0.2px;
+  font-family: var(--nb-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   border: var(--nb-border);
   border-radius: var(--nb-radius);
   cursor: pointer;
   transition: var(--nb-transition);
   position: relative;
+  box-shadow: none;
 }
 
 /* Sizes */
 .size-small {
-  padding: 6px 12px;
-  font-size: 12px;
-  box-shadow: var(--nb-shadow-sm);
+  --btn-shadow: var(--nb-shadow-sm);
+  padding: 10px 14px;
+  font-size: 14px;
 }
 
 .size-medium {
-  padding: 12px 24px;
-  font-size: 14px;
-  box-shadow: var(--nb-shadow);
+  --btn-shadow: var(--nb-shadow);
+  padding: 16px 22px;
+  font-size: 16px;
 }
 
 .size-large {
-  padding: 16px 32px;
+  --btn-shadow: var(--nb-shadow-lg);
+  padding: 18px 26px;
   font-size: 16px;
-  box-shadow: var(--nb-shadow-lg);
 }
 
 /* Types */
 .type-primary {
-  background-color: var(--nb-black);
-  color: var(--nb-white);
-  border-color: var(--nb-black);
+  background-color: var(--nb-primary);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .type-secondary {
-  background-color: var(--nb-gray-100);
-  color: var(--nb-black);
-  border-color: var(--nb-gray-300);
+  background-color: var(--nb-secondary);
+  color: var(--nb-ink);
+  border-color: var(--nb-ink);
 }
 
 .type-danger {
   background-color: var(--nb-danger);
   color: var(--nb-white);
-  border-color: var(--nb-danger);
 }
 
 .type-ghost {
@@ -93,25 +93,24 @@ defineEmits(['click'])
 }
 
 .type-ghost:hover {
-  border-color: var(--nb-gray-300);
+  border-color: var(--nb-border-color);
   background-color: var(--nb-gray-100);
 }
 
 .type-default {
-  background-color: var(--nb-white);
+  background-color: var(--nb-surface);
   color: var(--nb-black);
-  border-color: var(--nb-gray-300);
 }
 
 /* States */
-.brutal-btn:not(.type-ghost):not(.disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: var(--nb-shadow);
+.brutal-btn:not(.disabled):not(.loading):hover {
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--btn-shadow);
 }
 
-.brutal-btn:not(.type-ghost):not(.disabled):active {
-  transform: translateY(0);
-  box-shadow: var(--nb-shadow-sm);
+.brutal-btn:not(.disabled):not(.loading):active {
+  transform: translate(0, 0);
+  box-shadow: none;
 }
 
 .block {
@@ -121,7 +120,7 @@ defineEmits(['click'])
 
 .disabled,
 .loading {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
   pointer-events: none;
