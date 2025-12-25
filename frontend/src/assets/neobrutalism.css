@@ -4,7 +4,8 @@
 /* Import local fonts */
 @import './fonts.css';
 
-:root {
+:root[data-ui-theme="motherduck-neobrutalism"],
+:root:not([data-ui-theme]) {
   /* Base */
   --nb-ink: #383838; /* Charcoal (constant) */
   --nb-black: #383838; /* Text / Border / Shadow (theme) */
@@ -87,7 +88,8 @@
 }
 
 /* Dark Mode Support */
-:root[data-theme="dark"] {
+:root[data-ui-theme="motherduck-neobrutalism"][data-theme="dark"],
+:root:not([data-ui-theme])[data-theme="dark"] {
   --nb-black: #f4efea;
   --nb-surface: #171717;
   --nb-bg: #0f0f10;
