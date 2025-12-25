@@ -54,21 +54,23 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
 
 .input-label {
   display: block;
-  font-family: var(--nb-font-sans);
-  font-weight: 600;
-  font-size: 13px;
-  text-transform: none;
-  color: var(--nb-gray-600);
+  font-family: var(--nb-font-mono);
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--nb-black);
   margin-bottom: var(--nb-space-xs);
 }
 
 .brutal-input {
   width: 100%;
   font-family: var(--nb-font-sans);
+  font-weight: 300;
   font-size: 16px;
   border: var(--nb-border);
   border-radius: var(--nb-radius);
-  background: var(--nb-white);
+  background: var(--nb-input-bg);
   color: var(--nb-black);
   outline: none;
   transition: var(--nb-transition);
@@ -90,15 +92,14 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
 }
 
 .brutal-input:focus {
-  border-color: var(--nb-black);
+  border-color: var(--nb-deep-blue);
   box-shadow: var(--nb-focus-ring);
-  background-color: var(--nb-white);
 }
 
 .brutal-input:disabled {
-  background-color: var(--nb-gray-100);
-  color: var(--nb-gray-500);
-  border-color: var(--nb-gray-200);
+  background-color: var(--nb-gray-200);
+  color: var(--nb-gray-400);
+  border-color: var(--nb-gray-400);
   cursor: not-allowed;
 }
 
