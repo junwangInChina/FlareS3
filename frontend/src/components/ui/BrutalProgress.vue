@@ -15,7 +15,7 @@ defineProps({
         class="progress-bar"
         :style="{
           width: `${Math.min(percentage, 100)}%`,
-          backgroundColor: color || 'var(--nb-primary)'
+          backgroundColor: color || 'var(--nb-duck-blue)'
         }"
       ></div>
       <span v-if="showIndicator" class="progress-text">{{ Math.round(percentage) }}%</span>
@@ -39,7 +39,7 @@ defineProps({
         cy="50"
         r="42"
         fill="none"
-        :stroke="color || 'var(--nb-primary)'"
+        :stroke="color || 'var(--nb-duck-blue)'"
         stroke-width="8"
         stroke-linecap="square"
         :stroke-dasharray="264"
@@ -63,15 +63,16 @@ defineProps({
 .progress-container {
   width: 100%;
   border: var(--nb-border);
-  background: var(--nb-white);
+  background: var(--nb-surface);
   position: relative;
   overflow: hidden;
+  border-radius: var(--nb-radius);
 }
 
 .progress-bar {
   height: 100%;
   transition: width 0.3s ease;
-  border-right: 3px solid var(--nb-black);
+  border-right: var(--nb-border-width) solid var(--nb-black);
 }
 
 .progress-text {
@@ -83,7 +84,7 @@ defineProps({
   font-weight: 700;
   font-size: 12px;
   color: var(--nb-black);
-  text-shadow: 1px 1px 0 var(--nb-white);
+  text-shadow: 1px 1px 0 var(--nb-surface);
 }
 
 .brutal-progress-circle {
