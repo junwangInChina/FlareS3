@@ -42,7 +42,9 @@ const emit = defineEmits(['update:modelValue'])
   display: flex;
   align-items: center;
   cursor: pointer;
-  font-weight: 600;
+  font-family: var(--nb-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .radio-label input {
@@ -56,8 +58,8 @@ const emit = defineEmits(['update:modelValue'])
   border-radius: 50%;
   margin-right: 8px;
   position: relative;
-  background: var(--nb-white);
-  box-shadow: 2px 2px 0 var(--nb-black);
+  background: var(--nb-surface);
+  box-shadow: var(--nb-shadow-sm);
   transition: var(--nb-transition-fast);
 }
 
