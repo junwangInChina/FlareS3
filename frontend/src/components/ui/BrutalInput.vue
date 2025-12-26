@@ -54,11 +54,11 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
 
 .input-label {
   display: block;
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  text-transform: var(--nb-ui-text-transform, uppercase);
+  letter-spacing: var(--nb-ui-letter-spacing, 0.02em);
   color: var(--nb-black);
   margin-bottom: var(--nb-space-xs);
 }
