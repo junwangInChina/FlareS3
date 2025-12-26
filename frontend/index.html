@@ -20,9 +20,10 @@
 
         const uiThemeKey = "flares3:ui-theme";
         const defaultUiTheme = "motherduck-neobrutalism";
+        const uiThemes = [defaultUiTheme, "shadcn"];
         const storedUiTheme = window.localStorage.getItem(uiThemeKey);
         const uiTheme =
-          storedUiTheme === defaultUiTheme ? storedUiTheme : defaultUiTheme;
+          uiThemes.includes(storedUiTheme) ? storedUiTheme : defaultUiTheme;
         document.documentElement.dataset.uiTheme = uiTheme;
       } catch {
         // ignore
