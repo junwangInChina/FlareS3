@@ -44,7 +44,7 @@ const emit = defineEmits(['close'])
 
 .alert-icon {
   font-size: 20px;
-  font-weight: 900;
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   flex-shrink: 0;
   width: 28px;
   height: 28px;
@@ -59,9 +59,9 @@ const emit = defineEmits(['close'])
 }
 
 .alert-title {
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
+  text-transform: var(--nb-ui-text-transform, uppercase);
   margin-bottom: var(--nb-space-xs);
 }
 
@@ -84,25 +84,21 @@ const emit = defineEmits(['close'])
 /* Types */
 .type-info {
   background-color: var(--nb-info);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-info-foreground, var(--nb-ink));
 }
 
 .type-success {
   background-color: var(--nb-success);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-success-foreground, var(--nb-ink));
 }
 
 .type-warning {
   background-color: var(--nb-warning);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-warning-foreground, var(--nb-ink));
 }
 
 .type-error {
   background-color: var(--nb-danger);
-  color: var(--nb-white);
-  border-color: var(--nb-ink);
+  color: var(--nb-danger-foreground, var(--nb-white));
 }
 </style>
