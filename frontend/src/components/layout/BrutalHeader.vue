@@ -88,8 +88,8 @@ const handleLogout = async () => {
 }
 
 .brand-name {
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   font-size: 24px;
   text-transform: uppercase;
   letter-spacing: -1px;
@@ -106,18 +106,18 @@ const handleLogout = async () => {
   gap: 6px;
   padding: 8px 16px;
   background: transparent;
-  border: 2px solid transparent;
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  border: var(--nb-border-width) solid transparent;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   font-size: 14px;
-  text-transform: uppercase;
+  text-transform: var(--nb-ui-text-transform, uppercase);
   cursor: pointer;
   transition: var(--nb-transition-fast);
 }
 
 .nav-btn:hover {
   background: var(--nb-gray-100);
-  border-color: var(--nb-black);
+  border-color: var(--nb-border-color);
 }
 
 .actions {
@@ -143,10 +143,10 @@ const handleLogout = async () => {
   background: var(--nb-danger);
   color: var(--nb-white);
   border: var(--nb-border);
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   font-size: 14px;
-  text-transform: uppercase;
+  text-transform: var(--nb-ui-text-transform, uppercase);
   cursor: pointer;
   box-shadow: none;
   transition: var(--nb-transition-fast);
