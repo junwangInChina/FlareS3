@@ -17,7 +17,10 @@ defineProps({
           <th
             v-for="col in columns"
             :key="col.key"
-            :style="{ width: col.width ? `${col.width}px` : 'auto' }"
+            :style="{
+              width: col.width ? `${col.width}px` : 'auto',
+              textAlign: col.align || 'left'
+            }"
           >
             {{ col.title }}
           </th>
@@ -30,12 +33,17 @@ defineProps({
           </td>
         </tr>
         <tr v-for="(row, index) in data" :key="index">
-          <td v-for="col in columns" :key="col.key">
+          <td
+            v-for="col in columns"
+            :key="col.key"
+            :style="{ textAlign: col.align || 'left' }"
+            :class="{ 'cell-ellipsis': col.ellipsis !== false }"
+          >
             <template v-if="col.render">
               <component :is="col.render(row)" />
             </template>
             <template v-else>
-              {{ row[col.key] }}
+              <span>{{ row[col.key] }}</span>
             </template>
           </td>
         </tr>
@@ -54,13 +62,20 @@ defineProps({
   background: var(--nb-surface);
 }
 
+/* shadcn/ui theme: Remove border and shadow when inside card */
+:root[data-ui-theme="shadcn"] .brutal-card .brutal-table-wrapper {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
 .loading-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(244, 239, 234, 0.85);
+  background: var(--nb-overlay-bg, rgba(0, 0, 0, 0.12));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -88,19 +103,34 @@ defineProps({
 
 .brutal-table th,
 .brutal-table td {
-  border: 2px solid var(--nb-black);
+  border: var(--nb-border);
   padding: 12px 16px;
   text-align: left;
 }
 
+/* Cell with ellipsis */
+.cell-ellipsis {
+  max-width: 0; /* Force ellipsis to work */
+}
+
+.cell-ellipsis > span {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  cursor: help; /* Show help cursor on hover */
+}
+
 .brutal-table th {
   background-color: var(--nb-primary);
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  text-transform: uppercase;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
+  text-transform: var(--nb-ui-text-transform, uppercase);
   font-size: 13px;
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-primary-foreground, var(--nb-ink));
+  border-color: var(--nb-border-color);
 }
 
 .brutal-table tr:hover td {
