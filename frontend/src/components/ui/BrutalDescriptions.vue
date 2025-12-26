@@ -35,12 +35,12 @@ defineProps({
 .desc-header {
   background: var(--nb-primary);
   padding: var(--nb-space-sm) var(--nb-space-md);
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  text-transform: uppercase;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  text-transform: var(--nb-heading-text-transform, uppercase);
   border-bottom: var(--nb-border);
-  color: var(--nb-ink);
-  border-bottom-color: var(--nb-ink);
+  color: var(--nb-primary-foreground, var(--nb-ink));
+  border-bottom-color: var(--nb-border-color);
 }
 
 .desc-grid {
@@ -49,8 +49,8 @@ defineProps({
 
 .desc-item {
   display: flex;
-  border-bottom: 2px solid var(--nb-black);
-  border-right: 2px solid var(--nb-black);
+  border-bottom: var(--nb-border);
+  border-right: var(--nb-border);
 }
 
 .desc-item:last-child {
@@ -60,12 +60,12 @@ defineProps({
 .desc-label {
   background: var(--nb-gray-100);
   padding: var(--nb-space-sm) var(--nb-space-md);
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
+  text-transform: var(--nb-ui-text-transform, uppercase);
   font-size: 14px;
   width: 40%;
-  border-right: 2px solid var(--nb-black);
+  border-right: var(--nb-border);
   flex-shrink: 0;
 }
 
