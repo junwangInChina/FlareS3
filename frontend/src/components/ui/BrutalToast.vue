@@ -83,31 +83,27 @@ defineExpose({ add, remove, success, error, warning, info })
 
 .toast-icon {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: var(--nb-ui-font-weight-strong, 900);
 }
 
 .type-success {
   background: var(--nb-success);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-success-foreground, var(--nb-ink));
 }
 
 .type-error {
   background: var(--nb-danger);
-  color: var(--nb-white);
-  border-color: var(--nb-ink);
+  color: var(--nb-danger-foreground, var(--nb-white));
 }
 
 .type-warning {
   background: var(--nb-warning);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-warning-foreground, var(--nb-ink));
 }
 
 .type-info {
   background: var(--nb-info);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-info-foreground, var(--nb-ink));
 }
 
 /* Transitions */
