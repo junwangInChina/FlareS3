@@ -13,7 +13,7 @@
         </div>
       </template>
 
-      <BrutalTable :columns="columns" :data="filesStore.files" :loading="filesStore.loading" />
+      <BrutalTable class="files-table" :columns="columns" :data="filesStore.files" :loading="filesStore.loading" />
 
       <div v-if="filesStore.total > 0" class="pagination">
         <span>共 {{ filesStore.total }} 条</span>
@@ -77,6 +77,7 @@
 
 <script setup>
 import { ref, h, onMounted, computed } from 'vue'
+import { Info, Trash2 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
 import AppLayout from '../components/layout/AppLayout.vue'
@@ -89,6 +90,7 @@ import BrutalDescriptions from '../components/ui/BrutalDescriptions.vue'
 import BrutalDivider from '../components/ui/BrutalDivider.vue'
 import BrutalInput from '../components/ui/BrutalInput.vue'
 import BrutalTag from '../components/ui/BrutalTag.vue'
+import Tooltip from '../components/ui/Tooltip.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
@@ -106,24 +108,100 @@ const scopeOptions = [
 const pagination = ref({ page: 1, pageSize: 20 })
 
 const columns = computed(() => [
-  { title: '文件名', key: 'filename' },
-  { title: '大小', key: 'size', width: 100, render: (row) => h('span', formatBytes(row.size)) },
-  { title: '有效期', key: 'expires_in', width: 80, render: (row) => h('span', row.expires_in === -30 ? '30秒' : row.expires_in + '天') },
   {
-    title: '状态', key: 'status', width: 80,
-    render: (row) => h(BrutalTag, { type: row.upload_status === 'deleted' ? 'danger' : 'success', size: 'small' },
-      () => row.upload_status === 'deleted' ? '已过期' : '有效')
+    title: '文件名',
+    key: 'filename',
+    align: 'left',
+    render: (row) => h(Tooltip, { content: row.filename }, () => row.filename)
   },
-  { title: '剩余时间', key: 'remaining_time', width: 160, render: (row) => h('span', row.upload_status === 'deleted' ? '-' : row.remaining_time) },
-  { title: '上传时间', key: 'created_at', width: 160, render: (row) => h('span', new Date(row.created_at).toLocaleString('zh-CN')) },
-  ...(authStore.isAdmin ? [{ title: '归属用户', key: 'owner', width: 120, render: (row) => h('span', row.owner_username || row.owner_id) }] : []),
   {
-    title: '操作', key: 'actions', width: 140,
+    title: '大小',
+    key: 'size',
+    width: 100,
+    align: 'center',
+    render: (row) => {
+      const sizeText = formatBytes(row.size)
+      return h(Tooltip, { content: sizeText }, () => sizeText)
+    }
+  },
+  {
+    title: '有效期',
+    key: 'expires_in',
+    width: 80,
+    align: 'center',
+    render: (row) => {
+      const text = row.expires_in === -30 ? '30秒' : row.expires_in + '天'
+      return h(Tooltip, { content: text }, () => text)
+    }
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 80,
+    align: 'center',
+    render: (row) => {
+      const statusText = row.upload_status === 'deleted' ? '已过期' : '有效'
+      return h(Tooltip, { content: statusText }, () =>
+        h(BrutalTag, {
+          type: row.upload_status === 'deleted' ? 'danger' : 'success',
+          size: 'small'
+        }, () => statusText)
+      )
+    }
+  },
+  {
+    title: '剩余时间',
+    key: 'remaining_time',
+    width: 160,
+    align: 'center',
+    render: (row) => {
+      const text = row.upload_status === 'deleted' ? '-' : row.remaining_time
+      return h(Tooltip, { content: text }, () => text)
+    }
+  },
+  {
+    title: '上传时间',
+    key: 'created_at',
+    width: 160,
+    align: 'center',
+    render: (row) => {
+      const text = new Date(row.created_at).toLocaleString('zh-CN')
+      return h(Tooltip, { content: text }, () => text)
+    }
+  },
+  ...(authStore.isAdmin ? [{
+    title: '归属用户',
+    key: 'owner',
+    width: 120,
+    align: 'center',
+    render: (row) => {
+      const text = row.owner_username || row.owner_id
+      return h(Tooltip, { content: text }, () => text)
+    }
+  }] : []),
+  {
+    title: '操作', key: 'actions', width: 200, align: 'center', ellipsis: false,
     render: (row) => {
       const isDeleted = row.upload_status === 'deleted'
-      return h('div', { style: 'display: flex; gap: 8px;' }, [
-        h(BrutalButton, { size: 'small', type: 'default', disabled: isDeleted, onClick: () => showFileInfo(row) }, () => '详情'),
-        h(BrutalButton, { size: 'small', type: 'danger', disabled: isDeleted, onClick: () => handleDelete(row.id) }, () => '删除')
+      return h('div', { class: 'action-buttons' }, [
+        h(BrutalButton, {
+          size: 'small',
+          type: 'default',
+          disabled: isDeleted,
+          onClick: () => showFileInfo(row)
+        }, () => [
+          h(Info, { size: 16, style: 'margin-right: 4px' }),
+          '详情'
+        ]),
+        h(BrutalButton, {
+          size: 'small',
+          type: 'danger',
+          disabled: isDeleted,
+          onClick: () => handleDelete(row.id)
+        }, () => [
+          h(Trash2, { size: 16, style: 'margin-right: 4px' }),
+          '删除'
+        ])
       ])
     }
   }
@@ -192,13 +270,30 @@ onMounted(() => loadFiles())
   align-items: center;
 }
 
+:deep(.files-table .brutal-table) {
+  table-layout: fixed;
+}
+
+:deep(.files-table .brutal-table th),
+:deep(.files-table .brutal-table td) {
+  white-space: nowrap;
+}
+
 .pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: var(--nb-space-lg);
   padding-top: var(--nb-space-md);
-  border-top: 2px dashed var(--nb-black);
+  border-top: var(--nb-border-width) dashed var(--nb-border-color);
+}
+
+/* shadcn/ui theme: Modern pagination style */
+:root[data-ui-theme="shadcn"] .pagination {
+  border-top: var(--nb-border-width) solid var(--nb-border-color);
+  background-color: var(--nb-gray-50);
+  margin-top: 0;
+  padding: var(--nb-space-md) var(--nb-space-lg);
 }
 
 .page-btns {
@@ -208,9 +303,20 @@ onMounted(() => loadFiles())
 }
 
 .page-info {
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   padding: 0 var(--nb-space-sm);
+}
+
+/* shadcn/ui theme: Cleaner page info */
+:root[data-ui-theme="shadcn"] .page-info {
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
+  padding: 4px 12px;
+  background-color: var(--nb-surface);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius-sm);
 }
 
 .link-group {
@@ -219,10 +325,10 @@ onMounted(() => loadFiles())
 
 .link-label {
   display: block;
-  font-family: var(--nb-font-mono);
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  text-transform: var(--nb-ui-text-transform, uppercase);
+  letter-spacing: var(--nb-ui-letter-spacing, 0.02em);
   color: var(--nb-gray-500);
   margin-bottom: 4px;
 }
@@ -234,5 +340,18 @@ onMounted(() => loadFiles())
 
 .link-row > :first-child {
   flex: 1;
+}
+
+/* Action buttons styling */
+:deep(.action-buttons) {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* shadcn/ui theme: Compact action buttons */
+:root[data-ui-theme="shadcn"] :deep(.action-buttons) {
+  gap: 8px;
 }
 </style>
