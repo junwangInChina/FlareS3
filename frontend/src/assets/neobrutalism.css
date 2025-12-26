@@ -12,6 +12,8 @@
   --nb-white: #ffffff; /* Pure white */
   --nb-surface: #ffffff; /* Card/Panel background */
   --nb-bg: #f4efea; /* Off-White / Page background */
+  --nb-selection-bg: rgba(255, 222, 0, 0.45);
+  --nb-selection-color: var(--nb-ink);
 
   /* Brand */
   --nb-brand-yellow: #ffde00;
@@ -41,10 +43,12 @@
   --nb-gray-500: #6b6b6b;
   --nb-gray-600: #383838;
   --nb-input-bg: rgba(248, 248, 247, 0.7);
+  --nb-overlay-bg: rgba(244, 239, 234, 0.85);
 
   /* Typography */
   --nb-font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
   --nb-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --nb-font-ui: var(--nb-font-mono);
   --nb-font-size-xs: 12px;
   --nb-font-size-sm: 14px;
   --nb-font-size-base: 16px;
@@ -52,6 +56,17 @@
   --nb-font-size-xl: 24px;
   --nb-font-size-2xl: 32px;
   --nb-font-size-3xl: 40px;
+  --nb-heading-font-family: var(--nb-font-mono);
+  --nb-heading-font-weight: 900;
+  --nb-heading-text-transform: uppercase;
+  --nb-heading-letter-spacing: 0.02em;
+  --nb-heading-line-height: 1.2;
+  --nb-ui-font-weight: 700;
+  --nb-ui-font-weight-strong: 900;
+  --nb-ui-text-transform: uppercase;
+  --nb-ui-letter-spacing: 0.02em;
+  --nb-link-color: var(--nb-duck-blue);
+  --nb-link-hover-color: var(--nb-deep-blue);
 
   /* Layout */
   --nb-header-height-mobile: 70px;
@@ -69,10 +84,28 @@
   --nb-shadow-lg: -8px 8px 0px 0px var(--nb-shadow-color);
   --nb-radius: 2px;
   --nb-focus-ring: 0 0 0 2px var(--nb-deep-blue);
+  --nb-focus-outline-color: var(--nb-deep-blue);
+  --nb-focus-outline-width: 2px;
+  --nb-focus-outline-offset: 2px;
 
   /* Interaction */
   --nb-lift-x: 4px;
   --nb-lift-y: -4px;
+  --nb-scrollbar-track-bg: var(--nb-bg);
+  --nb-scrollbar-thumb-bg: var(--nb-black);
+  --nb-scrollbar-thumb-hover-bg: var(--nb-deep-blue);
+  --nb-scrollbar-thumb-radius: 0px;
+  --nb-modal-overlay-bg: rgba(0, 0, 0, 0.7);
+  --nb-modal-header-bg: var(--nb-secondary);
+  --nb-modal-header-foreground: var(--nb-ink);
+  --nb-modal-header-border-color: var(--nb-ink);
+  --nb-modal-footer-bg: var(--nb-gray-100);
+  --nb-modal-close-bg: var(--nb-danger);
+  --nb-modal-close-foreground: var(--nb-white);
+  --nb-modal-close-border: var(--nb-border);
+  --nb-modal-close-hover-bg: var(--nb-danger);
+  --nb-modal-close-hover-foreground: var(--nb-white);
+  --nb-card-header-border-color: currentColor;
 
   /* Spacing Scale */
   --nb-space-xs: 8px;
@@ -101,17 +134,11 @@
   --nb-gray-500: #c7c1bc;
   --nb-gray-600: #f4efea;
   --nb-input-bg: rgba(23, 23, 23, 0.75);
+  --nb-overlay-bg: rgba(15, 15, 16, 0.75);
+  --nb-selection-bg: rgba(255, 222, 0, 0.45);
+  --nb-selection-color: var(--nb-ink);
   --nb-border-color: var(--nb-black);
   --nb-shadow-color: var(--nb-black);
-}
-
-:root[data-theme="dark"] *:focus-visible {
-  outline-color: var(--nb-deep-blue);
-}
-
-:root[data-theme="dark"] ::selection {
-  background-color: rgba(255, 222, 0, 0.45);
-  color: var(--nb-ink);
 }
 
 /* Reset & Base Styles */
@@ -133,11 +160,11 @@ body {
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  text-transform: var(--nb-heading-text-transform, uppercase);
+  letter-spacing: var(--nb-heading-letter-spacing, 0.02em);
+  line-height: var(--nb-heading-line-height, 1.2);
 }
 
 h1 { font-size: clamp(30px, 5vw, 80px); }
@@ -146,19 +173,19 @@ h3 { font-size: clamp(24px, 2.6vw, 32px); }
 h4 { font-size: 18px; }
 
 a {
-  color: var(--nb-duck-blue);
+  color: var(--nb-link-color, var(--nb-duck-blue));
   text-decoration: none;
   transition: var(--nb-transition-fast);
 }
 
 a:hover {
-  color: var(--nb-deep-blue);
+  color: var(--nb-link-hover-color, var(--nb-deep-blue));
 }
 
 /* Selection */
 ::selection {
-  background-color: rgba(255, 222, 0, 0.45);
-  color: var(--nb-ink);
+  background-color: var(--nb-selection-bg, rgba(255, 222, 0, 0.45));
+  color: var(--nb-selection-color, var(--nb-ink));
 }
 
 /* Scrollbar */
@@ -168,16 +195,16 @@ a:hover {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--nb-bg);
+  background: var(--nb-scrollbar-track-bg, var(--nb-bg));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--nb-black);
-  border-radius: 0;
+  background: var(--nb-scrollbar-thumb-bg, var(--nb-black));
+  border-radius: var(--nb-scrollbar-thumb-radius, 0px);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--nb-deep-blue);
+  background: var(--nb-scrollbar-thumb-hover-bg, var(--nb-deep-blue));
 }
 
 /* Utility Classes */
@@ -232,8 +259,9 @@ a:hover {
 
 /* Focus States */
 *:focus-visible {
-  outline: 2px solid var(--nb-deep-blue);
-  outline-offset: 2px;
+  outline: var(--nb-focus-outline-width, 2px) solid
+    var(--nb-focus-outline-color, var(--nb-deep-blue));
+  outline-offset: var(--nb-focus-outline-offset, 2px);
 }
 
 /* Animations */
