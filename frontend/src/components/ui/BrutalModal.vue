@@ -41,7 +41,7 @@ const close = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--nb-modal-overlay-bg, rgba(0, 0, 0, 0.7));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -64,29 +64,29 @@ const close = () => {
   justify-content: space-between;
   align-items: center;
   padding: var(--nb-space-md);
-  background: var(--nb-secondary);
+  background: var(--nb-modal-header-bg, var(--nb-secondary));
   border-bottom: var(--nb-border);
-  color: var(--nb-ink);
-  border-bottom-color: var(--nb-ink);
+  color: var(--nb-modal-header-foreground, var(--nb-ink));
+  border-bottom-color: var(--nb-modal-header-border-color, var(--nb-ink));
 }
 
 .modal-title {
   margin: 0;
   font-size: var(--nb-font-size-lg);
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  text-transform: var(--nb-heading-text-transform, uppercase);
+  letter-spacing: var(--nb-heading-letter-spacing, 0.02em);
 }
 
 .close-btn {
   width: 32px;
   height: 32px;
-  background: var(--nb-danger);
-  color: var(--nb-white);
-  border: var(--nb-border);
+  background: var(--nb-modal-close-bg, var(--nb-danger));
+  color: var(--nb-modal-close-foreground, var(--nb-white));
+  border: var(--nb-modal-close-border, var(--nb-border));
   font-size: 20px;
-  font-weight: 900;
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -96,6 +96,8 @@ const close = () => {
 }
 
 .close-btn:hover {
+  background: var(--nb-modal-close-hover-bg, var(--nb-modal-close-bg, var(--nb-danger)));
+  color: var(--nb-modal-close-hover-foreground, var(--nb-modal-close-foreground, var(--nb-white)));
   transform: translate(var(--nb-lift-x), var(--nb-lift-y));
   box-shadow: var(--nb-shadow-sm);
 }
@@ -112,7 +114,7 @@ const close = () => {
 .modal-footer {
   padding: var(--nb-space-md);
   border-top: var(--nb-border);
-  background: var(--nb-gray-100);
+  background: var(--nb-modal-footer-bg, var(--nb-gray-100));
   display: flex;
   justify-content: flex-end;
   gap: var(--nb-space-sm);
