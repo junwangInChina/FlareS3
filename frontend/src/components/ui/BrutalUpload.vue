@@ -73,7 +73,7 @@ defineExpose({ clear })
 
 <style scoped>
 .brutal-upload {
-  border: var(--nb-border-width) dashed var(--nb-black);
+  border: var(--nb-border-width) dashed var(--nb-border-color);
   background: var(--nb-surface);
   padding: var(--nb-space-2xl);
   text-align: center;
@@ -109,12 +109,12 @@ defineExpose({ clear })
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-family: var(--nb-font-mono);
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
 }
 
 .upload-text strong {
   font-size: 18px;
-  text-transform: uppercase;
+  text-transform: var(--nb-ui-text-transform, uppercase);
 }
 
 .upload-text span {
