@@ -44,16 +44,16 @@ defineProps({
   justify-content: space-between;
   padding: var(--nb-space-md);
   border-bottom: var(--nb-border);
-  border-bottom-color: currentColor;
+  border-bottom-color: var(--nb-card-header-border-color, currentColor);
 }
 
 .card-title {
   margin: 0;
   font-size: var(--nb-font-size-lg);
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  text-transform: var(--nb-heading-text-transform, uppercase);
+  letter-spacing: var(--nb-heading-letter-spacing, 0.02em);
 }
 
 .header-extra {
@@ -64,6 +64,16 @@ defineProps({
 
 .card-body {
   padding: var(--nb-space-lg);
+}
+
+/* shadcn/ui theme: Remove padding when card contains table */
+:root[data-ui-theme="shadcn"] .card-body:has(.brutal-table-wrapper) {
+  padding: 0;
+}
+
+/* shadcn/ui theme: Pagination stays at bottom without extra padding */
+:root[data-ui-theme="shadcn"] .card-body:has(.brutal-table-wrapper) .pagination {
+  margin: 0;
 }
 
 .card-footer {
