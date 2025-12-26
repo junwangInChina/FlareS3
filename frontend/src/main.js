@@ -1,4 +1,6 @@
 import './assets/neobrutalism.css'
+import './assets/shadcn-fonts.css'
+import './assets/shadcn.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import router from './router'
