@@ -80,8 +80,8 @@ defineProps({
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   font-size: 12px;
   color: var(--nb-black);
   text-shadow: 1px 1px 0 var(--nb-surface);
@@ -105,8 +105,8 @@ defineProps({
 }
 
 .percentage {
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   font-size: 20px;
 }
 </style>
