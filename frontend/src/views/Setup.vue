@@ -58,7 +58,7 @@
 
       <BrutalDivider />
 
-      <BrutalTable :columns="columns" :data="configs" :loading="loading" />
+      <BrutalTable class="setup-table" :columns="columns" :data="configs" :loading="loading" />
 
       <BrutalModal
         v-model:show="modalVisible"
@@ -148,6 +148,7 @@
 
 <script setup>
 import { ref, computed, h, onMounted } from "vue";
+import { Link, Pencil, Star, TestTube, Trash2 } from "lucide-vue-next";
 import api from "../services/api";
 import AppLayout from "../components/layout/AppLayout.vue";
 import BrutalCard from "../components/ui/BrutalCard.vue";
@@ -160,6 +161,7 @@ import BrutalSelect from "../components/ui/BrutalSelect.vue";
 import BrutalDivider from "../components/ui/BrutalDivider.vue";
 import BrutalAlert from "../components/ui/BrutalAlert.vue";
 import BrutalTag from "../components/ui/BrutalTag.vue";
+import Tooltip from "../components/ui/Tooltip.vue";
 import { useMessage } from "../composables/useMessage";
 
 const message = useMessage();
@@ -196,6 +198,16 @@ const formatSource = (source) => {
   if (source === "env") return "环境变量";
   if (source === "legacy") return "旧版";
   return "数据库";
+};
+
+const toDisplayText = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
+};
+
+const withTooltip = (content, vnode) => {
+  const text = toDisplayText(content);
+  return h(Tooltip, { content: text }, () => vnode ?? text);
 };
 
 const resetForm = () => {
@@ -379,19 +391,23 @@ const columns = computed(() => {
     {
       title: "名称",
       key: "name",
+      align: "left",
       render: (row) => {
         const tags = [];
+        const tagTexts = [];
 
         if (row.id === r2Options.value.default_config_id) {
           tags.push(
             h(BrutalTag, { type: "success", size: "small" }, () => "默认")
           );
+          tagTexts.push("默认");
         }
 
         if (row.id === r2Options.value.legacy_files_config_id) {
           tags.push(
             h(BrutalTag, { type: "warning", size: "small" }, () => "旧文件")
           );
+          tagTexts.push("旧文件");
         }
 
         const sourceTagType =
@@ -400,42 +416,49 @@ const columns = computed(() => {
             : row.source === "legacy"
             ? "warning"
             : "default";
+        const sourceText = formatSource(row.source);
         tags.push(
-          h(BrutalTag, { type: sourceTagType, size: "small" }, () =>
-            formatSource(row.source)
-          )
+          h(BrutalTag, { type: sourceTagType, size: "small" }, () => sourceText)
         );
+        tagTexts.push(sourceText);
 
-        return h(
-          "div",
-          {
-            style: "display:flex; align-items:center; gap:8px; flex-wrap:wrap;",
-          },
-          [h("span", { style: "font-weight:700;" }, row.name || "-"), ...tags]
-        );
+        const nameText = toDisplayText(row.name);
+        const tooltipText = [nameText, ...tagTexts].join(" ");
+        return h("div", { class: "config-name" }, [
+          h("span", { class: "config-name-main" }, [
+            h(Tooltip, { content: tooltipText }, () =>
+              h("span", { class: "config-name-text" }, nameText)
+            ),
+          ]),
+          h("span", { class: "config-tags" }, tags),
+        ]);
       },
     },
     {
       title: "Endpoint",
       key: "endpoint",
-      render: (row) => h("span", row.endpoint || "-"),
+      align: "left",
+      render: (row) => withTooltip(row.endpoint),
     },
     {
       title: "Bucket",
       key: "bucket_name",
       width: 160,
-      render: (row) => h("span", row.bucket_name || "-"),
+      align: "center",
+      render: (row) => withTooltip(row.bucket_name),
     },
     {
       title: "操作",
       key: "actions",
       width: 360,
+      align: "center",
+      ellipsis: false,
       render: (row) => {
         const actions = [
           h(
             BrutalButton,
             { size: "small", type: "default", onClick: () => handleTest(row) },
-            () => "测试"
+            () => [h(TestTube, { size: 16, style: "margin-right: 4px" }), "测试"]
           ),
         ];
 
@@ -444,14 +467,11 @@ const columns = computed(() => {
             BrutalButton,
             {
               size: "small",
-              type:
-                row.id === r2Options.value.default_config_id
-                  ? "secondary"
-                  : "primary",
+              type: "default",
               disabled: row.id === r2Options.value.default_config_id,
               onClick: () => handleSetDefault(row.id),
             },
-            () => "设默认"
+            () => [h(Star, { size: 16, style: "margin-right: 4px" }), "设默认"]
           )
         );
 
@@ -460,14 +480,11 @@ const columns = computed(() => {
             BrutalButton,
             {
               size: "small",
-              type:
-                row.id === r2Options.value.legacy_files_config_id
-                  ? "secondary"
-                  : "default",
+              type: "default",
               disabled: row.id === r2Options.value.legacy_files_config_id,
               onClick: () => handleSetLegacyFiles(row.id),
             },
-            () => "设旧文件"
+            () => [h(Link, { size: 16, style: "margin-right: 4px" }), "设旧文件"]
           )
         );
 
@@ -476,7 +493,7 @@ const columns = computed(() => {
             h(
               BrutalButton,
               { size: "small", type: "default", onClick: () => openEdit(row) },
-              () => "编辑"
+              () => [h(Pencil, { size: 16, style: "margin-right: 4px" }), "编辑"]
             )
           );
           actions.push(
@@ -487,16 +504,12 @@ const columns = computed(() => {
                 type: "danger",
                 onClick: () => handleDelete(row),
               },
-              () => "删除"
+              () => [h(Trash2, { size: 16, style: "margin-right: 4px" }), "删除"]
             )
           );
         }
 
-        return h(
-          "div",
-          { style: "display:flex; gap:8px; flex-wrap:wrap;" },
-          actions
-        );
+        return h("div", { class: "action-buttons" }, actions);
       },
     },
   ];
@@ -517,7 +530,7 @@ onMounted(() => refresh());
 }
 
 .control-item {
-  border: 2px dashed var(--nb-black);
+  border: var(--nb-border-width) dashed var(--nb-border-color);
   padding: var(--nb-space-md);
   background: var(--nb-surface);
 }
@@ -525,6 +538,57 @@ onMounted(() => refresh());
 .control-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+:deep(.setup-table .brutal-table) {
+  table-layout: fixed;
+}
+
+:deep(.setup-table .brutal-table th),
+:deep(.setup-table .brutal-table td) {
+  white-space: nowrap;
+}
+
+:deep(.setup-table .config-name) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+:deep(.setup-table .config-name-main) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+:deep(.setup-table .config-name-text) {
+  font-weight: 700;
+}
+
+:deep(.setup-table .config-tags) {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin-left: var(--nb-space-sm);
+}
+
+:deep(.setup-table .config-tags) > * + * {
+  margin-left: var(--nb-space-sm);
+}
+
+:deep(.action-buttons) {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+:root[data-ui-theme="shadcn"] :deep(.action-buttons) {
+  gap: 8px;
 }
 
 .form-grid {
