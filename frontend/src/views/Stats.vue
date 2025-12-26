@@ -96,7 +96,7 @@ onMounted(() => loadStats())
 .loading {
   text-align: center;
   padding: var(--nb-space-2xl);
-  font-family: var(--nb-font-mono);
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
 }
 
 .stats-content {
@@ -118,8 +118,8 @@ onMounted(() => loadStats())
 }
 
 .percentage {
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   font-size: 24px;
 }
 
