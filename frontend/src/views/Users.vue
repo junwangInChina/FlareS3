@@ -5,7 +5,26 @@
         <BrutalButton type="primary" size="small" @click="showCreateModal = true">创建用户</BrutalButton>
       </template>
 
-      <BrutalTable :columns="columns" :data="users" :loading="loading" />
+      <BrutalTable class="users-table" :columns="columns" :data="users" :loading="loading" />
+
+      <div v-if="pagination.itemCount > 0" class="pagination">
+        <span>共 {{ pagination.itemCount }} 条</span>
+        <div class="page-btns">
+          <BrutalButton
+            size="small"
+            type="ghost"
+            :disabled="pagination.page <= 1"
+            @click="changePage(pagination.page - 1)"
+          >上一页</BrutalButton>
+          <span class="page-info">{{ pagination.page }}</span>
+          <BrutalButton
+            size="small"
+            type="ghost"
+            :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
+            @click="changePage(pagination.page + 1)"
+          >下一页</BrutalButton>
+        </div>
+      </div>
     </BrutalCard>
 
     <BrutalModal v-model:show="showCreateModal" title="创建用户" width="480px">
@@ -43,6 +62,7 @@
 
 <script setup>
 import { ref, h, onMounted } from 'vue'
+import { KeyRound, Trash2, UserCheck, UserX } from 'lucide-vue-next'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import BrutalCard from '../components/ui/BrutalCard.vue'
@@ -53,11 +73,13 @@ import BrutalFormItem from '../components/ui/BrutalFormItem.vue'
 import BrutalInput from '../components/ui/BrutalInput.vue'
 import BrutalSelect from '../components/ui/BrutalSelect.vue'
 import BrutalTag from '../components/ui/BrutalTag.vue'
+import Tooltip from '../components/ui/Tooltip.vue'
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
 const users = ref([])
 const loading = ref(false)
+const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 
 const roleOptions = [
   { label: '管理员', value: 'admin' },
@@ -80,17 +102,67 @@ const formatBytes = (bytes) => {
   return `${(bytes / div).toFixed(2)} ${['KB', 'MB', 'GB', 'TB', 'PB'][exp]}`
 }
 
+const toDisplayText = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  return String(value)
+}
+
+const withTooltip = (content, vnode) => {
+  const text = toDisplayText(content)
+  return h(Tooltip, { content: text }, () => vnode ?? text)
+}
+
 const columns = [
-  { title: '用户名', key: 'username' },
-  { title: '角色', key: 'role', width: 100 },
-  { title: '状态', key: 'status', width: 100, render: (row) => h(BrutalTag, { type: row.status === 'active' ? 'success' : 'danger', size: 'small' }, () => row.status) },
-  { title: '配额', key: 'quota_bytes', width: 140, render: (row) => h('span', formatBytes(row.quota_bytes)) },
   {
-    title: '操作', key: 'actions', width: 260,
-    render: (row) => h('div', { style: 'display: flex; gap: 8px;' }, [
-      h(BrutalButton, { size: 'small', type: row.status === 'active' ? 'default' : 'primary', onClick: () => toggleStatus(row) }, () => row.status === 'active' ? '禁用' : '启用'),
-      h(BrutalButton, { size: 'small', type: 'default', onClick: () => openReset(row) }, () => '重置密码'),
-      h(BrutalButton, { size: 'small', type: 'danger', onClick: () => handleDelete(row) }, () => '删除')
+    title: '用户名',
+    key: 'username',
+    align: 'left',
+    render: (row) => withTooltip(row.username)
+  },
+  {
+    title: '角色',
+    key: 'role',
+    width: 100,
+    align: 'center',
+    render: (row) => withTooltip(row.role)
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    align: 'center',
+    render: (row) => {
+      const text = toDisplayText(row.status)
+      return withTooltip(text, h(BrutalTag, { type: row.status === 'active' ? 'success' : 'danger', size: 'small' }, () => text))
+    }
+  },
+  {
+    title: '配额',
+    key: 'quota_bytes',
+    width: 140,
+    align: 'center',
+    render: (row) => {
+      const text = formatBytes(row.quota_bytes || 0)
+      return withTooltip(text)
+    }
+  },
+  {
+    title: '操作', key: 'actions', width: 300, align: 'center', ellipsis: false,
+    render: (row) => h('div', { class: 'action-buttons' }, [
+      h(BrutalButton, { size: 'small', type: 'default', onClick: () => toggleStatus(row) }, () => [
+        row.status === 'active'
+          ? h(UserX, { size: 16, style: 'margin-right: 4px' })
+          : h(UserCheck, { size: 16, style: 'margin-right: 4px' }),
+        row.status === 'active' ? '禁用' : '启用'
+      ]),
+      h(BrutalButton, { size: 'small', type: 'default', onClick: () => openReset(row) }, () => [
+        h(KeyRound, { size: 16, style: 'margin-right: 4px' }),
+        '重置密码'
+      ]),
+      h(BrutalButton, { size: 'small', type: 'danger', onClick: () => handleDelete(row) }, () => [
+        h(Trash2, { size: 16, style: 'margin-right: 4px' }),
+        '删除'
+      ])
     ])
   }
 ]
@@ -98,13 +170,19 @@ const columns = [
 const loadUsers = async () => {
   loading.value = true
   try {
-    const result = await api.getUsers({ page: 1, limit: 100 })
+    const result = await api.getUsers({ page: pagination.value.page, limit: pagination.value.pageSize })
     users.value = result.users || []
+    pagination.value.itemCount = Number(result.total || 0)
   } catch (error) {
     message.error('加载用户失败')
   } finally {
     loading.value = false
   }
+}
+
+const changePage = (page) => {
+  pagination.value.page = page
+  loadUsers()
 }
 
 const handleCreate = async () => {
@@ -123,6 +201,7 @@ const handleCreate = async () => {
     message.success('用户创建成功')
     showCreateModal.value = false
     createForm.value = { username: '', password: '', role: 'user', quota_bytes: '10737418240' }
+    pagination.value.page = 1
     loadUsers()
   } catch (error) {
     message.error(error.response?.data?.error || '创建用户失败')
@@ -169,6 +248,7 @@ const handleDelete = async (row) => {
   try {
     await api.deleteUser(row.id)
     message.success('用户已删除')
+    if (users.value.length <= 1 && pagination.value.page > 1) pagination.value.page -= 1
     loadUsers()
   } catch (error) {
     message.error('删除用户失败')
@@ -177,3 +257,65 @@ const handleDelete = async (row) => {
 
 onMounted(() => loadUsers())
 </script>
+
+<style scoped>
+:deep(.users-table .brutal-table) {
+  table-layout: fixed;
+}
+
+:deep(.users-table .brutal-table th),
+:deep(.users-table .brutal-table td) {
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--nb-space-lg);
+  padding-top: var(--nb-space-md);
+  border-top: var(--nb-border-width) dashed var(--nb-border-color);
+}
+
+/* shadcn/ui theme: Modern pagination style */
+:root[data-ui-theme="shadcn"] .pagination {
+  border-top: var(--nb-border-width) solid var(--nb-border-color);
+  background-color: var(--nb-gray-50);
+  margin-top: 0;
+  padding: var(--nb-space-md) var(--nb-space-lg);
+}
+
+.page-btns {
+  display: flex;
+  align-items: center;
+  gap: var(--nb-space-sm);
+}
+
+.page-info {
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
+  padding: 0 var(--nb-space-sm);
+}
+
+/* shadcn/ui theme: Cleaner page info */
+:root[data-ui-theme="shadcn"] .page-info {
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
+  padding: 4px 12px;
+  background-color: var(--nb-surface);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius-sm);
+}
+
+:deep(.action-buttons) {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+:root[data-ui-theme="shadcn"] :deep(.action-buttons) {
+  gap: 8px;
+}
+</style>
