@@ -20,10 +20,10 @@ defineProps({
 
 .form-label {
   display: block;
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   font-size: 14px;
-  text-transform: uppercase;
+  text-transform: var(--nb-ui-text-transform, uppercase);
   margin-bottom: var(--nb-space-xs);
 }
 
