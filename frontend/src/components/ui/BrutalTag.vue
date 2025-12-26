@@ -22,10 +22,10 @@ defineProps({
 <style scoped>
 .brutal-tag {
   display: inline-block;
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
-  border: 2px solid var(--nb-black);
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
+  text-transform: var(--nb-ui-text-transform, uppercase);
+  border: var(--nb-border);
   background-color: var(--nb-surface);
   border-radius: var(--nb-radius);
 }
@@ -40,9 +40,9 @@ defineProps({
   font-size: 12px;
 }
 
-.type-primary { background-color: var(--nb-primary); color: var(--nb-ink); border-color: var(--nb-ink); }
-.type-success { background-color: var(--nb-success); color: var(--nb-ink); border-color: var(--nb-ink); }
-.type-warning { background-color: var(--nb-warning); color: var(--nb-ink); border-color: var(--nb-ink); }
-.type-danger { background-color: var(--nb-danger); color: var(--nb-white); border-color: var(--nb-ink); }
-.type-info { background-color: var(--nb-info); color: var(--nb-ink); border-color: var(--nb-ink); }
+.type-primary { background-color: var(--nb-primary); color: var(--nb-primary-foreground, var(--nb-ink)); border-color: var(--nb-primary-border, var(--nb-ink)); }
+.type-success { background-color: var(--nb-success); color: var(--nb-success-foreground, var(--nb-ink)); border-color: var(--nb-success-border, var(--nb-ink)); }
+.type-warning { background-color: var(--nb-warning); color: var(--nb-warning-foreground, var(--nb-ink)); border-color: var(--nb-warning-border, var(--nb-ink)); }
+.type-danger { background-color: var(--nb-danger); color: var(--nb-danger-foreground, var(--nb-white)); border-color: var(--nb-danger-border, var(--nb-ink)); }
+.type-info { background-color: var(--nb-info); color: var(--nb-info-foreground, var(--nb-ink)); border-color: var(--nb-info-border, var(--nb-ink)); }
 </style>
