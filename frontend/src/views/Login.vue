@@ -128,25 +128,24 @@ const handleSubmit = async () => {
 .logo-box {
   width: 56px;
   height: 56px;
-  background-color: var(--nb-brand-yellow);
-  color: var(--nb-ink);
+  background-color: var(--nb-primary);
+  color: var(--nb-primary-foreground, var(--nb-ink));
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--nb-radius);
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   font-size: 30px;
   border: var(--nb-border);
-  border-color: var(--nb-ink);
 }
 
 .logo-text {
-  font-family: var(--nb-font-mono);
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
   font-size: 32px;
-  font-weight: 900;
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--nb-ui-letter-spacing, 0.02em);
 }
 
 .subtitle {
