@@ -1,0 +1,306 @@
+/* shadcn/ui Theme for FlareS3 - Official Default (Zinc) */
+/* Strictly follows https://ui.shadcn.com/ themes */
+
+/* ============================================
+   LIGHT MODE - Default Zinc
+   ============================================ */
+:root[data-ui-theme="shadcn"] {
+  /* ===== Color Palette (HSL) ===== */
+
+  /* Base Colors - Clean White & Zinc */
+  --nb-bg: hsl(0 0% 100%);
+  --nb-surface: hsl(0 0% 100%);
+  --nb-ink: hsl(240 10% 3.9%); /* Zinc 950 */
+  --nb-black: hsl(240 10% 3.9%);
+  --nb-white: hsl(0 0% 100%);
+
+  /* Selection */
+  --nb-selection-bg: hsl(240 5.9% 10%);
+  --nb-selection-color: hsl(0 0% 98%);
+
+  /* Brand & Interactive Colors - MONOCHROME (Black Primary) */
+  --nb-primary: hsl(240 5.9% 10%); /* Zinc 900 - The "Shadcn Black" */
+  --nb-primary-foreground: hsl(0 0% 98%); /* White text */
+
+  --nb-secondary: hsl(240 4.8% 95.9%); /* Zinc 100 */
+  --nb-secondary-foreground: hsl(240 5.9% 10%);
+
+  --nb-accent: hsl(240 4.8% 95.9%); /* Zinc 100 */
+  --nb-accent-foreground: hsl(240 5.9% 10%);
+
+  --nb-muted: hsl(240 4.8% 95.9%);
+  --nb-muted-foreground: hsl(240 3.8% 46.1%);
+
+  /* Destructive/Danger */
+  --nb-danger: hsl(0 84.2% 60.2%); /* Red 500 */
+  --nb-danger-foreground: hsl(0 0% 98%);
+
+  /* Semantic Colors - Kept functional but minimal */
+  --nb-success: hsl(142 76% 36%);
+  --nb-success-foreground: hsl(0 0% 100%);
+  --nb-warning: hsl(48 96% 53%);
+  --nb-warning-foreground: hsl(240 10% 3.9%);
+  --nb-info: hsl(221 83% 53%);
+  --nb-info-foreground: hsl(0 0% 100%);
+
+  /* Neutral Grays - Zinc Scale */
+  --nb-gray-50: hsl(240 4.8% 95.9%);
+  --nb-gray-100: hsl(240 4.8% 95.9%);
+  --nb-gray-200: hsl(240 5.9% 90%);
+  --nb-gray-300: hsl(240 5.9% 90%);
+  --nb-gray-400: hsl(240 5% 64.9%);
+  --nb-gray-500: hsl(240 3.8% 46.1%);
+  --nb-gray-600: hsl(240 10% 3.9%);
+
+  /* UI Element Colors */
+  --nb-input-bg: hsl(0 0% 100%);
+  --nb-overlay-bg: hsl(240 10% 3.9% / 0.8);
+  --nb-border-color: hsl(240 5.9% 90%); /* Zinc 200 - The standard border */
+  --nb-border-width: 1px;
+  --nb-border: var(--nb-border-width) solid var(--nb-border-color);
+  --nb-border-thin: var(--nb-border);
+
+  /* Reference Brand Colors (Not used in UI directly) */
+  --nb-brand-yellow: hsl(48 96% 53%);
+  --nb-duck-blue: hsl(221 83% 53%);
+  --nb-deep-blue: hsl(240 5.9% 10%);
+  --nb-salmon: #ff7169;
+  --nb-orange: #ff9538;
+  --nb-lime: #b3c419;
+  --nb-teal: #53dbc9;
+  --nb-purple: #b291de;
+
+  /* ===== Typography - Inter ===== */
+  --nb-font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+    "Noto Sans SC", sans-serif;
+  --nb-font-mono: "Geist Mono", "SF Mono", "Monaco", "Inconsolata",
+    "Roboto Mono", "Noto Sans SC", monospace;
+  --nb-font-ui: var(--nb-font-sans);
+
+  /* Font Sizes */
+  --nb-font-size-xs: 12px;
+  --nb-font-size-sm: 14px;
+  --nb-font-size-base: 16px;
+  --nb-font-size-lg: 18px;
+  --nb-font-size-xl: 24px;
+  --nb-font-size-2xl: 30px;
+  --nb-font-size-3xl: 36px;
+
+  /* Heading Styles - Clean & Bold */
+  --nb-heading-font-family: var(--nb-font-sans);
+  --nb-heading-font-weight: 600;
+  --nb-heading-text-transform: none;
+  --nb-heading-letter-spacing: -0.025em; /* Tighter tracking like official */
+  --nb-heading-line-height: 1.25;
+
+  /* UI Text Styles */
+  --nb-ui-font-weight: 500;
+  --nb-ui-font-weight-strong: 600;
+  --nb-ui-text-transform: none;
+  --nb-ui-letter-spacing: 0;
+
+  /* Link Colors */
+  --nb-link-color: var(--nb-primary);
+  --nb-link-hover-color: hsl(240 3.8% 46.1%);
+
+  /* ===== Border Radius System ===== */
+  --nb-radius: 0.5rem; /* 8px - Default */
+  --nb-radius-sm: calc(var(--nb-radius) - 2px);
+  --nb-radius-md: var(--nb-radius);
+  --nb-radius-lg: calc(var(--nb-radius) + 2px);
+  --nb-radius-xl: calc(var(--nb-radius) + 4px);
+
+  /* ===== Spacing Scale (CRITICAL for Layout) ===== */
+  --nb-space-xs: 8px;
+  --nb-space-sm: 12px;
+  --nb-space-md: 16px;
+  --nb-space-lg: 24px;
+  --nb-space-xl: 32px;
+  --nb-space-2xl: 64px;
+
+  /* ===== Shadows ===== */
+  --nb-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --nb-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --nb-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --nb-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --nb-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* ===== Focus States ===== */
+  --nb-focus-ring: 0 0 0 2px hsl(240 10% 3.9%); /* Black ring */
+  --nb-focus-outline-color: hsl(240 10% 3.9%);
+  --nb-focus-outline-width: 2px;
+  --nb-focus-outline-offset: 2px;
+
+  /* ===== Layout ===== */
+  --nb-header-height-mobile: 64px;
+  --nb-header-height-desktop: 72px;
+  --nb-container-padding: 32px;
+
+  /* ===== Transitions ===== */
+  --nb-transition-fast: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --nb-transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ===== Scrollbar ===== */
+  --nb-scrollbar-track-bg: transparent;
+  --nb-scrollbar-thumb-bg: hsl(240 4.8% 95.9%);
+  --nb-scrollbar-thumb-hover-bg: hsl(240 5% 64.9%);
+  --nb-scrollbar-thumb-radius: 999px;
+
+  /* ===== Modal/Dialog ===== */
+  --nb-modal-overlay-bg: hsl(240 10% 3.9% / 0.8);
+  --nb-modal-header-bg: var(--nb-surface);
+  --nb-modal-header-foreground: var(--nb-black);
+  --nb-modal-header-border-color: var(--nb-border-color);
+  --nb-modal-footer-bg: var(--nb-surface);
+  --nb-modal-close-bg: transparent;
+  --nb-modal-close-foreground: var(--nb-gray-500);
+  --nb-modal-close-border: 1px solid transparent;
+  --nb-modal-close-hover-bg: var(--nb-gray-100);
+  --nb-modal-close-hover-foreground: var(--nb-black);
+
+  /* ===== Card ===== */
+  --nb-card-header-border-color: var(--nb-border-color);
+
+  /* ===== Chart Colors ===== */
+  --nb-chart-1: hsl(12 76% 61%);
+  --nb-chart-2: hsl(173 58% 39%);
+  --nb-chart-3: hsl(197 37% 24%);
+  --nb-chart-4: hsl(43 74% 66%);
+  --nb-chart-5: hsl(27 87% 67%);
+
+  /* Interaction Lifts */
+  --nb-lift-x: 0px;
+  --nb-lift-y: 0px;
+}
+
+/* ============================================
+   DARK MODE - Default Zinc
+   ============================================ */
+:root[data-ui-theme="shadcn"][data-theme="dark"] {
+  /* Base Colors */
+  --nb-bg: hsl(240 10% 3.9%); /* Zinc 950 - Deep black/gray */
+  --nb-surface: hsl(240 10% 3.9%);
+  --nb-ink: hsl(0 0% 98%);
+  --nb-black: hsl(0 0% 98%);
+  --nb-white: hsl(240 10% 3.9%);
+
+  /* Selection */
+  --nb-selection-bg: hsl(0 0% 98%);
+  --nb-selection-color: hsl(240 5.9% 10%);
+
+  /* Brand & Interactive Colors - MONOCHROME (White Primary) */
+  --nb-primary: hsl(0 0% 98%); /* White */
+  --nb-primary-foreground: hsl(240 5.9% 10%); /* Zinc 900 text */
+
+  --nb-secondary: hsl(240 3.7% 15.9%); /* Zinc 800 */
+  --nb-secondary-foreground: hsl(0 0% 98%);
+
+  --nb-accent: hsl(240 3.7% 15.9%); /* Zinc 800 */
+  --nb-accent-foreground: hsl(0 0% 98%);
+
+  --nb-muted: hsl(240 3.7% 15.9%);
+  --nb-muted-foreground: hsl(240 5% 64.9%);
+
+  /* Danger */
+  --nb-danger: hsl(0 62.8% 30.6%);
+  --nb-danger-foreground: hsl(0 0% 98%);
+
+  /* Semantic */
+  --nb-success: hsl(142 70% 50%);
+  --nb-success-foreground: hsl(240 10% 3.9%);
+  --nb-warning: hsl(48 96% 53%);
+  --nb-warning-foreground: hsl(240 10% 3.9%);
+  --nb-info: hsl(217 91% 60%);
+  --nb-info-foreground: hsl(0 0% 100%);
+
+  /* Neutral Grays */
+  --nb-gray-50: hsl(240 10% 3.9%);
+  --nb-gray-100: hsl(240 3.7% 15.9%);
+  --nb-gray-200: hsl(240 3.7% 15.9%);
+  --nb-gray-300: hsl(240 3.7% 15.9%);
+  --nb-gray-400: hsl(240 5% 64.9%);
+  --nb-gray-500: hsl(240 5% 64.9%);
+  --nb-gray-600: hsl(0 0% 98%);
+
+  /* UI Elements */
+  --nb-input-bg: hsl(240 10% 3.9%);
+  --nb-overlay-bg: hsl(240 10% 3.9% / 0.8);
+  --nb-border-color: hsl(240 3.7% 15.9%); /* Zinc 800 */
+
+  /* Focus */
+  --nb-focus-ring: 0 0 0 2px hsl(240 5% 64.9%);
+  --nb-focus-outline-color: hsl(0 0% 98%);
+
+  /* Scrollbar */
+  --nb-scrollbar-thumb-bg: hsl(240 3.7% 15.9%);
+  --nb-scrollbar-thumb-hover-bg: hsl(240 5% 64.9%);
+
+  /* Modal */
+  --nb-modal-overlay-bg: hsl(0 0% 0% / 0.8);
+  --nb-modal-close-hover-bg: var(--nb-secondary);
+  --nb-modal-close-hover-foreground: var(--nb-secondary-foreground);
+}
+
+/* ============================================
+   GLOBAL RESETS
+   ============================================ */
+:root[data-ui-theme="shadcn"] * {
+  border-color: var(--nb-border-color);
+}
+
+:root[data-ui-theme="shadcn"] *:focus-visible {
+  outline: var(--nb-focus-outline-width) solid var(--nb-focus-outline-color);
+  outline-offset: var(--nb-focus-outline-offset);
+}
+
+:root[data-ui-theme="shadcn"] body {
+  font-family: var(--nb-font-sans);
+  font-size: var(--nb-font-size-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-ui-theme="shadcn"] h1,
+:root[data-ui-theme="shadcn"] h2,
+:root[data-ui-theme="shadcn"] h3,
+:root[data-ui-theme="shadcn"] h4,
+:root[data-ui-theme="shadcn"] h5,
+:root[data-ui-theme="shadcn"] h6 {
+  font-family: var(--nb-heading-font-family);
+  font-weight: var(--nb-heading-font-weight);
+  text-transform: var(--nb-heading-text-transform);
+  letter-spacing: var(--nb-heading-letter-spacing);
+  line-height: var(--nb-heading-line-height);
+}
+
+/* Scrollbar */
+:root[data-ui-theme="shadcn"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+:root[data-ui-theme="shadcn"] ::-webkit-scrollbar-track {
+  background: var(--nb-scrollbar-track-bg);
+}
+:root[data-ui-theme="shadcn"] ::-webkit-scrollbar-thumb {
+  background: var(--nb-scrollbar-thumb-bg);
+  border-radius: var(--nb-scrollbar-thumb-radius);
+}
+:root[data-ui-theme="shadcn"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--nb-scrollbar-thumb-hover-bg);
+}
+
+:root[data-ui-theme="shadcn"] .hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+:root[data-ui-theme="shadcn"] .hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+:root[data-ui-theme="shadcn"] ::selection {
+  background-color: var(--nb-selection-bg);
+  color: var(--nb-selection-color);
+}
