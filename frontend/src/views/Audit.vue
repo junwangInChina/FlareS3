@@ -10,7 +10,7 @@
         </div>
       </template>
 
-      <BrutalTable :columns="columns" :data="logs" :loading="loading" />
+      <BrutalTable class="audit-table" :columns="columns" :data="logs" :loading="loading" />
 
       <div v-if="pagination.itemCount > 0" class="pagination">
         <span>共 {{ pagination.itemCount }} 条</span>
@@ -43,6 +43,7 @@ import BrutalButton from '../components/ui/BrutalButton.vue'
 import BrutalInput from '../components/ui/BrutalInput.vue'
 import BrutalTable from '../components/ui/BrutalTable.vue'
 import BrutalTag from '../components/ui/BrutalTag.vue'
+import Tooltip from '../components/ui/Tooltip.vue'
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
@@ -56,13 +57,76 @@ const formatTarget = (row) => {
   return row.target_type || row.target_id || '-'
 }
 
+const toDisplayText = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  return String(value)
+}
+
+const withTooltip = (content, vnode) => {
+  const text = toDisplayText(content)
+  return h(Tooltip, { content: text }, () => vnode ?? text)
+}
+
 const columns = [
-  { title: '时间', key: 'created_at', width: 160, render: (row) => h('span', new Date(row.created_at).toLocaleString('zh-CN')) },
-  { title: '动作', key: 'action', width: 120, render: (row) => h(BrutalTag, { type: 'info', size: 'small' }, () => row.action) },
-  { title: '操作者', key: 'actor', width: 140, render: (row) => h('span', row.actor_username || row.actor_user_id || '-') },
-  { title: '目标', key: 'target', width: 180, render: (row) => h('span', formatTarget(row)) },
-  { title: 'IP', key: 'ip', width: 120, render: (row) => h('span', row.ip || '-') },
-  { title: 'User-Agent', key: 'user_agent', render: (row) => h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, row.user_agent || '-') }
+  {
+    title: '时间',
+    key: 'created_at',
+    width: 200,
+    align: 'center',
+    render: (row) => {
+      const text = row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '-'
+      return withTooltip(text)
+    }
+  },
+  {
+    title: '动作',
+    key: 'action',
+    width: 150,
+    align: 'center',
+    render: (row) => {
+      const text = toDisplayText(row.action)
+      return withTooltip(text, h(BrutalTag, { type: 'info', size: 'small' }, () => text))
+    }
+  },
+  {
+    title: '操作者',
+    key: 'actor',
+    width: 140,
+    align: 'center',
+    render: (row) => {
+      const text = row.actor_username || row.actor_user_id || '-'
+      return withTooltip(text)
+    }
+  },
+  {
+    title: '目标',
+    key: 'target',
+    width: 180,
+    align: 'center',
+    render: (row) => {
+      const text = formatTarget(row)
+      return withTooltip(text)
+    }
+  },
+  {
+    title: 'IP',
+    key: 'ip',
+    width: 120,
+    align: 'center',
+    render: (row) => {
+      const text = row.ip || '-'
+      return withTooltip(text)
+    }
+  },
+  {
+    title: 'User-Agent',
+    key: 'user_agent',
+    align: 'left',
+    render: (row) => {
+      const text = row.user_agent || '-'
+      return withTooltip(text, h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, text))
+    }
+  }
 ]
 
 const loadLogs = async () => {
@@ -113,13 +177,30 @@ onMounted(() => loadLogs())
   width: 140px;
 }
 
+:deep(.audit-table .brutal-table) {
+  table-layout: fixed;
+}
+
+:deep(.audit-table .brutal-table th),
+:deep(.audit-table .brutal-table td) {
+  white-space: nowrap;
+}
+
 .pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: var(--nb-space-lg);
   padding-top: var(--nb-space-md);
-  border-top: 2px dashed var(--nb-black);
+  border-top: var(--nb-border-width) dashed var(--nb-border-color);
+}
+
+/* shadcn/ui theme: Modern pagination style */
+:root[data-ui-theme="shadcn"] .pagination {
+  border-top: var(--nb-border-width) solid var(--nb-border-color);
+  background-color: var(--nb-gray-50);
+  margin-top: 0;
+  padding: var(--nb-space-md) var(--nb-space-lg);
 }
 
 .page-btns {
@@ -129,8 +210,19 @@ onMounted(() => loadLogs())
 }
 
 .page-info {
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   padding: 0 var(--nb-space-sm);
+}
+
+/* shadcn/ui theme: Cleaner page info */
+:root[data-ui-theme="shadcn"] .page-info {
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
+  padding: 4px 12px;
+  background-color: var(--nb-surface);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius-sm);
 }
 </style>
