@@ -64,8 +64,8 @@ defineProps({
 }
 
 .step-number {
-  font-family: var(--nb-font-mono);
-  font-weight: 900;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
   font-size: 18px;
 }
 
@@ -74,10 +74,10 @@ defineProps({
 }
 
 .step-title {
-  font-family: var(--nb-font-mono);
-  font-weight: 700;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight, 700);
   font-size: 14px;
-  text-transform: uppercase;
+  text-transform: var(--nb-ui-text-transform, uppercase);
 }
 
 .step-desc {
@@ -98,8 +98,8 @@ defineProps({
 /* States */
 .completed .step-indicator {
   background: var(--nb-success);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
+  color: var(--nb-success-foreground, var(--nb-ink));
+  border-color: var(--nb-border-color);
 }
 
 .completed .step-connector {
@@ -108,9 +108,9 @@ defineProps({
 
 .active .step-indicator {
   background: var(--nb-primary);
-  color: var(--nb-ink);
-  border-color: var(--nb-ink);
-  box-shadow: -4px 4px 0px 0px var(--nb-ink);
+  color: var(--nb-primary-foreground, var(--nb-ink));
+  border-color: var(--nb-border-color);
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .pending .step-indicator {
@@ -124,6 +124,6 @@ defineProps({
 
 .error .step-indicator {
   background: var(--nb-danger);
-  color: var(--nb-white);
+  color: var(--nb-danger-foreground, var(--nb-white));
 }
 </style>
