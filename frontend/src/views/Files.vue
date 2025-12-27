@@ -1,83 +1,97 @@
 <template>
   <AppLayout>
-    <BrutalCard title="文件列表">
-      <template #header-extra>
-        <div class="header-actions">
+    <div class="files-page">
+      <header class="files-header">
+        <div class="files-title-group">
+          <h1 class="files-title">文件列表</h1>
+          <p class="files-subtitle">
+            查看和管理所有上传的文件
+          </p>
+        </div>
+
+        <div class="files-actions">
           <BrutalSelect
             v-if="authStore.isAdmin"
             v-model="scope"
             :options="scopeOptions"
             @update:model-value="handleScopeChange"
           />
-          <BrutalButton type="default" size="small" @click="loadFiles">刷新</BrutalButton>
+          <BrutalButton type="default" size="default" @click="loadFiles">
+            <RefreshCw :size="16" style="margin-right: 6px" />
+            刷新
+          </BrutalButton>
         </div>
-      </template>
+      </header>
 
-      <BrutalTable class="files-table" :columns="columns" :data="filesStore.files" :loading="filesStore.loading" />
+      <section class="files-content">
+        <BrutalCard class="files-table-card">
+          <BrutalTable class="files-table" :columns="columns" :data="filesStore.files" :loading="filesStore.loading" />
 
-      <div v-if="filesStore.total > 0" class="pagination">
-        <span>共 {{ filesStore.total }} 条</span>
-        <div class="page-btns">
-          <BrutalButton
-            size="small"
-            type="ghost"
-            :disabled="pagination.page <= 1"
-            @click="changePage(pagination.page - 1)"
-          >上一页</BrutalButton>
-          <span class="page-info">{{ pagination.page }}</span>
-          <BrutalButton
-            size="small"
-            type="ghost"
-            :disabled="pagination.page * pagination.pageSize >= filesStore.total"
-            @click="changePage(pagination.page + 1)"
-          >下一页</BrutalButton>
-        </div>
-      </div>
-    </BrutalCard>
-
-    <BrutalModal v-model:show="showInfoModal" title="文件信息" width="500px">
-      <template v-if="selectedFile">
-        <BrutalDescriptions
-          :items="[
-            { label: '文件名', value: selectedFile.filename },
-            { label: '文件大小', value: formatBytes(selectedFile.size) },
-            { label: '上传时间', value: new Date(selectedFile.created_at).toLocaleString('zh-CN') },
-            { label: '剩余时间', value: selectedFile.remaining_time },
-            { label: '下载权限', value: selectedFile.require_login ? '需要登录' : '公开' }
-          ]"
-          :column="1"
-        />
-
-        <BrutalDivider />
-
-        <div class="link-group">
-          <label class="link-label">短链接</label>
-          <div class="link-row">
-            <BrutalInput :model-value="getShortUrl(selectedFile)" readonly size="small" />
-            <BrutalButton type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile), '短链接')">复制</BrutalButton>
+          <div v-if="filesStore.total > 0" class="pagination">
+            <span>共 {{ filesStore.total }} 条</span>
+            <div class="page-btns">
+              <BrutalButton
+                size="small"
+                type="ghost"
+                :disabled="pagination.page <= 1"
+                @click="changePage(pagination.page - 1)"
+              >上一页</BrutalButton>
+              <span class="page-info">{{ pagination.page }}</span>
+              <BrutalButton
+                size="small"
+                type="ghost"
+                :disabled="pagination.page * pagination.pageSize >= filesStore.total"
+                @click="changePage(pagination.page + 1)"
+              >下一页</BrutalButton>
+            </div>
           </div>
-        </div>
+        </BrutalCard>
+      </section>
 
-        <div class="link-group">
-          <label class="link-label">直链</label>
-          <div class="link-row">
-            <BrutalInput :model-value="getDownloadUrl(selectedFile)" readonly size="small" />
-            <BrutalButton type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile), '直链')">复制</BrutalButton>
+      <BrutalModal v-model:show="showInfoModal" title="文件信息" width="500px">
+        <template v-if="selectedFile">
+          <BrutalDescriptions
+            :items="[
+              { label: '文件名', value: selectedFile.filename },
+              { label: '文件大小', value: formatBytes(selectedFile.size) },
+              { label: '上传时间', value: new Date(selectedFile.created_at).toLocaleString('zh-CN') },
+              { label: '剩余时间', value: selectedFile.remaining_time },
+              { label: '下载权限', value: selectedFile.require_login ? '需要登录' : '公开' }
+            ]"
+            :column="1"
+          />
+
+          <BrutalDivider />
+
+          <div class="link-group">
+            <label class="link-label">短链接</label>
+            <div class="link-row">
+              <BrutalInput :model-value="getShortUrl(selectedFile)" readonly size="small" />
+              <BrutalButton type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile), '短链接')">复制</BrutalButton>
+            </div>
           </div>
-        </div>
-      </template>
 
-      <template #footer>
-        <BrutalButton type="default" @click="showInfoModal = false">关闭</BrutalButton>
-        <BrutalButton type="primary" @click="handleDownload(selectedFile)">下载文件</BrutalButton>
-      </template>
-    </BrutalModal>
+          <div class="link-group">
+            <label class="link-label">直链</label>
+            <div class="link-row">
+              <BrutalInput :model-value="getDownloadUrl(selectedFile)" readonly size="small" />
+              <BrutalButton type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile), '直链')">复制</BrutalButton>
+            </div>
+          </div>
+        </template>
+
+        <template #footer>
+          <BrutalButton type="default" @click="showInfoModal = false">关闭</BrutalButton>
+          <BrutalButton type="primary" @click="handleDownload(selectedFile)">下载文件</BrutalButton>
+        </template>
+      </BrutalModal>
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
 import { ref, h, onMounted, computed } from 'vue'
-import { Info, Trash2 } from 'lucide-vue-next'
+import { Info, Trash2, RefreshCw } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
 import AppLayout from '../components/layout/AppLayout.vue'
@@ -264,10 +278,54 @@ onMounted(() => loadFiles())
 </script>
 
 <style scoped>
-.header-actions {
+.files-page {
   display: flex;
-  gap: var(--nb-space-sm);
+  flex-direction: column;
+  gap: var(--nb-space-lg);
+}
+
+.files-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--nb-space-lg);
+}
+
+.files-title-group {
+  min-width: 0;
+}
+
+.files-title {
+  margin: 0;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  font-size: var(--nb-font-size-2xl);
+  line-height: 1.2;
+}
+
+.files-subtitle {
+  margin: var(--nb-space-sm) 0 0;
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: var(--nb-font-size-sm);
+}
+
+.files-actions {
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
+  gap: var(--nb-space-sm);
+  flex-wrap: wrap;
+}
+
+.files-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
+}
+
+/* Table Card Styling */
+.files-table-card {
+  /* min-height removed to avoid empty space */
 }
 
 :deep(.files-table .brutal-table) {
@@ -283,17 +341,13 @@ onMounted(() => loadFiles())
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--nb-space-lg);
-  padding-top: var(--nb-space-md);
-  border-top: var(--nb-border-width) dashed var(--nb-border-color);
+  padding: var(--nb-space-md) var(--nb-space-lg);
+  border-top: var(--nb-border);
 }
 
-/* shadcn/ui theme: Modern pagination style */
+/* shadcn/ui theme adjustment */
 :root[data-ui-theme="shadcn"] .pagination {
-  border-top: var(--nb-border-width) solid var(--nb-border-color);
   background-color: var(--nb-gray-50);
-  margin-top: 0;
-  padding: var(--nb-space-md) var(--nb-space-lg);
 }
 
 .page-btns {
@@ -308,7 +362,6 @@ onMounted(() => loadFiles())
   padding: 0 var(--nb-space-sm);
 }
 
-/* shadcn/ui theme: Cleaner page info */
 :root[data-ui-theme="shadcn"] .page-info {
   font-weight: 600;
   min-width: 32px;
@@ -342,7 +395,6 @@ onMounted(() => loadFiles())
   flex: 1;
 }
 
-/* Action buttons styling */
 :deep(.action-buttons) {
   display: flex;
   gap: 8px;
@@ -350,8 +402,15 @@ onMounted(() => loadFiles())
   align-items: center;
 }
 
-/* shadcn/ui theme: Compact action buttons */
-:root[data-ui-theme="shadcn"] :deep(.action-buttons) {
-  gap: 8px;
+@media (max-width: 720px) {
+  .files-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .files-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 </style>
