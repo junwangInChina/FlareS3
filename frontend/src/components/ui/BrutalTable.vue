@@ -69,6 +69,11 @@ defineProps({
   border-radius: 0;
 }
 
+/* shadcn/ui theme: Add top border when inside card */
+:root[data-ui-theme="shadcn"] .brutal-card .brutal-table-wrapper {
+  border-top: var(--nb-border);
+}
+
 .loading-overlay {
   position: absolute;
   top: 0;
@@ -108,6 +113,18 @@ defineProps({
   text-align: left;
 }
 
+/* shadcn/ui theme: Better table spacing */
+:root[data-ui-theme="shadcn"] .brutal-table th,
+:root[data-ui-theme="shadcn"] .brutal-table td {
+  padding: 12px 16px;
+  border: none;
+  border-bottom: var(--nb-border);
+}
+
+:root[data-ui-theme="shadcn"] .brutal-table th {
+  border-bottom-width: 1px;
+}
+
 /* Cell with ellipsis */
 .cell-ellipsis {
   max-width: 0; /* Force ellipsis to work */
@@ -133,8 +150,27 @@ defineProps({
   border-color: var(--nb-border-color);
 }
 
+/* shadcn/ui theme: Modern table header */
+:root[data-ui-theme="shadcn"] .brutal-table th {
+  background-color: var(--nb-gray-50);
+  color: var(--nb-muted-foreground);
+  font-size: var(--nb-font-size-xs);
+  font-weight: var(--nb-font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .brutal-table tr:hover td {
   background-color: var(--nb-gray-100);
+}
+
+/* shadcn/ui theme: Subtle hover effect */
+:root[data-ui-theme="shadcn"] .brutal-table tbody tr {
+  transition: background-color var(--nb-transition-duration) var(--nb-transition-easing);
+}
+
+:root[data-ui-theme="shadcn"] .brutal-table tbody tr:hover td {
+  background-color: var(--nb-gray-50);
 }
 
 .empty-cell {
@@ -142,5 +178,12 @@ defineProps({
   padding: 40px;
   color: var(--nb-gray-500);
   font-style: italic;
+}
+
+/* shadcn/ui theme: Better empty state */
+:root[data-ui-theme="shadcn"] .empty-cell {
+  padding: 60px 40px;
+  font-size: var(--nb-font-size-sm);
+  color: var(--nb-muted-foreground);
 }
 </style>
