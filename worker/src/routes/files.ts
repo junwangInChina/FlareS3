@@ -31,15 +31,42 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
     Math.max(1, Number(url.searchParams.get("limit") || 20))
   );
   const scope = url.searchParams.get("scope");
+  const filename = url.searchParams.get("filename");
+  const ownerId = url.searchParams.get("owner_id");
+  const uploadStatus = url.searchParams.get("upload_status");
+  const createdFrom = url.searchParams.get("created_from");
+  const createdTo = url.searchParams.get("created_to");
   const offset = (page - 1) * limit;
 
+  const conditions: string[] = [
+    "f.upload_status IN ('completed','deleted')",
+    "f.deleted_at IS NULL",
+  ];
   const params: unknown[] = [];
-  let whereClause =
-    "WHERE f.upload_status IN ('completed','deleted') AND f.deleted_at IS NULL";
   if (user.role !== "admin" || scope === "mine") {
-    whereClause += " AND f.owner_id = ?";
+    conditions.push("f.owner_id = ?");
     params.push(user.id);
+  } else if (ownerId) {
+    conditions.push("f.owner_id = ?");
+    params.push(ownerId);
   }
+  if (filename && filename.trim()) {
+    conditions.push("f.filename LIKE ?");
+    params.push(`%${filename.trim()}%`);
+  }
+  if (uploadStatus) {
+    conditions.push("f.upload_status = ?");
+    params.push(uploadStatus);
+  }
+  if (createdFrom) {
+    conditions.push("f.created_at >= ?");
+    params.push(createdFrom);
+  }
+  if (createdTo) {
+    conditions.push("f.created_at < ?");
+    params.push(createdTo);
+  }
+  const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
   const totalRow = await env.DB.prepare(
     `SELECT COUNT(*) AS total FROM files f ${whereClause}`
