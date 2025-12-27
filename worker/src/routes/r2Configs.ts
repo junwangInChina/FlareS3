@@ -1,6 +1,6 @@
 import type { Env } from "../config/env";
 import { jsonResponse, parseJson } from "./utils";
-import { encryptString } from "../services/crypto";
+import { encryptString, validateBase64KeyLength } from "../services/crypto";
 import {
   ENV_R2_CONFIG_ID,
   LEGACY_R2_CONFIG_ID,
@@ -10,6 +10,7 @@ import {
   loadR2ConfigById,
   setDefaultR2ConfigId,
   setLegacyFilesR2ConfigId,
+  summarizeS3Error,
   testConnection,
 } from "../services/r2";
 
@@ -66,8 +67,23 @@ export async function createConfig(
   request: Request,
   env: Env
 ): Promise<Response> {
-  if (!env.R2_MASTER_KEY) {
+  const masterKey = String(env.R2_MASTER_KEY || "").trim();
+  if (!masterKey) {
     return jsonResponse({ error: "缺少 R2_MASTER_KEY" }, 500);
+  }
+  const keyCheck = validateBase64KeyLength(masterKey, 32);
+  if (!keyCheck.valid) {
+    if (keyCheck.reason === "invalid_base64") {
+      return jsonResponse(
+        { error: "R2_MASTER_KEY 无效：不是合法的 base64 字符串" },
+        500
+      );
+    }
+    const suffix =
+      keyCheck.reason === "invalid_length"
+        ? `（当前解码为 ${keyCheck.byteLength} 字节）`
+        : "";
+    return jsonResponse({ error: `R2_MASTER_KEY 无效：需要 32 字节 base64${suffix}` }, 500);
   }
 
   try {
@@ -86,14 +102,8 @@ export async function createConfig(
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    const accessEnc = await encryptString(
-      body.access_key_id,
-      env.R2_MASTER_KEY
-    );
-    const secretEnc = await encryptString(
-      body.secret_access_key,
-      env.R2_MASTER_KEY
-    );
+    const accessEnc = await encryptString(body.access_key_id, masterKey);
+    const secretEnc = await encryptString(body.secret_access_key, masterKey);
 
     const result = await env.DB.prepare(
       `INSERT INTO r2_configs (id, name, endpoint, bucket_name, access_key_id_enc, secret_access_key_enc, created_at, updated_at)
@@ -140,8 +150,23 @@ export async function updateConfig(
   if (id === ENV_R2_CONFIG_ID || id === LEGACY_R2_CONFIG_ID) {
     return jsonResponse({ error: "该配置不可修改" }, 400);
   }
-  if (!env.R2_MASTER_KEY) {
+  const masterKey = String(env.R2_MASTER_KEY || "").trim();
+  if (!masterKey) {
     return jsonResponse({ error: "缺少 R2_MASTER_KEY" }, 500);
+  }
+  const keyCheck = validateBase64KeyLength(masterKey, 32);
+  if (!keyCheck.valid) {
+    if (keyCheck.reason === "invalid_base64") {
+      return jsonResponse(
+        { error: "R2_MASTER_KEY 无效：不是合法的 base64 字符串" },
+        500
+      );
+    }
+    const suffix =
+      keyCheck.reason === "invalid_length"
+        ? `（当前解码为 ${keyCheck.byteLength} 字节）`
+        : "";
+    return jsonResponse({ error: `R2_MASTER_KEY 无效：需要 32 字节 base64${suffix}` }, 500);
   }
 
   try {
@@ -177,13 +202,13 @@ export async function updateConfig(
     let secretEnc = String(existing.secret_access_key_enc);
 
     if (typeof body.access_key_id === "string" && body.access_key_id) {
-      accessEnc = await encryptString(body.access_key_id, env.R2_MASTER_KEY);
+      accessEnc = await encryptString(body.access_key_id, masterKey);
     }
 
     if (typeof body.secret_access_key === "string" && body.secret_access_key) {
       secretEnc = await encryptString(
         body.secret_access_key,
-        env.R2_MASTER_KEY
+        masterKey
       );
     }
 
@@ -336,6 +361,20 @@ export async function testById(
     await testConnection(loaded.config);
     return jsonResponse({ success: true, message: "连接测试成功" });
   } catch (error) {
-    return jsonResponse({ success: false, message: "连接测试失败" }, 400);
+    const summary = summarizeS3Error(error);
+    const parts = [
+      summary.code,
+      typeof summary.httpStatusCode === "number"
+        ? `HTTP ${summary.httpStatusCode}`
+        : null,
+      summary.message,
+    ].filter(Boolean);
+
+    let message = parts.length ? `连接测试失败（${parts.join(" / ")}）` : "连接测试失败";
+    if (summary.httpStatusCode === 403 || summary.code === "AccessDenied") {
+      message += "；请确认 R2 API Token 已启用 Object Read/Write 且已授权该 Bucket";
+    }
+
+    return jsonResponse({ success: false, message }, 400);
   }
 }
