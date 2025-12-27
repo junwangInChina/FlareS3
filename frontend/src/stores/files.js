@@ -8,30 +8,28 @@ export const useFilesStore = defineStore('files', {
     page: 1,
     limit: 20,
     loading: false,
-    scope: 'mine'
+    filters: {}
   }),
 
   actions: {
-    async fetchFiles(page = 1, limit = this.limit, scope = this.scope) {
+    async fetchFiles(page = 1, limit = this.limit, filters = this.filters) {
       this.loading = true
       try {
-        const response = await api.getFiles(page, limit, scope)
+        const response = await api.getFiles(page, limit, filters)
         this.files = response.files || []
         this.total = response.total
         this.page = response.page
         this.limit = response.limit
-        this.scope = scope
+        this.filters = filters || {}
+      } finally {
         this.loading = false
-      } catch (error) {
-        this.loading = false
-        throw error
       }
     },
 
     async deleteFile(fileId) {
       try {
         await api.deleteFile(fileId)
-        await this.fetchFiles(this.page, this.limit, this.scope)
+        await this.fetchFiles(this.page, this.limit, this.filters)
       } catch (error) {
         throw error
       }
