@@ -1,36 +1,49 @@
 <template>
   <AppLayout>
-    <BrutalCard title="审计日志">
-      <template #header-extra>
-        <div class="filter-row">
-          <BrutalInput v-model="filters.action" placeholder="动作" size="small" />
-          <BrutalInput v-model="filters.actor" placeholder="操作者 ID" size="small" />
-          <BrutalButton type="default" size="small" @click="handleSearch">查询</BrutalButton>
-          <BrutalButton type="ghost" size="small" @click="handleReset">重置</BrutalButton>
+    <div class="audit-page">
+      <header class="audit-header">
+        <div class="audit-title-group">
+          <h1 class="audit-title">审计日志</h1>
+          <p class="audit-subtitle">
+            查看系统内的所有操作记录
+          </p>
         </div>
-      </template>
 
-      <BrutalTable class="audit-table" :columns="columns" :data="logs" :loading="loading" />
-
-      <div v-if="pagination.itemCount > 0" class="pagination">
-        <span>共 {{ pagination.itemCount }} 条</span>
-        <div class="page-btns">
-          <BrutalButton
-            size="small"
-            type="ghost"
-            :disabled="pagination.page <= 1"
-            @click="changePage(pagination.page - 1)"
-          >上一页</BrutalButton>
-          <span class="page-info">{{ pagination.page }}</span>
-          <BrutalButton
-            size="small"
-            type="ghost"
-            :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
-            @click="changePage(pagination.page + 1)"
-          >下一页</BrutalButton>
+        <div class="audit-actions">
+          <div class="filter-row">
+            <BrutalInput v-model="filters.action" placeholder="动作" size="small" />
+            <BrutalInput v-model="filters.actor" placeholder="操作者 ID" size="small" />
+            <BrutalButton type="default" size="small" @click="handleSearch">查询</BrutalButton>
+            <BrutalButton type="ghost" size="small" @click="handleReset">重置</BrutalButton>
+          </div>
         </div>
-      </div>
-    </BrutalCard>
+      </header>
+
+      <section class="audit-content">
+        <BrutalCard class="audit-table-card">
+          <BrutalTable class="audit-table" :columns="columns" :data="logs" :loading="loading" />
+
+          <div v-if="pagination.itemCount > 0" class="pagination">
+            <span>共 {{ pagination.itemCount }} 条</span>
+            <div class="page-btns">
+              <BrutalButton
+                size="small"
+                type="ghost"
+                :disabled="pagination.page <= 1"
+                @click="changePage(pagination.page - 1)"
+              >上一页</BrutalButton>
+              <span class="page-info">{{ pagination.page }}</span>
+              <BrutalButton
+                size="small"
+                type="ghost"
+                :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
+                @click="changePage(pagination.page + 1)"
+              >下一页</BrutalButton>
+            </div>
+          </div>
+        </BrutalCard>
+      </section>
+    </div>
   </AppLayout>
 </template>
 
@@ -166,6 +179,55 @@ onMounted(() => loadLogs())
 </script>
 
 <style scoped>
+.audit-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
+}
+
+.audit-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--nb-space-lg);
+}
+
+.audit-title-group {
+  min-width: 0;
+}
+
+.audit-title {
+  margin: 0;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  font-size: var(--nb-font-size-2xl);
+  line-height: 1.2;
+}
+
+.audit-subtitle {
+  margin: var(--nb-space-sm) 0 0;
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: var(--nb-font-size-sm);
+}
+
+.audit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--nb-space-sm);
+  flex-wrap: wrap;
+}
+
+.audit-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
+}
+
+.audit-table-card {
+  /* min-height removed */
+}
+
 .filter-row {
   display: flex;
   gap: var(--nb-space-sm);
@@ -190,17 +252,13 @@ onMounted(() => loadLogs())
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--nb-space-lg);
-  padding-top: var(--nb-space-md);
-  border-top: var(--nb-border-width) dashed var(--nb-border-color);
+  padding: var(--nb-space-md) var(--nb-space-lg);
+  border-top: var(--nb-border);
 }
 
 /* shadcn/ui theme: Modern pagination style */
 :root[data-ui-theme="shadcn"] .pagination {
-  border-top: var(--nb-border-width) solid var(--nb-border-color);
   background-color: var(--nb-gray-50);
-  margin-top: 0;
-  padding: var(--nb-space-md) var(--nb-space-lg);
 }
 
 .page-btns {
@@ -224,5 +282,16 @@ onMounted(() => loadLogs())
   background-color: var(--nb-surface);
   border: var(--nb-border);
   border-radius: var(--nb-radius-sm);
+}
+
+@media (max-width: 720px) {
+  .audit-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .audit-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 </style>
