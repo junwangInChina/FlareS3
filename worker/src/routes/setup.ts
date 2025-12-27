@@ -1,8 +1,8 @@
 import type { Env } from '../config/env'
 import { jsonResponse, parseJson, getUser } from './utils'
 import { hasEnvR2Config } from '../config/env'
-import { encryptString } from '../services/crypto'
-import { createS3Client, testConnection, type R2Config } from '../services/r2'
+import { encryptString, validateBase64KeyLength } from '../services/crypto'
+import { createS3Client, summarizeS3Error, testConnection, type R2Config } from '../services/r2'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 
@@ -40,8 +40,17 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
   if (hasEnvR2Config(env)) {
     return jsonResponse({ error: '已使用环境变量配置，无法修改' }, 400)
   }
-  if (!env.R2_MASTER_KEY) {
+  const masterKey = String(env.R2_MASTER_KEY || '').trim()
+  if (!masterKey) {
     return jsonResponse({ error: '缺少 R2_MASTER_KEY' }, 500)
+  }
+  const keyCheck = validateBase64KeyLength(masterKey, 32)
+  if (!keyCheck.valid) {
+    if (keyCheck.reason === 'invalid_base64') {
+      return jsonResponse({ error: 'R2_MASTER_KEY 无效：不是合法的 base64 字符串' }, 500)
+    }
+    const suffix = keyCheck.reason === 'invalid_length' ? `（当前解码为 ${keyCheck.byteLength} 字节）` : ''
+    return jsonResponse({ error: `R2_MASTER_KEY 无效：需要 32 字节 base64${suffix}` }, 500)
   }
   try {
     const body = await parseJson<{ endpoint: string; access_key_id: string; secret_access_key: string; bucket_name: string }>(request)
@@ -49,8 +58,8 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
       return jsonResponse({ error: '所有字段都是必填的' }, 400)
     }
     const now = new Date().toISOString()
-    const accessEnc = await encryptString(body.access_key_id, env.R2_MASTER_KEY)
-    const secretEnc = await encryptString(body.secret_access_key, env.R2_MASTER_KEY)
+    const accessEnc = await encryptString(body.access_key_id, masterKey)
+    const secretEnc = await encryptString(body.secret_access_key, masterKey)
     const statements = [
       ['r2_endpoint', body.endpoint],
       ['r2_bucket_name', body.bucket_name],
@@ -97,6 +106,16 @@ export async function testConfig(request: Request): Promise<Response> {
     await testConnection(config)
     return jsonResponse({ success: true, message: '连接测试成功' })
   } catch (error) {
-    return jsonResponse({ success: false, message: '连接测试失败' }, 400)
+    const summary = summarizeS3Error(error)
+    const parts = [
+      summary.code,
+      typeof summary.httpStatusCode === 'number' ? `HTTP ${summary.httpStatusCode}` : null,
+      summary.message
+    ].filter(Boolean)
+    let message = parts.length ? `连接测试失败（${parts.join(' / ')}）` : '连接测试失败'
+    if (summary.httpStatusCode === 403 || summary.code === 'AccessDenied') {
+      message += '；请确认 R2 API Token 已启用 Object Read/Write 且已授权该 Bucket'
+    }
+    return jsonResponse({ success: false, message }, 400)
   }
 }
