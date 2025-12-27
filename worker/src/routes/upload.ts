@@ -364,9 +364,11 @@ export async function completeMultipart(
   if (!user) return jsonResponse({ error: "未授权" }, 401);
 
   try {
-    const body = await parseJson<{ file_id: string; upload_id: string }>(
-      request
-    );
+    const body = await parseJson<{
+      file_id: string;
+      upload_id: string;
+      parts?: Array<{ part_number: number; etag: string }>;
+    }>(request);
 
     const file = await env.DB.prepare(
       "SELECT id, owner_id, filename, r2_key, expires_at, short_code, require_login FROM files WHERE id = ?"
@@ -381,11 +383,25 @@ export async function completeMultipart(
     const loaded = await resolveR2ConfigForKey(env, String(file.r2_key));
     if (!loaded) return jsonResponse({ error: "R2 未配置" }, 503);
 
-    const parts = await listParts(
-      loaded.config,
-      String(file.r2_key),
-      body.upload_id
-    );
+    const requestParts = Array.isArray(body.parts) ? body.parts : [];
+    const parts: Array<{ PartNumber?: number; ETag?: string }> =
+      requestParts.length > 0
+        ? requestParts
+            .map((part) => {
+              const partNumber = Number(part.part_number);
+              const rawEtag = typeof part.etag === "string" ? part.etag.trim() : "";
+              if (
+                !Number.isFinite(partNumber) ||
+                partNumber <= 0 ||
+                !rawEtag
+              ) {
+                return null;
+              }
+              const etag = rawEtag.startsWith("\"") ? rawEtag : `"${rawEtag}"`;
+              return { PartNumber: partNumber, ETag: etag };
+            })
+            .filter((part): part is { PartNumber: number; ETag: string } => Boolean(part))
+        : await listParts(loaded.config, String(file.r2_key), body.upload_id);
 
     await completeMultipartUpload(
       loaded.config,
