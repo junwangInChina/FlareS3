@@ -82,35 +82,79 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
   font-weight: 400;
 }
 
-.size-small .brutal-input {
+/* Input sizing (Fixed height, centered text) */
+.size-small input.brutal-input {
+  padding: 0 12px;
+  height: 36px;
+  font-size: 14px;
+  line-height: 34px;
+}
+
+/* shadcn/ui theme: Compact small input */
+:root[data-ui-theme="shadcn"] .size-small input.brutal-input {
+  padding: 0 10px;
+  height: 32px;
+  font-size: 13px;
+  line-height: 30px;
+}
+
+.size-medium input.brutal-input {
+  padding: 0 16px;
+  height: 44px;
+  font-size: 16px;
+  line-height: 42px;
+}
+
+/* shadcn/ui theme: Compact medium input */
+:root[data-ui-theme="shadcn"] .size-medium input.brutal-input {
+  padding: 0 12px;
+  height: 36px;
+  font-size: 14px;
+  line-height: 34px;
+}
+
+.size-large input.brutal-input {
+  padding: 0 20px;
+  height: 52px;
+  font-size: 18px;
+  line-height: 50px;
+}
+
+/* shadcn/ui theme: Compact large input */
+:root[data-ui-theme="shadcn"] .size-large input.brutal-input {
+  padding: 0 14px;
+  height: 40px;
+  font-size: 15px;
+  line-height: 38px;
+}
+
+/* Textarea sizing (Auto height, padding) */
+.size-small textarea.brutal-input {
   padding: 8px 12px;
   font-size: 14px;
 }
 
-/* shadcn/ui theme: Compact small input */
-:root[data-ui-theme="shadcn"] .size-small .brutal-input {
+:root[data-ui-theme="shadcn"] .size-small textarea.brutal-input {
   padding: 6px 10px;
   font-size: 13px;
 }
 
-.size-medium .brutal-input {
+.size-medium textarea.brutal-input {
   padding: 12px 16px;
   font-size: 16px;
 }
 
-/* shadcn/ui theme: Compact medium input */
-:root[data-ui-theme="shadcn"] .size-medium .brutal-input {
+:root[data-ui-theme="shadcn"] .size-medium textarea.brutal-input {
   padding: 8px 12px;
   font-size: 14px;
 }
 
-.size-large .brutal-input {
+.size-large textarea.brutal-input {
   padding: 16px 20px;
   font-size: 18px;
 }
 
-/* shadcn/ui theme: Compact large input */
-:root[data-ui-theme="shadcn"] .size-large .brutal-input {
+:root[data-ui-theme="shadcn"] .size-large textarea.brutal-input {
   padding: 10px 14px;
   font-size: 15px;
 }
