@@ -4,14 +4,15 @@ defineProps({
   options: { type: Array, default: () => [] }, // [{ label, value }]
   label: String,
   placeholder: String,
-  disabled: Boolean
+  disabled: Boolean,
+  size: { type: String, default: 'medium' }
 })
 
 const emit = defineEmits(['update:modelValue'])
 </script>
 
 <template>
-  <div class="brutal-select-wrapper">
+  <div class="brutal-select-wrapper" :class="[`size-${size}`]">
     <label v-if="label" class="select-label">{{ label }}</label>
     <div class="select-container">
       <select
@@ -51,9 +52,7 @@ const emit = defineEmits(['update:modelValue'])
 .brutal-select {
   width: 100%;
   appearance: none;
-  padding: 12px 40px 12px 16px;
   font-family: var(--nb-font-sans);
-  font-size: 16px;
   font-weight: 300;
   border: var(--nb-border);
   border-radius: var(--nb-radius);
@@ -64,11 +63,51 @@ const emit = defineEmits(['update:modelValue'])
   transition: var(--nb-transition-fast);
 }
 
+.size-small .brutal-select {
+  padding: 0 32px 0 12px;
+  height: 36px;
+  font-size: 14px;
+  line-height: 34px;
+}
+
+.size-medium .brutal-select {
+  padding: 0 40px 0 16px;
+  height: 44px;
+  font-size: 16px;
+  line-height: 42px;
+}
+
+.size-large .brutal-select {
+  padding: 0 48px 0 20px;
+  height: 52px;
+  font-size: 18px;
+  line-height: 50px;
+}
+
 /* shadcn/ui theme: Compact select */
 :root[data-ui-theme="shadcn"] .brutal-select {
-  padding: 8px 36px 8px 12px;
-  font-size: 14px;
   font-weight: 400;
+}
+
+:root[data-ui-theme="shadcn"] .size-small .brutal-select {
+  padding: 0 30px 0 10px;
+  height: 32px;
+  font-size: 13px;
+  line-height: 30px;
+}
+
+:root[data-ui-theme="shadcn"] .size-medium .brutal-select {
+  padding: 0 36px 0 12px;
+  height: 36px;
+  font-size: 14px;
+  line-height: 34px;
+}
+
+:root[data-ui-theme="shadcn"] .size-large .brutal-select {
+  padding: 0 40px 0 14px;
+  height: 40px;
+  font-size: 15px;
+  line-height: 38px;
 }
 
 .brutal-select:focus {
