@@ -64,9 +64,22 @@ const emit = defineEmits(['update:modelValue'])
   transition: var(--nb-transition-fast);
 }
 
+/* shadcn/ui theme: Compact select */
+:root[data-ui-theme="shadcn"] .brutal-select {
+  padding: 8px 36px 8px 12px;
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .brutal-select:focus {
   outline: none;
   border-color: var(--nb-deep-blue);
+  box-shadow: var(--nb-focus-ring);
+}
+
+/* shadcn/ui theme: Subtle focus */
+:root[data-ui-theme="shadcn"] .brutal-select:focus {
+  border-color: var(--nb-primary);
   box-shadow: var(--nb-focus-ring);
 }
 
