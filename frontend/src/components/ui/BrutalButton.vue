@@ -58,39 +58,42 @@ defineEmits(['click'])
 /* Sizes */
 .size-small {
   --btn-shadow: var(--nb-shadow-sm);
-  padding: 10px 14px;
+  padding: 0 14px;
+  height: 36px;
   font-size: 14px;
 }
 
 /* shadcn/ui theme: Compact small buttons */
 :root[data-ui-theme="shadcn"] .size-small {
-  padding: 4px 10px;
+  padding: 0 10px;
+  height: 32px;
   font-size: 13px;
-  height: 28px;
 }
 
 .size-medium {
   --btn-shadow: var(--nb-shadow);
-  padding: 16px 22px;
+  padding: 0 22px;
+  height: 44px;
   font-size: 16px;
 }
 
 :root[data-ui-theme="shadcn"] .size-medium {
-  padding: 6px 12px;
+  padding: 0 12px;
+  height: 36px;
   font-size: 13px;
-  height: 32px;
 }
 
 .size-large {
   --btn-shadow: var(--nb-shadow-lg);
-  padding: 18px 26px;
+  padding: 0 26px;
+  height: 52px;
   font-size: 16px;
 }
 
 :root[data-ui-theme="shadcn"] .size-large {
-  padding: 8px 16px;
+  padding: 0 16px;
+  height: 40px;
   font-size: 14px;
-  height: 36px;
 }
 
 /* Types */
