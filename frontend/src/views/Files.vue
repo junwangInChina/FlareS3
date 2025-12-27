@@ -10,22 +10,50 @@
         </div>
 
         <div class="files-actions">
-          <BrutalSelect
-            v-if="authStore.isAdmin"
-            v-model="scope"
-            :options="scopeOptions"
-            @update:model-value="handleScopeChange"
-          />
-          <BrutalButton type="default" size="default" @click="loadFiles">
-            <RefreshCw :size="16" style="margin-right: 6px" />
-            刷新
-          </BrutalButton>
+          <div class="filter-row">
+            <div class="filter-item filename">
+              <BrutalInput v-model="filters.filename" placeholder="文件名称" size="small" @keyup.enter="handleSearch" />
+            </div>
+
+            <div v-if="authStore.isAdmin" class="filter-item owner">
+              <BrutalSelect v-model="filters.owner_id" :options="ownerOptions" :disabled="usersLoading" />
+            </div>
+
+            <div class="filter-item status">
+              <BrutalSelect v-model="filters.upload_status" :options="statusOptions" />
+            </div>
+
+            <div class="filter-item created-date">
+              <BrutalInput v-model="filters.created_date" type="date" size="small" placeholder="上传时间" />
+            </div>
+
+            <BrutalButton
+              type="default"
+              size="small"
+              :loading="filesStore.loading && activeAction === 'search'"
+              :disabled="filesStore.loading"
+              @click="handleSearch"
+            >
+              <Search :size="16" style="margin-right: 6px" />
+              搜索
+            </BrutalButton>
+            <BrutalButton
+              type="default"
+              size="small"
+              :loading="filesStore.loading && activeAction === 'refresh'"
+              :disabled="filesStore.loading"
+              @click="handleRefresh"
+            >
+              <RefreshCw :size="16" style="margin-right: 6px" />
+              刷新
+            </BrutalButton>
+          </div>
         </div>
       </header>
 
       <section class="files-content">
         <BrutalCard class="files-table-card">
-          <BrutalTable class="files-table" :columns="columns" :data="filesStore.files" :loading="filesStore.loading" />
+          <BrutalTable class="files-table" :columns="columns" :data="filesStore.files" :loading="tableLoading" />
 
           <div v-if="filesStore.total > 0" class="pagination">
             <span>共 {{ filesStore.total }} 条</span>
@@ -33,14 +61,14 @@
               <BrutalButton
                 size="small"
                 type="ghost"
-                :disabled="pagination.page <= 1"
+                :disabled="filesStore.loading || pagination.page <= 1"
                 @click="changePage(pagination.page - 1)"
               >上一页</BrutalButton>
               <span class="page-info">{{ pagination.page }}</span>
               <BrutalButton
                 size="small"
                 type="ghost"
-                :disabled="pagination.page * pagination.pageSize >= filesStore.total"
+                :disabled="filesStore.loading || pagination.page * pagination.pageSize >= filesStore.total"
                 @click="changePage(pagination.page + 1)"
               >下一页</BrutalButton>
             </div>
@@ -91,9 +119,10 @@
 
 <script setup>
 import { ref, h, onMounted, computed } from 'vue'
-import { Info, Trash2, RefreshCw } from 'lucide-vue-next'
+import { Info, Trash2, RefreshCw, Search } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
+import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import BrutalCard from '../components/ui/BrutalCard.vue'
 import BrutalButton from '../components/ui/BrutalButton.vue'
@@ -113,11 +142,30 @@ const message = useMessage()
 
 const showInfoModal = ref(false)
 const selectedFile = ref(null)
-const scope = ref(authStore.isAdmin ? 'all' : 'mine')
-const scopeOptions = [
-  { label: '全部文件', value: 'all' },
-  { label: '我的文件', value: 'mine' }
+
+const filters = ref({
+  filename: '',
+  owner_id: '',
+  upload_status: '',
+  created_date: ''
+})
+
+const usersLoading = ref(false)
+const users = ref([])
+const ownerOptions = computed(() => [
+  { label: '全部用户', value: '' },
+  ...users.value.map((u) => ({ label: u.username, value: u.id }))
+])
+
+const statusOptions = [
+  { label: '全部状态', value: '' },
+  { label: '有效', value: 'completed' },
+  { label: '失效', value: 'deleted' }
 ]
+
+const activeAction = ref('')
+const hasLoadedOnce = ref(false)
+const tableLoading = computed(() => filesStore.loading && !hasLoadedOnce.value)
 
 const pagination = ref({ page: 1, pageSize: 20 })
 
@@ -154,7 +202,7 @@ const columns = computed(() => [
     width: 80,
     align: 'center',
     render: (row) => {
-      const statusText = row.upload_status === 'deleted' ? '已过期' : '有效'
+      const statusText = row.upload_status === 'deleted' ? '失效' : '有效'
       return h(Tooltip, { content: statusText }, () =>
         h(BrutalTag, {
           type: row.upload_status === 'deleted' ? 'danger' : 'success',
@@ -242,16 +290,80 @@ const showFileInfo = (row) => {
   showInfoModal.value = true
 }
 
-const loadFiles = async () => {
+const toIsoStartOfDay = (dateValue) => {
+  const local = new Date(`${dateValue}T00:00:00`)
+  if (Number.isNaN(local.getTime())) return null
+  return local.toISOString()
+}
+
+const addOneDayIso = (isoString) => {
+  const date = new Date(isoString)
+  if (Number.isNaN(date.getTime())) return null
+  date.setDate(date.getDate() + 1)
+  return date.toISOString()
+}
+
+const buildQueryParams = () => {
+  const params = {}
+
+  const filename = filters.value.filename?.trim()
+  if (filename) params.filename = filename
+
+  if (authStore.isAdmin && filters.value.owner_id) {
+    params.owner_id = filters.value.owner_id
+  }
+
+  if (filters.value.upload_status) {
+    params.upload_status = filters.value.upload_status
+  }
+
+  if (filters.value.created_date) {
+    const createdFrom = toIsoStartOfDay(filters.value.created_date)
+    const createdTo = createdFrom ? addOneDayIso(createdFrom) : null
+    if (createdFrom && createdTo) {
+      params.created_from = createdFrom
+      params.created_to = createdTo
+    }
+  }
+
+  return params
+}
+
+const loadUsers = async () => {
+  if (!authStore.isAdmin) return
+  if (users.value.length) return
+  usersLoading.value = true
   try {
-    await filesStore.fetchFiles(pagination.value.page, pagination.value.pageSize, scope.value)
+    const result = await api.getUsers({ page: 1, limit: 100 })
+    users.value = (result.users || []).filter((u) => u.status !== 'deleted')
   } catch (error) {
-    message.error('加载文件列表失败')
+    message.error('加载用户列表失败')
+  } finally {
+    usersLoading.value = false
   }
 }
 
-const handleScopeChange = () => {
+const loadFiles = async () => {
+  try {
+    await filesStore.fetchFiles(pagination.value.page, pagination.value.pageSize, buildQueryParams())
+    hasLoadedOnce.value = true
+  } catch (error) {
+    message.error('加载文件列表失败')
+  } finally {
+    activeAction.value = ''
+  }
+}
+
+const handleSearch = () => {
+  if (filesStore.loading) return
+  activeAction.value = 'search'
   pagination.value.page = 1
+  loadFiles()
+}
+
+const handleRefresh = () => {
+  if (filesStore.loading) return
+  activeAction.value = 'refresh'
   loadFiles()
 }
 
@@ -274,7 +386,10 @@ const handleDelete = async (fileId) => {
   }
 }
 
-onMounted(() => loadFiles())
+onMounted(() => {
+  loadFiles()
+  loadUsers()
+})
 </script>
 
 <style scoped>
@@ -315,6 +430,30 @@ onMounted(() => loadFiles())
   justify-content: flex-end;
   gap: var(--nb-space-sm);
   flex-wrap: wrap;
+}
+
+.filter-row {
+  display: flex;
+  gap: var(--nb-space-sm);
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.filter-item.filename {
+  width: 160px;
+}
+
+.filter-item.owner {
+  width: 140px;
+}
+
+.filter-item.status {
+  width: 120px;
+}
+
+.filter-item.created-date {
+  width: 160px;
 }
 
 .files-content {
@@ -411,6 +550,10 @@ onMounted(() => loadFiles())
   .files-actions {
     justify-content: flex-start;
     width: 100%;
+  }
+
+  .filter-row {
+    justify-content: flex-start;
   }
 }
 </style>
