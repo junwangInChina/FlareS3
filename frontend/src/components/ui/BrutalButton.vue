@@ -64,9 +64,9 @@ defineEmits(['click'])
 
 /* shadcn/ui theme: Compact small buttons */
 :root[data-ui-theme="shadcn"] .size-small {
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-size: 13px;
-  height: 32px;
+  height: 28px;
 }
 
 .size-medium {
@@ -76,9 +76,9 @@ defineEmits(['click'])
 }
 
 :root[data-ui-theme="shadcn"] .size-medium {
-  padding: 8px 16px;
-  font-size: 14px;
-  height: 36px;
+  padding: 6px 12px;
+  font-size: 13px;
+  height: 32px;
 }
 
 .size-large {
@@ -88,9 +88,9 @@ defineEmits(['click'])
 }
 
 :root[data-ui-theme="shadcn"] .size-large {
-  padding: 10px 20px;
-  font-size: 15px;
-  height: 40px;
+  padding: 8px 16px;
+  font-size: 14px;
+  height: 36px;
 }
 
 /* Types */
