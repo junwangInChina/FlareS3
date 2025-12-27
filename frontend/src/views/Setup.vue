@@ -1,64 +1,274 @@
 <template>
   <AppLayout>
-    <BrutalCard title="R2 配置管理">
-      <template #header-extra>
-        <BrutalButton type="primary" size="small" @click="openCreate">
-          新增配置
-        </BrutalButton>
-      </template>
+    <div class="setup-page">
+      <header class="setup-header">
+        <div class="setup-title-group">
+          <h1 class="setup-title">存储管理</h1>
+          <p class="setup-subtitle">
+            管理多套 Cloudflare R2 配置，并设置默认/旧文件映射。
+          </p>
+        </div>
+
+        <div class="setup-actions">
+          <BrutalButton type="primary" size="large" @click="openCreate">
+            <Plus :size="18" style="margin-right: 6px" />
+            添加新配置
+          </BrutalButton>
+          <BrutalButton
+            type="default"
+            size="large"
+            :loading="loading"
+            @click="refresh"
+          >
+            <RefreshCw :size="18" style="margin-right: 6px" />
+            刷新列表
+          </BrutalButton>
+        </div>
+      </header>
 
       <BrutalAlert type="info" title="说明" class="intro">
         你可以在这里管理多套 Cloudflare R2 配置，并设置默认配置。
         上传文件时可选择使用哪套配置；环境变量配置不会锁死 UI 配置。
       </BrutalAlert>
 
-      <div class="controls">
-        <div class="control-item">
-          <BrutalFormItem label="默认配置">
-            <BrutalSelect
-              v-model="defaultConfigId"
-              :options="selectOptions"
-              :disabled="loading || savingDefault"
-            />
-          </BrutalFormItem>
-          <div class="control-actions">
-            <BrutalButton
-              type="default"
-              size="small"
-              :loading="savingDefault"
-              :disabled="loading || savingDefault || !defaultConfigId"
-              @click="handleSetDefault()"
-            >
-              设为默认
-            </BrutalButton>
+      <div class="settings-grid">
+        <BrutalCard
+          title="默认配置"
+          header-bg="var(--nb-secondary)"
+          header-color="var(--nb-ink)"
+        >
+          <div class="setting-body">
+            <BrutalFormItem label="默认配置">
+              <BrutalSelect
+                v-model="defaultConfigId"
+                :options="selectOptions"
+                :disabled="loading || savingDefault"
+              />
+            </BrutalFormItem>
           </div>
-        </div>
 
-        <div class="control-item">
-          <BrutalFormItem label="旧 key 文件映射配置">
-            <BrutalSelect
-              v-model="legacyFilesConfigId"
-              :options="legacySelectOptions"
-              :disabled="loading || savingLegacyFiles"
-            />
-          </BrutalFormItem>
-          <div class="control-actions">
-            <BrutalButton
-              type="default"
-              size="small"
-              :loading="savingLegacyFiles"
-              :disabled="loading || savingLegacyFiles"
-              @click="handleSetLegacyFiles()"
-            >
-              保存映射
-            </BrutalButton>
+          <template #footer>
+            <div class="setting-footer">
+              <BrutalButton
+                type="primary"
+                size="small"
+                :loading="savingDefault"
+                :disabled="loading || savingDefault || !defaultConfigId"
+                @click="handleSetDefault()"
+              >
+                设为默认
+              </BrutalButton>
+            </div>
+          </template>
+        </BrutalCard>
+
+        <BrutalCard
+          title="旧 key 文件映射"
+          header-bg="var(--nb-secondary)"
+          header-color="var(--nb-ink)"
+        >
+          <div class="setting-body">
+            <BrutalFormItem label="旧 key 文件映射配置">
+              <BrutalSelect
+                v-model="legacyFilesConfigId"
+                :options="legacySelectOptions"
+                :disabled="loading || savingLegacyFiles"
+              />
+            </BrutalFormItem>
           </div>
-        </div>
+
+          <template #footer>
+            <div class="setting-footer">
+              <BrutalButton
+                type="primary"
+                size="small"
+                :loading="savingLegacyFiles"
+                :disabled="loading || savingLegacyFiles"
+                @click="handleSetLegacyFiles()"
+              >
+                保存映射
+              </BrutalButton>
+            </div>
+          </template>
+        </BrutalCard>
       </div>
 
-      <BrutalDivider />
+      <section class="config-list">
+        <div v-if="loading" class="config-state">加载中...</div>
 
-      <BrutalTable class="setup-table" :columns="columns" :data="configs" :loading="loading" />
+        <BrutalAlert
+          v-else-if="configs.length === 0"
+          type="info"
+          title="暂无配置"
+        >
+          还没有任何 R2 配置，点击“添加新配置”开始创建。
+        </BrutalAlert>
+
+        <div v-else class="config-cards">
+          <BrutalCard
+            v-for="row in configs"
+            :key="row.id"
+            header-bg="var(--nb-surface)"
+            header-color="var(--nb-ink)"
+            class="config-card-item"
+          >
+            <template #header>
+              <div class="config-card-header">
+                <span class="config-card-icon">
+                  <Database :size="18" />
+                </span>
+
+                <div class="config-card-title">
+                  <Tooltip :content="toDisplayText(row.name)" as-child>
+                    <span class="config-card-name">{{
+                      toDisplayText(row.name)
+                    }}</span>
+                  </Tooltip>
+                </div>
+              </div>
+            </template>
+
+            <template #header-extra>
+              <div class="config-card-tags">
+                <BrutalTag type="info" size="small">R2</BrutalTag>
+                <BrutalTag :type="getSourceTagType(row.source)" size="small">
+                  {{ formatSource(row.source) }}
+                </BrutalTag>
+
+                <BrutalTag
+                  v-if="row.id === r2Options.default_config_id"
+                  type="success"
+                  size="small"
+                >
+                  默认
+                </BrutalTag>
+              </div>
+            </template>
+
+            <div class="config-detail">
+              <div class="kv-group">
+                <div class="kv-row">
+                  <div class="kv-label">存储桶</div>
+                  <div class="kv-value">
+                    <Tooltip :content="toDisplayText(row.bucket_name)" as-child>
+                      <span class="text-ellipsis">
+                        {{ toDisplayText(row.bucket_name) }}
+                      </span>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                <div class="kv-row">
+                  <div class="kv-label">Endpoint</div>
+                  <div class="kv-value kv-mono">
+                    <Tooltip :content="toDisplayText(row.endpoint)" as-child>
+                      <code class="mono-chip">{{
+                        toDisplayText(row.endpoint)
+                      }}</code>
+                    </Tooltip>
+                  </div>
+                </div>
+              </div>
+
+              <div class="kv-divider" />
+
+              <div class="kv-group kv-group-compact">
+                <div class="kv-row">
+                  <div class="kv-label">配置 ID</div>
+                  <div class="kv-value kv-mono">
+                    <Tooltip :content="toDisplayText(row.id)" as-child>
+                      <code class="mono-chip">{{ toDisplayText(row.id) }}</code>
+                    </Tooltip>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <template #footer>
+              <div class="config-actions">
+                <Tooltip content="测试连接" as-child>
+                  <BrutalButton
+                    type="default"
+                    size="small"
+                    :loading="testingId === row.id"
+                    :disabled="loading || testingId === row.id"
+                    @click="handleTest(row)"
+                  >
+                    <TestTube :size="14" />
+                  </BrutalButton>
+                </Tooltip>
+
+                <div class="action-divider"></div>
+
+                <Tooltip content="设为默认" as-child>
+                  <BrutalButton
+                    type="default"
+                    size="small"
+                    :loading="savingDefault && settingDefaultId === row.id"
+                    :disabled="
+                      loading ||
+                      savingDefault ||
+                      row.id === r2Options.default_config_id
+                    "
+                    @click="handleSetDefault(row.id)"
+                  >
+                    <Star
+                      :size="14"
+                      :fill="
+                        row.id === r2Options.default_config_id
+                          ? 'currentColor'
+                          : 'none'
+                      "
+                    />
+                  </BrutalButton>
+                </Tooltip>
+
+                <Tooltip content="设为旧文件映射" as-child>
+                  <BrutalButton
+                    type="default"
+                    size="small"
+                    :loading="savingLegacyFiles && settingLegacyId === row.id"
+                    :disabled="
+                      loading ||
+                      savingLegacyFiles ||
+                      row.id === r2Options.legacy_files_config_id
+                    "
+                    @click="handleSetLegacyFiles(row.id)"
+                    :class="{
+                      'btn-active': row.id === r2Options.legacy_files_config_id,
+                    }"
+                  >
+                    <Link :size="14" />
+                  </BrutalButton>
+                </Tooltip>
+
+                <template v-if="row.source === 'db'">
+                  <div class="action-divider"></div>
+                  <Tooltip content="编辑" as-child>
+                    <BrutalButton
+                      type="default"
+                      size="small"
+                      @click="openEdit(row)"
+                    >
+                      <Pencil :size="14" />
+                    </BrutalButton>
+                  </Tooltip>
+
+                  <Tooltip content="删除" as-child>
+                    <BrutalButton
+                      type="danger"
+                      size="small"
+                      @click="handleDelete(row)"
+                    >
+                      <Trash2 :size="14" />
+                    </BrutalButton>
+                  </Tooltip>
+                </template>
+              </div>
+            </template>
+          </BrutalCard>
+        </div>
+      </section>
 
       <BrutalModal
         v-model:show="modalVisible"
@@ -130,9 +340,9 @@
         </div>
 
         <template #footer>
-          <BrutalButton type="default" @click="modalVisible = false"
-            >取消</BrutalButton
-          >
+          <BrutalButton type="default" @click="modalVisible = false">
+            取消
+          </BrutalButton>
           <BrutalButton
             type="primary"
             :loading="modalSubmitting"
@@ -142,23 +352,30 @@
           </BrutalButton>
         </template>
       </BrutalModal>
-    </BrutalCard>
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed, h, onMounted } from "vue";
-import { Link, Pencil, Star, TestTube, Trash2 } from "lucide-vue-next";
+import { ref, computed, onMounted } from "vue";
+import {
+  Database,
+  Link,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Star,
+  TestTube,
+  Trash2,
+} from "lucide-vue-next";
 import api from "../services/api";
 import AppLayout from "../components/layout/AppLayout.vue";
 import BrutalCard from "../components/ui/BrutalCard.vue";
 import BrutalButton from "../components/ui/BrutalButton.vue";
-import BrutalTable from "../components/ui/BrutalTable.vue";
 import BrutalModal from "../components/ui/BrutalModal.vue";
 import BrutalFormItem from "../components/ui/BrutalFormItem.vue";
 import BrutalInput from "../components/ui/BrutalInput.vue";
 import BrutalSelect from "../components/ui/BrutalSelect.vue";
-import BrutalDivider from "../components/ui/BrutalDivider.vue";
 import BrutalAlert from "../components/ui/BrutalAlert.vue";
 import BrutalTag from "../components/ui/BrutalTag.vue";
 import Tooltip from "../components/ui/Tooltip.vue";
@@ -169,6 +386,10 @@ const message = useMessage();
 const loading = ref(false);
 const savingDefault = ref(false);
 const savingLegacyFiles = ref(false);
+
+const testingId = ref("");
+const settingDefaultId = ref("");
+const settingLegacyId = ref("");
 
 const r2Options = ref({
   default_config_id: null,
@@ -194,22 +415,6 @@ const formValue = ref({
   secret_access_key: "",
 });
 
-const formatSource = (source) => {
-  if (source === "env") return "环境变量";
-  if (source === "legacy") return "旧版";
-  return "数据库";
-};
-
-const toDisplayText = (value) => {
-  if (value === null || value === undefined || value === "") return "-";
-  return String(value);
-};
-
-const withTooltip = (content, vnode) => {
-  const text = toDisplayText(content);
-  return h(Tooltip, { content: text }, () => vnode ?? text);
-};
-
 const resetForm = () => {
   formValue.value = {
     name: "",
@@ -218,6 +423,23 @@ const resetForm = () => {
     access_key_id: "",
     secret_access_key: "",
   };
+};
+
+const formatSource = (source) => {
+  if (source === "env") return "ENV";
+  if (source === "legacy") return "LEGACY";
+  return "DB";
+};
+
+const getSourceTagType = (source) => {
+  if (source === "env") return "info";
+  if (source === "legacy") return "warning";
+  return "default";
+};
+
+const toDisplayText = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
 };
 
 const modalTitle = computed(() => {
@@ -264,6 +486,7 @@ const handleSetDefault = async (id) => {
 
   try {
     savingDefault.value = true;
+    settingDefaultId.value = targetId;
     await api.setDefaultR2Config(targetId);
     message.success("默认配置已更新");
     await refresh();
@@ -271,6 +494,7 @@ const handleSetDefault = async (id) => {
     message.error(error.response?.data?.error || "设置默认配置失败");
   } finally {
     savingDefault.value = false;
+    settingDefaultId.value = "";
   }
 };
 
@@ -280,6 +504,7 @@ const handleSetLegacyFiles = async (id) => {
 
   try {
     savingLegacyFiles.value = true;
+    settingLegacyId.value = id ?? "";
     await api.setLegacyFilesR2Config(targetId);
     message.success("旧文件映射已更新");
     await refresh();
@@ -287,16 +512,20 @@ const handleSetLegacyFiles = async (id) => {
     message.error(error.response?.data?.error || "设置旧文件映射失败");
   } finally {
     savingLegacyFiles.value = false;
+    settingLegacyId.value = "";
   }
 };
 
 const handleTest = async (row) => {
   try {
+    testingId.value = row.id;
     const result = await api.testR2Config(row.id);
     if (result?.success) message.success(result.message || "连接测试成功");
     else message.error(result?.message || "连接测试失败");
   } catch (error) {
     message.error(error.response?.data?.message || "连接测试失败");
+  } finally {
+    testingId.value = "";
   }
 };
 
@@ -386,214 +615,239 @@ const handleDelete = async (row) => {
   }
 };
 
-const columns = computed(() => {
-  return [
-    {
-      title: "名称",
-      key: "name",
-      align: "left",
-      render: (row) => {
-        const tags = [];
-        const tagTexts = [];
-
-        if (row.id === r2Options.value.default_config_id) {
-          tags.push(
-            h(BrutalTag, { type: "success", size: "small" }, () => "默认")
-          );
-          tagTexts.push("默认");
-        }
-
-        if (row.id === r2Options.value.legacy_files_config_id) {
-          tags.push(
-            h(BrutalTag, { type: "warning", size: "small" }, () => "旧文件")
-          );
-          tagTexts.push("旧文件");
-        }
-
-        const sourceTagType =
-          row.source === "env"
-            ? "info"
-            : row.source === "legacy"
-            ? "warning"
-            : "default";
-        const sourceText = formatSource(row.source);
-        tags.push(
-          h(BrutalTag, { type: sourceTagType, size: "small" }, () => sourceText)
-        );
-        tagTexts.push(sourceText);
-
-        const nameText = toDisplayText(row.name);
-        const tooltipText = [nameText, ...tagTexts].join(" ");
-        return h("div", { class: "config-name" }, [
-          h("span", { class: "config-name-main" }, [
-            h(Tooltip, { content: tooltipText }, () =>
-              h("span", { class: "config-name-text" }, nameText)
-            ),
-          ]),
-          h("span", { class: "config-tags" }, tags),
-        ]);
-      },
-    },
-    {
-      title: "Endpoint",
-      key: "endpoint",
-      align: "left",
-      render: (row) => withTooltip(row.endpoint),
-    },
-    {
-      title: "Bucket",
-      key: "bucket_name",
-      width: 160,
-      align: "center",
-      render: (row) => withTooltip(row.bucket_name),
-    },
-    {
-      title: "操作",
-      key: "actions",
-      width: 360,
-      align: "center",
-      ellipsis: false,
-      render: (row) => {
-        const actions = [
-          h(
-            BrutalButton,
-            { size: "small", type: "default", onClick: () => handleTest(row) },
-            () => [h(TestTube, { size: 16, style: "margin-right: 4px" }), "测试"]
-          ),
-        ];
-
-        actions.push(
-          h(
-            BrutalButton,
-            {
-              size: "small",
-              type: "default",
-              disabled: row.id === r2Options.value.default_config_id,
-              onClick: () => handleSetDefault(row.id),
-            },
-            () => [h(Star, { size: 16, style: "margin-right: 4px" }), "设默认"]
-          )
-        );
-
-        actions.push(
-          h(
-            BrutalButton,
-            {
-              size: "small",
-              type: "default",
-              disabled: row.id === r2Options.value.legacy_files_config_id,
-              onClick: () => handleSetLegacyFiles(row.id),
-            },
-            () => [h(Link, { size: 16, style: "margin-right: 4px" }), "设旧文件"]
-          )
-        );
-
-        if (row.source === "db") {
-          actions.push(
-            h(
-              BrutalButton,
-              { size: "small", type: "default", onClick: () => openEdit(row) },
-              () => [h(Pencil, { size: 16, style: "margin-right: 4px" }), "编辑"]
-            )
-          );
-          actions.push(
-            h(
-              BrutalButton,
-              {
-                size: "small",
-                type: "danger",
-                onClick: () => handleDelete(row),
-              },
-              () => [h(Trash2, { size: 16, style: "margin-right: 4px" }), "删除"]
-            )
-          );
-        }
-
-        return h("div", { class: "action-buttons" }, actions);
-      },
-    },
-  ];
-});
-
 onMounted(() => refresh());
 </script>
 
 <style scoped>
-.intro {
-  margin-bottom: var(--nb-space-lg);
+.setup-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
 }
 
-.controls {
+.setup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--nb-space-lg);
+}
+
+.setup-title-group {
+  min-width: 0;
+}
+
+.setup-title {
+  margin: 0;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  font-size: var(--nb-font-size-2xl);
+  line-height: 1.2;
+}
+
+.setup-subtitle {
+  margin: var(--nb-space-sm) 0 0;
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: var(--nb-font-size-sm);
+}
+
+.setup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--nb-space-sm);
+  flex-wrap: wrap;
+}
+
+.intro {
+  margin: 0;
+}
+
+.settings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--nb-space-lg);
 }
 
-.control-item {
-  border: var(--nb-border-width) dashed var(--nb-border-color);
-  padding: var(--nb-space-md);
-  background: var(--nb-surface);
+.setting-body :deep(.brutal-form-item) {
+  margin-bottom: 0;
 }
 
-.control-actions {
+.setting-footer {
   display: flex;
   justify-content: flex-end;
 }
 
-:deep(.setup-table .brutal-table) {
-  table-layout: fixed;
+.config-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
 }
 
-:deep(.setup-table .brutal-table th),
-:deep(.setup-table .brutal-table td) {
-  white-space: nowrap;
+.config-state {
+  text-align: center;
+  padding: var(--nb-space-2xl);
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
 }
 
-:deep(.setup-table .config-name) {
+.config-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--nb-space-lg);
+}
+
+.config-card-header {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  min-width: 0;
-  flex-wrap: nowrap;
-}
-
-:deep(.setup-table .config-name-main) {
-  flex: 0 1 auto;
+  gap: var(--nb-space-sm);
   min-width: 0;
 }
 
-:deep(.setup-table .config-name-text) {
-  font-weight: 700;
-}
-
-:deep(.setup-table .config-tags) {
+.config-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--nb-radius-md, var(--nb-radius));
+  background: var(--nb-secondary);
+  border: var(--nb-border);
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
-  flex-wrap: nowrap;
-  margin-left: var(--nb-space-sm);
-}
-
-:deep(.setup-table .config-tags) > * + * {
-  margin-left: var(--nb-space-sm);
-}
-
-:deep(.action-buttons) {
-  display: flex;
-  gap: 8px;
   justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;
+  color: var(--nb-warning);
+  flex-shrink: 0;
 }
 
-:root[data-ui-theme="shadcn"] :deep(.action-buttons) {
-  gap: 8px;
+:root[data-ui-theme="shadcn"] .config-card-icon {
+  background: var(--nb-gray-50);
+}
+
+.config-card-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.config-card-name {
+  font-size: var(--nb-font-size-lg);
+  font-weight: var(--nb-font-weight-semibold, 600);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.config-card-tags {
+  display: flex;
+  gap: 4px;
+}
+
+.config-detail {
+  margin-top: var(--nb-space-sm);
+}
+
+.kv-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.kv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nb-space-sm);
+  padding: 6px 0;
+  border-bottom: var(--nb-border);
+}
+
+.kv-row:last-child {
+  border-bottom: none;
+}
+
+.kv-label {
+  color: var(--nb-gray-500);
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-size: 12px;
+  font-weight: var(--nb-ui-font-weight, 700);
+  text-transform: var(--nb-ui-text-transform, uppercase);
+  flex-shrink: 0;
+}
+
+:root[data-ui-theme="shadcn"] .kv-label {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.kv-value {
+  text-align: right;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--nb-ink);
+}
+
+.text-ellipsis {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kv-mono {
+  text-align: right;
+}
+
+.mono-chip {
+  font-family: var(--nb-font-mono);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: var(--nb-radius-sm, var(--nb-radius));
+  background: var(--nb-gray-100);
+  border: var(--nb-border);
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+:root[data-ui-theme="shadcn"] .mono-chip {
+  background: var(--nb-gray-50);
+}
+
+.kv-divider {
+  border-top: var(--nb-border);
+  margin: var(--nb-space-xs) 0;
+}
+
+.kv-group-compact .kv-row {
+  padding: 4px 0;
+}
+
+.config-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.action-divider {
+  width: 1px;
+  height: 16px;
+  background-color: var(--nb-border-color);
+  margin: 0 2px;
+}
+
+.btn-active {
+  background-color: var(--nb-secondary);
+  border-color: var(--nb-ink);
 }
 
 .form-grid {
   display: grid;
   gap: var(--nb-space-md);
+}
+
+.form-grid :deep(.brutal-form-item) {
+  margin-bottom: 0;
 }
 
 .help-list {
@@ -610,8 +864,19 @@ onMounted(() => refresh());
 }
 
 @media (max-width: 960px) {
-  .controls {
+  .settings-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .setup-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .setup-actions {
+    justify-content: flex-start;
   }
 }
 </style>
