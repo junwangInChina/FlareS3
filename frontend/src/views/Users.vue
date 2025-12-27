@@ -1,68 +1,84 @@
 <template>
   <AppLayout>
-    <BrutalCard title="用户列表">
-      <template #header-extra>
-        <BrutalButton type="primary" size="small" @click="showCreateModal = true">创建用户</BrutalButton>
-      </template>
-
-      <BrutalTable class="users-table" :columns="columns" :data="users" :loading="loading" />
-
-      <div v-if="pagination.itemCount > 0" class="pagination">
-        <span>共 {{ pagination.itemCount }} 条</span>
-        <div class="page-btns">
-          <BrutalButton
-            size="small"
-            type="ghost"
-            :disabled="pagination.page <= 1"
-            @click="changePage(pagination.page - 1)"
-          >上一页</BrutalButton>
-          <span class="page-info">{{ pagination.page }}</span>
-          <BrutalButton
-            size="small"
-            type="ghost"
-            :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
-            @click="changePage(pagination.page + 1)"
-          >下一页</BrutalButton>
+    <div class="users-page">
+      <header class="users-header">
+        <div class="users-title-group">
+          <h1 class="users-title">用户列表</h1>
+          <p class="users-subtitle">
+            管理系统用户、角色及配额
+          </p>
         </div>
-      </div>
-    </BrutalCard>
 
-    <BrutalModal v-model:show="showCreateModal" title="创建用户" width="480px">
-      <BrutalFormItem label="用户名">
-        <BrutalInput v-model="createForm.username" placeholder="请输入用户名" />
-      </BrutalFormItem>
-      <BrutalFormItem label="密码">
-        <BrutalInput v-model="createForm.password" type="password" placeholder="请输入密码" />
-      </BrutalFormItem>
-      <BrutalFormItem label="角色">
-        <BrutalSelect v-model="createForm.role" :options="roleOptions" />
-      </BrutalFormItem>
-      <BrutalFormItem label="配额">
-        <BrutalInput v-model="createForm.quota_bytes" placeholder="例如 10737418240" />
-      </BrutalFormItem>
+        <div class="users-actions">
+          <BrutalButton type="primary" size="default" @click="showCreateModal = true">
+            <Plus :size="16" style="margin-right: 6px" />
+            创建用户
+          </BrutalButton>
+        </div>
+      </header>
 
-      <template #footer>
-        <BrutalButton type="default" @click="showCreateModal = false">取消</BrutalButton>
-        <BrutalButton type="primary" :loading="creating" @click="handleCreate">创建</BrutalButton>
-      </template>
-    </BrutalModal>
+      <section class="users-content">
+        <BrutalCard class="users-table-card">
+          <BrutalTable class="users-table" :columns="columns" :data="users" :loading="loading" />
 
-    <BrutalModal v-model:show="showResetModal" title="重置密码" width="420px">
-      <BrutalFormItem label="新密码">
-        <BrutalInput v-model="resetForm.password" type="password" placeholder="请输入新密码" />
-      </BrutalFormItem>
+          <div v-if="pagination.itemCount > 0" class="pagination">
+            <span>共 {{ pagination.itemCount }} 条</span>
+            <div class="page-btns">
+              <BrutalButton
+                size="small"
+                type="ghost"
+                :disabled="pagination.page <= 1"
+                @click="changePage(pagination.page - 1)"
+              >上一页</BrutalButton>
+              <span class="page-info">{{ pagination.page }}</span>
+              <BrutalButton
+                size="small"
+                type="ghost"
+                :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
+                @click="changePage(pagination.page + 1)"
+              >下一页</BrutalButton>
+            </div>
+          </div>
+        </BrutalCard>
+      </section>
 
-      <template #footer>
-        <BrutalButton type="default" @click="showResetModal = false">取消</BrutalButton>
-        <BrutalButton type="primary" :loading="resetting" @click="handleResetPassword">提交</BrutalButton>
-      </template>
-    </BrutalModal>
+      <BrutalModal v-model:show="showCreateModal" title="创建用户" width="480px">
+        <BrutalFormItem label="用户名">
+          <BrutalInput v-model="createForm.username" placeholder="请输入用户名" />
+        </BrutalFormItem>
+        <BrutalFormItem label="密码">
+          <BrutalInput v-model="createForm.password" type="password" placeholder="请输入密码" />
+        </BrutalFormItem>
+        <BrutalFormItem label="角色">
+          <BrutalSelect v-model="createForm.role" :options="roleOptions" />
+        </BrutalFormItem>
+        <BrutalFormItem label="配额">
+          <BrutalInput v-model="createForm.quota_bytes" placeholder="例如 10737418240" />
+        </BrutalFormItem>
+
+        <template #footer>
+          <BrutalButton type="default" @click="showCreateModal = false">取消</BrutalButton>
+          <BrutalButton type="primary" :loading="creating" @click="handleCreate">创建</BrutalButton>
+        </template>
+      </BrutalModal>
+
+      <BrutalModal v-model:show="showResetModal" title="重置密码" width="420px">
+        <BrutalFormItem label="新密码">
+          <BrutalInput v-model="resetForm.password" type="password" placeholder="请输入新密码" />
+        </BrutalFormItem>
+
+        <template #footer>
+          <BrutalButton type="default" @click="showResetModal = false">取消</BrutalButton>
+          <BrutalButton type="primary" :loading="resetting" @click="handleResetPassword">提交</BrutalButton>
+        </template>
+      </BrutalModal>
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
 import { ref, h, onMounted } from 'vue'
-import { KeyRound, Trash2, UserCheck, UserX } from 'lucide-vue-next'
+import { KeyRound, Trash2, UserCheck, UserX, Plus } from 'lucide-vue-next'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import BrutalCard from '../components/ui/BrutalCard.vue'
@@ -259,6 +275,55 @@ onMounted(() => loadUsers())
 </script>
 
 <style scoped>
+.users-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
+}
+
+.users-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--nb-space-lg);
+}
+
+.users-title-group {
+  min-width: 0;
+}
+
+.users-title {
+  margin: 0;
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-weight: var(--nb-heading-font-weight, 900);
+  font-size: var(--nb-font-size-2xl);
+  line-height: 1.2;
+}
+
+.users-subtitle {
+  margin: var(--nb-space-sm) 0 0;
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: var(--nb-font-size-sm);
+}
+
+.users-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--nb-space-sm);
+  flex-wrap: wrap;
+}
+
+.users-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
+}
+
+.users-table-card {
+  /* min-height removed */
+}
+
 :deep(.users-table .brutal-table) {
   table-layout: fixed;
 }
@@ -272,17 +337,13 @@ onMounted(() => loadUsers())
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--nb-space-lg);
-  padding-top: var(--nb-space-md);
-  border-top: var(--nb-border-width) dashed var(--nb-border-color);
+  padding: var(--nb-space-md) var(--nb-space-lg);
+  border-top: var(--nb-border);
 }
 
 /* shadcn/ui theme: Modern pagination style */
 :root[data-ui-theme="shadcn"] .pagination {
-  border-top: var(--nb-border-width) solid var(--nb-border-color);
   background-color: var(--nb-gray-50);
-  margin-top: 0;
-  padding: var(--nb-space-md) var(--nb-space-lg);
 }
 
 .page-btns {
@@ -317,5 +378,16 @@ onMounted(() => loadUsers())
 
 :root[data-ui-theme="shadcn"] :deep(.action-buttons) {
   gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .users-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .users-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 </style>
