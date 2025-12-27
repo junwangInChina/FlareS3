@@ -49,7 +49,7 @@ npx wrangler d1 execute flares3-r2 --local --file=src/db/schema.sql
   - `R2_ACCESS_KEY_ID`
   - `R2_SECRET_ACCESS_KEY`
   - `R2_BUCKET`
-  - `R2_MASTER_KEY`（32 字节 base64）
+  - `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变）
 
 ### 3) 启动服务（分别启动）
 
@@ -97,7 +97,7 @@ chmod +x "scripts/deploy_cf.sh"
 
 - `BOOTSTRAP_ADMIN_USER`
 - `BOOTSTRAP_ADMIN_PASS`
-- `R2_MASTER_KEY`（32 字节 base64）
+- `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变）
 
 使用环境变量配置 R2（默认）：
 
@@ -122,7 +122,7 @@ chmod +x "scripts/deploy_cf.sh"
 ```bash
 export BOOTSTRAP_ADMIN_USER="admin"
 export BOOTSTRAP_ADMIN_PASS="change_me"
-export R2_MASTER_KEY="base64-32-bytes"
+export R2_MASTER_KEY="base64-32-bytes" # 生成一次并保存，修改会导致已保存配置无法解密
 export R2_ENDPOINT="https://<account_id>.r2.cloudflarestorage.com"
 export R2_ACCESS_KEY_ID="xxxx"
 export R2_SECRET_ACCESS_KEY="yyyy"
