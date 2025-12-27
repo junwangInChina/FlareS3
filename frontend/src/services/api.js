@@ -99,8 +99,8 @@ export default {
   },
 
   // 文件管理
-  getFiles(page = 1, limit = 20, scope = "mine") {
-    return api.get("/files", { params: { page, limit, scope } });
+  getFiles(page = 1, limit = 20, filters = {}) {
+    return api.get("/files", { params: { page, limit, ...(filters || {}) } });
   },
 
   deleteFile(fileId) {
