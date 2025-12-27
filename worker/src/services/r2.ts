@@ -10,6 +10,7 @@ import {
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { XMLParser } from "fast-xml-parser";
 import type { Env } from "../config/env";
 import { hasEnvR2Config } from "../config/env";
 import { decryptString } from "./crypto";
@@ -415,6 +416,61 @@ export function createS3Client(config: R2Config): S3Client {
   });
 }
 
+export type S3ErrorSummary = {
+  code?: string;
+  message?: string;
+  httpStatusCode?: number;
+};
+
+export function summarizeS3Error(error: unknown): S3ErrorSummary {
+  if (!error || typeof error !== "object") return {};
+  const err = error as { name?: unknown; message?: unknown; $metadata?: unknown };
+  const meta = (err.$metadata ?? {}) as { httpStatusCode?: unknown };
+  return {
+    code: typeof err.name === "string" ? err.name : undefined,
+    message: typeof err.message === "string" ? err.message : undefined,
+    httpStatusCode:
+      typeof meta.httpStatusCode === "number" ? meta.httpStatusCode : undefined,
+  };
+}
+
+const xmlParser = new XMLParser({
+  attributeNamePrefix: "",
+  ignoreAttributes: false,
+  ignoreDeclaration: true,
+  parseTagValue: false,
+  trimValues: true,
+});
+
+function extractXmlValue(xml: string, tagName: string): string | null {
+  const match = xml.match(new RegExp(`<${tagName}>([^<]+)</${tagName}>`));
+  return match?.[1] ? String(match[1]) : null;
+}
+
+function buildS3HttpError(status: number, bodyText: string): Error {
+  const code = extractXmlValue(bodyText, "Code");
+  const message = extractXmlValue(bodyText, "Message");
+  const error = new Error(
+    message || `S3 请求失败（HTTP ${status}${bodyText ? `: ${bodyText}` : ""}）`
+  ) as Error & { name?: string; $metadata?: { httpStatusCode?: number } };
+  error.name = code || "S3RequestFailed";
+  error.$metadata = { httpStatusCode: status };
+  return error;
+}
+
+async function fetchSigned(
+  client: S3Client,
+  command: unknown,
+  init: RequestInit & { expiresInSeconds?: number }
+): Promise<Response> {
+  const expiresInSeconds =
+    typeof init.expiresInSeconds === "number" ? init.expiresInSeconds : 60;
+  const url = await getSignedUrl(client, command as any, {
+    expiresIn: expiresInSeconds,
+  });
+  return fetch(url, init);
+}
+
 export async function generateUploadUrl(
   config: R2Config,
   key: string,
@@ -452,17 +508,28 @@ export async function initiateMultipartUpload(
   contentType: string
 ): Promise<string> {
   const client = createS3Client(config);
-  const output = await client.send(
+  const response = await fetchSigned(
+    client,
     new CreateMultipartUploadCommand({
       Bucket: config.bucketName,
       Key: key,
       ContentType: contentType,
-    })
+    }),
+    {
+      method: "POST",
+      headers: { "Content-Type": contentType },
+      expiresInSeconds: 60,
+    }
   );
-  if (!output.UploadId) {
-    throw new Error("missing_upload_id");
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw buildS3HttpError(response.status, text);
   }
-  return output.UploadId;
+
+  const uploadId = extractXmlValue(text, "UploadId");
+  if (!uploadId) throw new Error("missing_upload_id");
+  return uploadId;
 }
 
 export async function generateMultipartUploadUrl(
@@ -486,16 +553,40 @@ export async function listParts(
   config: R2Config,
   key: string,
   uploadId: string
-) {
+): Promise<Array<{ PartNumber?: number; ETag?: string }>> {
   const client = createS3Client(config);
-  const output = await client.send(
+  const response = await fetchSigned(
+    client,
     new ListPartsCommand({
       Bucket: config.bucketName,
       Key: key,
       UploadId: uploadId,
-    })
+    }),
+    { method: "GET", expiresInSeconds: 60 }
   );
-  return output.Parts || [];
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw buildS3HttpError(response.status, text);
+  }
+
+  const parsed = xmlParser.parse(text) as Record<string, unknown>;
+  const rootKey = Object.keys(parsed)[0];
+  const root = (rootKey ? (parsed[rootKey] as any) : null) || {};
+  const partNode = root.Part as any;
+  const partsArray = Array.isArray(partNode)
+    ? partNode
+    : partNode
+      ? [partNode]
+      : [];
+
+  return partsArray
+    .map((part: any) => {
+      const partNumber = Number(part?.PartNumber);
+      const etag = typeof part?.ETag === "string" ? part.ETag : undefined;
+      return { PartNumber: partNumber, ETag: etag };
+    })
+    .filter((part) => Number.isFinite(part.PartNumber) && Number(part.PartNumber) > 0);
 }
 
 export async function completeMultipartUpload(
@@ -505,19 +596,49 @@ export async function completeMultipartUpload(
   parts: { PartNumber?: number; ETag?: string }[]
 ): Promise<void> {
   const client = createS3Client(config);
-  await client.send(
+  const normalized = (parts || [])
+    .map((part) => ({
+      partNumber: Number(part.PartNumber),
+      etag: typeof part.ETag === "string" ? part.ETag : "",
+    }))
+    .filter((part) => Number.isFinite(part.partNumber) && part.partNumber > 0 && part.etag)
+    .sort((a, b) => a.partNumber - b.partNumber);
+
+  const xmlBody =
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<CompleteMultipartUpload>` +
+    normalized
+      .map(
+        (part) =>
+          `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>${part.etag}</ETag></Part>`
+      )
+      .join("") +
+    `</CompleteMultipartUpload>`;
+
+  const response = await fetchSigned(
+    client,
     new CompleteMultipartUploadCommand({
       Bucket: config.bucketName,
       Key: key,
       UploadId: uploadId,
       MultipartUpload: {
-        Parts: parts.map((part) => ({
-          PartNumber: part.PartNumber,
-          ETag: part.ETag,
+        Parts: normalized.map((part) => ({
+          PartNumber: part.partNumber,
+          ETag: part.etag,
         })),
       },
-    })
+    }),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/xml" },
+      body: xmlBody,
+      expiresInSeconds: 60,
+    }
   );
+
+  if (response.ok) return;
+  const text = await response.text();
+  throw buildS3HttpError(response.status, text);
 }
 
 export async function deleteObject(
@@ -525,20 +646,31 @@ export async function deleteObject(
   key: string
 ): Promise<void> {
   const client = createS3Client(config);
-  await client.send(
+  const response = await fetchSigned(
+    client,
     new DeleteObjectCommand({
       Bucket: config.bucketName,
       Key: key,
-    })
+    }),
+    { method: "DELETE", expiresInSeconds: 60 }
   );
+  if (response.ok) return;
+  const text = await response.text();
+  throw buildS3HttpError(response.status, text);
 }
 
 export async function testConnection(config: R2Config): Promise<void> {
   const client = createS3Client(config);
-  await client.send(
+  const response = await fetchSigned(
+    client,
     new ListObjectsV2Command({
       Bucket: config.bucketName,
       MaxKeys: 1,
-    })
+    }),
+    { method: "GET", expiresInSeconds: 60 }
   );
+
+  if (response.ok) return;
+  const text = await response.text();
+  throw buildS3HttpError(response.status, text);
 }
