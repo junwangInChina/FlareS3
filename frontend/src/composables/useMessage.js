@@ -1,5 +1,5 @@
 // Toast composable for global message notifications
-import { ref, createApp, h } from 'vue'
+import { createApp, h } from 'vue'
 import BrutalToast from '../components/ui/BrutalToast.vue'
 
 let toastInstance = null
@@ -12,14 +12,13 @@ const createToastInstance = () => {
   document.body.appendChild(toastContainer)
 
   const app = createApp({
-    setup() {
-      const toastRef = ref(null)
-      return () => h(BrutalToast, { ref: toastRef })
+    render() {
+      return h(BrutalToast, { ref: 'toast' })
     }
   })
 
   const vm = app.mount(toastContainer)
-  toastInstance = vm.$refs?.toastRef || vm
+  toastInstance = vm.$refs?.toast || null
 
   return toastInstance
 }
