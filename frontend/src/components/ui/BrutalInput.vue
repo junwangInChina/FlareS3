@@ -76,9 +76,21 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
   transition: var(--nb-transition);
 }
 
+/* shadcn/ui theme: Compact input styling */
+:root[data-ui-theme="shadcn"] .brutal-input {
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .size-small .brutal-input {
   padding: 8px 12px;
   font-size: 14px;
+}
+
+/* shadcn/ui theme: Compact small input */
+:root[data-ui-theme="shadcn"] .size-small .brutal-input {
+  padding: 6px 10px;
+  font-size: 13px;
 }
 
 .size-medium .brutal-input {
@@ -86,13 +98,31 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
   font-size: 16px;
 }
 
+/* shadcn/ui theme: Compact medium input */
+:root[data-ui-theme="shadcn"] .size-medium .brutal-input {
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
 .size-large .brutal-input {
   padding: 16px 20px;
   font-size: 18px;
 }
 
+/* shadcn/ui theme: Compact large input */
+:root[data-ui-theme="shadcn"] .size-large .brutal-input {
+  padding: 10px 14px;
+  font-size: 15px;
+}
+
 .brutal-input:focus {
   border-color: var(--nb-deep-blue);
+  box-shadow: var(--nb-focus-ring);
+}
+
+/* shadcn/ui theme: Subtle focus */
+:root[data-ui-theme="shadcn"] .brutal-input:focus {
+  border-color: var(--nb-primary);
   box-shadow: var(--nb-focus-ring);
 }
 
