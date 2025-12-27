@@ -95,7 +95,7 @@ router.post("/api/setup/config", (request, env: Env) => {
 router.post("/api/setup/test", (request, env: Env) => {
   const auth = requireAdmin(request);
   if (auth) return auth;
-  return testSetup(request, env);
+  return testSetup(request);
 });
 
 router.get("/api/r2/options", (request, env: Env) => {
