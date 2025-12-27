@@ -56,6 +56,11 @@ watch(sidebarCollapsed, (value) => {
   transition: margin-left 0.2s ease;
 }
 
+/* shadcn/ui theme: Compact spacing */
+:root[data-ui-theme="shadcn"] .main-content {
+  padding: var(--nb-space-lg);
+}
+
 .sidebar-collapsed .main-content {
   margin-left: 72px;
 }
@@ -64,9 +69,21 @@ watch(sidebarCollapsed, (value) => {
   margin: 0 auto;
 }
 
+/* shadcn/ui theme: Compact gap between cards */
+:root[data-ui-theme="shadcn"] .content-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-md);
+}
+
 @media (max-width: 768px) {
   .main-content {
     margin-left: 72px;
+  }
+
+  /* shadcn/ui theme: Reduce padding on mobile */
+  :root[data-ui-theme="shadcn"] .main-content {
+    padding: var(--nb-space-md);
   }
 }
 </style>
