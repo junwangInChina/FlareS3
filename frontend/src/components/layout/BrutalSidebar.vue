@@ -5,7 +5,6 @@ import { useAuthStore } from "../../stores/auth";
 import { useThemeStore } from "../../stores/theme";
 import BrutalModal from "../ui/BrutalModal.vue";
 import BrutalFormItem from "../ui/BrutalFormItem.vue";
-import BrutalRadio from "../ui/BrutalRadio.vue";
 import BrutalButton from "../ui/BrutalButton.vue";
 import Tooltip from "../ui/Tooltip.vue";
 
@@ -62,14 +61,29 @@ const handleToggleTheme = () => {
   themeStore.toggle();
 };
 
-const uiThemeOptions = computed(() =>
-  themeStore.availableUiThemes.map((theme) => ({
-    label: theme.label,
-    value: theme.id,
-  }))
+const uiThemeMeta = {
+  "motherduck-neobrutalism": {
+    description: "高对比 / 硬阴影 / 粗边框",
+    tags: ["高对比", "硬阴影", "粗边框"],
+  },
+  shadcn: {
+    description: "简洁 / 细边框 / 柔和阴影",
+    tags: ["简洁", "细边框", "柔和阴影"],
+  },
+};
+
+const uiThemeCards = computed(() =>
+  themeStore.availableUiThemes.map((theme) => {
+    const meta = uiThemeMeta[theme.id] ?? {};
+    return {
+      ...theme,
+      description: meta.description ?? "",
+      tags: meta.tags ?? [],
+    };
+  })
 );
 
-const uiThemeDisabled = computed(() => uiThemeOptions.value.length <= 1);
+const uiThemeDisabled = computed(() => uiThemeCards.value.length <= 1);
 
 const uiThemeTitle = computed(() => {
   const current = themeStore.currentUiTheme;
@@ -296,15 +310,68 @@ const logoLetters = computed(() => logoText.split(""));
       <BrutalModal
         v-model:show="uiThemeModalVisible"
         title="主题"
-        width="520px"
+        width="680px"
       >
         <BrutalFormItem label="选择主题">
-          <BrutalRadio
-            v-model="uiThemeDraft"
-            name="ui-theme"
-            :options="uiThemeOptions"
-            :disabled="uiThemeDisabled"
-          />
+          <div class="ui-theme-grid" role="radiogroup" aria-label="选择主题">
+            <button
+              v-for="theme in uiThemeCards"
+              :key="theme.id"
+              type="button"
+              class="ui-theme-card"
+              :class="{ selected: uiThemeDraft === theme.id }"
+              :disabled="uiThemeDisabled"
+              role="radio"
+              :aria-checked="uiThemeDraft === theme.id"
+              @click="uiThemeDraft = theme.id"
+            >
+              <div
+                class="ui-theme-preview"
+                :data-preview="theme.id"
+                aria-hidden="true"
+              >
+                <div class="preview-card">
+                  <div class="preview-bar"></div>
+                  <div class="preview-body">
+                    <div class="preview-lines">
+                      <span class="preview-line"></span>
+                      <span class="preview-line short"></span>
+                    </div>
+                    <div class="preview-actions">
+                      <span class="preview-chip"></span>
+                      <span class="preview-btn"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ui-theme-info">
+                <div class="ui-theme-heading">
+                  <span class="ui-theme-name">{{ theme.label }}</span>
+                  <span
+                    v-if="theme.id === themeStore.uiTheme"
+                    class="ui-theme-current"
+                  >
+                    当前
+                  </span>
+                </div>
+                <div v-if="theme.description" class="ui-theme-desc">
+                  {{ theme.description }}
+                </div>
+                <div v-if="theme.tags?.length" class="ui-theme-tags">
+                  <span
+                    v-for="tag in theme.tags"
+                    :key="tag"
+                    class="ui-theme-tag"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+              </div>
+
+              <span class="ui-theme-check" aria-hidden="true"></span>
+            </button>
+          </div>
         </BrutalFormItem>
 
         <template #footer>
@@ -458,6 +525,16 @@ const logoLetters = computed(() => logoText.split(""));
   box-shadow: none;
 }
 
+/* shadcn/ui theme: Compact nav items */
+:root[data-ui-theme="shadcn"] .nav-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--nb-sidebar-foreground);
+}
+
 .nav-item:hover {
   background: var(--nb-gray-100);
   border-color: var(--nb-border-color);
@@ -466,11 +543,29 @@ const logoLetters = computed(() => logoText.split(""));
   box-shadow: var(--nb-shadow-sm);
 }
 
+/* shadcn/ui theme: Subtle hover */
+:root[data-ui-theme="shadcn"] .nav-item:hover {
+  background: var(--nb-sidebar-accent);
+  border-color: transparent;
+  color: var(--nb-sidebar-accent-foreground);
+  transform: none;
+  box-shadow: none;
+}
+
 .nav-item.active {
   background: var(--nb-primary);
   border-color: var(--nb-border-color);
   color: var(--nb-primary-foreground, var(--nb-ink));
   font-weight: var(--nb-ui-font-weight-strong, 900);
+  box-shadow: none;
+}
+
+/* shadcn/ui theme: Subtle active state */
+:root[data-ui-theme="shadcn"] .nav-item.active {
+  background: var(--nb-sidebar-accent);
+  border-color: transparent;
+  color: var(--nb-sidebar-accent-foreground);
+  font-weight: 600;
   box-shadow: none;
 }
 
@@ -601,6 +696,238 @@ const logoLetters = computed(() => logoText.split(""));
 .collapsed .logout-btn {
   width: auto;
   padding: 8px;
+}
+.ui-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--nb-space-md);
+}
+
+.ui-theme-card {
+  position: relative;
+  width: 100%;
+  padding: var(--nb-space-md);
+  background: var(--nb-surface);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--nb-transition);
+  box-shadow: none;
+  display: grid;
+  gap: var(--nb-space-sm);
+}
+
+.ui-theme-card:hover:not(:disabled) {
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
+}
+
+.ui-theme-card:active:not(:disabled) {
+  transform: translate(0, 0);
+  box-shadow: none;
+}
+
+.ui-theme-card.selected {
+  outline: var(--nb-focus-outline-width, 2px) solid
+    var(--nb-focus-outline-color, var(--nb-primary));
+  outline-offset: var(--nb-focus-outline-offset, 2px);
+  box-shadow: var(--nb-shadow);
+}
+
+.ui-theme-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ui-theme-preview {
+  border: var(--nb-border);
+  border-radius: var(--nb-radius);
+  background: var(--nb-gray-100);
+  padding: var(--nb-space-sm);
+}
+
+.preview-card {
+  width: 100%;
+  height: 92px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.preview-bar {
+  height: 10px;
+}
+
+.preview-body {
+  flex: 1;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+  background: #ffffff;
+}
+
+.preview-lines {
+  display: grid;
+  gap: 6px;
+}
+
+.preview-line {
+  height: 6px;
+  border-radius: 999px;
+}
+
+.preview-line.short {
+  width: 72%;
+}
+
+.preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.preview-chip {
+  width: 46px;
+  height: 18px;
+  border-radius: 999px;
+}
+
+.preview-btn {
+  width: 68px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.ui-theme-preview[data-preview="motherduck-neobrutalism"] .preview-card {
+  border: 2px solid #383838;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: -5px 5px 0px 0px #383838;
+}
+
+.ui-theme-preview[data-preview="motherduck-neobrutalism"] .preview-bar {
+  background: linear-gradient(90deg, #ffde00, #6fc2ff, #53dbc9, #ff7169);
+}
+
+.ui-theme-preview[data-preview="motherduck-neobrutalism"] .preview-line {
+  background: #e9e3dd;
+}
+
+.ui-theme-preview[data-preview="motherduck-neobrutalism"] .preview-chip {
+  background: #6fc2ff;
+  border: 2px solid #383838;
+  border-radius: 2px;
+}
+
+.ui-theme-preview[data-preview="motherduck-neobrutalism"] .preview-btn {
+  background: #ffde00;
+  border: 2px solid #383838;
+  border-radius: 2px;
+}
+
+.ui-theme-preview[data-preview="shadcn"] .preview-card {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+}
+
+.ui-theme-preview[data-preview="shadcn"] .preview-bar {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.ui-theme-preview[data-preview="shadcn"] .preview-line {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.ui-theme-preview[data-preview="shadcn"] .preview-chip {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.ui-theme-preview[data-preview="shadcn"] .preview-btn {
+  background: #3b82f6;
+}
+
+.ui-theme-info {
+  display: grid;
+  gap: 6px;
+}
+
+.ui-theme-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nb-space-sm);
+}
+
+.ui-theme-name {
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
+  font-size: 14px;
+  color: var(--nb-black);
+}
+
+.ui-theme-current {
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-size: 12px;
+  padding: 2px 8px;
+  border: var(--nb-border);
+  border-radius: 999px;
+  background: var(--nb-secondary);
+  color: var(--nb-secondary-foreground, var(--nb-ink));
+}
+
+.ui-theme-desc {
+  font-size: 12px;
+  color: var(--nb-gray-500);
+  line-height: 1.4;
+}
+
+.ui-theme-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ui-theme-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border: var(--nb-border);
+  border-radius: 999px;
+  background: var(--nb-gray-50);
+  color: var(--nb-black);
+}
+
+.ui-theme-check {
+  position: absolute;
+  top: var(--nb-space-sm);
+  right: var(--nb-space-sm);
+  width: 20px;
+  height: 20px;
+  border: var(--nb-border);
+  border-radius: 999px;
+  background: var(--nb-surface);
+  display: grid;
+  place-items: center;
+  box-shadow: none;
+}
+
+.ui-theme-check::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--nb-primary);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: var(--nb-transition-fast);
+}
+
+.ui-theme-card.selected .ui-theme-check::after {
+  opacity: 1;
+  transform: scale(1);
 }
 
 @media (max-width: 768px) {
