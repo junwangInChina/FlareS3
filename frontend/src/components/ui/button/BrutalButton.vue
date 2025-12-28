@@ -134,7 +134,7 @@ defineEmits(['click'])
   color: var(--nb-black);
 }
 
-.type-ghost:hover {
+.type-ghost:hover:not(.disabled):not(.loading) {
   border-color: var(--nb-border-color);
   background-color: var(--nb-gray-100);
 }
@@ -156,16 +156,12 @@ defineEmits(['click'])
   opacity: 0.9;
 }
 
-:root[data-ui-theme="shadcn"] .type-primary:hover {
+:root[data-ui-theme="shadcn"] .type-primary:hover:not(.disabled):not(.loading) {
   opacity: 0.85;
 }
 
-:root[data-ui-theme="shadcn"] .type-default:hover {
+:root[data-ui-theme="shadcn"] .type-default:hover:not(.disabled):not(.loading) {
   background-color: var(--nb-gray-100);
-}
-
-:root[data-ui-theme="shadcn"] .type-danger:hover {
-  opacity: 0.85;
 }
 
 .brutal-btn:not(.disabled):not(.loading):active {
@@ -187,7 +183,10 @@ defineEmits(['click'])
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
-  pointer-events: none;
+}
+
+.brutal-btn:disabled {
+  cursor: not-allowed;
 }
 
 .loader {
