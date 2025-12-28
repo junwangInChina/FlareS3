@@ -55,10 +55,10 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import BrutalInput from '../components/ui/BrutalInput.vue'
-import BrutalButton from '../components/ui/BrutalButton.vue'
-import BrutalAlert from '../components/ui/BrutalAlert.vue'
-import BrutalFormItem from '../components/ui/BrutalFormItem.vue'
+import BrutalInput from '../components/ui/input/BrutalInput.vue'
+import BrutalButton from '../components/ui/button/BrutalButton.vue'
+import BrutalAlert from '../components/ui/alert/BrutalAlert.vue'
+import BrutalFormItem from '../components/ui/form-item/BrutalFormItem.vue'
 
 const router = useRouter()
 const route = useRoute()
