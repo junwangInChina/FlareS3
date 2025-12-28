@@ -1,6 +1,6 @@
 // Toast composable for global message notifications
 import { createApp, h } from 'vue'
-import BrutalToast from '../components/ui/BrutalToast.vue'
+import BrutalToast from '../components/ui/toast/BrutalToast.vue'
 
 let toastInstance = null
 let toastContainer = null
