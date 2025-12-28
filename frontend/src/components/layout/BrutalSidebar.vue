@@ -3,10 +3,10 @@ import { computed, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { useThemeStore } from "../../stores/theme";
-import BrutalModal from "../ui/BrutalModal.vue";
-import BrutalFormItem from "../ui/BrutalFormItem.vue";
-import BrutalButton from "../ui/BrutalButton.vue";
-import Tooltip from "../ui/Tooltip.vue";
+import BrutalModal from "../ui/modal/BrutalModal.vue";
+import BrutalFormItem from "../ui/form-item/BrutalFormItem.vue";
+import BrutalButton from "../ui/button/BrutalButton.vue";
+import Tooltip from "../ui/tooltip/Tooltip.vue";
 
 const props = defineProps({
   collapsed: { type: Boolean, default: false },
@@ -138,7 +138,7 @@ const logoLetters = computed(() => logoText.split(""));
         v-for="item in menuItems"
         :key="item.key"
         :content="item.label"
-        :disabled="!collapsed"
+        :disabled="themeStore.uiTheme !== 'shadcn' || !collapsed"
         :as-child="true"
         side="right"
       >
@@ -210,7 +210,7 @@ const logoLetters = computed(() => logoText.split(""));
       <div class="user-section">
         <Tooltip
           :content="authStore.user?.username || 'User'"
-          :disabled="!collapsed"
+          :disabled="themeStore.uiTheme !== 'shadcn' || !collapsed"
           :as-child="true"
           side="right"
         >
@@ -225,7 +225,12 @@ const logoLetters = computed(() => logoText.split(""));
             }}</span>
           </div>
         </Tooltip>
-        <Tooltip content="退出登录" :as-child="true" side="right">
+        <Tooltip
+          content="退出登录"
+          :disabled="themeStore.uiTheme !== 'shadcn'"
+          :as-child="true"
+          side="right"
+        >
           <button
             class="logout-btn"
             type="button"
@@ -241,7 +246,12 @@ const logoLetters = computed(() => logoText.split(""));
           </button>
         </Tooltip>
 
-        <Tooltip :content="themeTitle" :as-child="true" side="right">
+        <Tooltip
+          :content="themeTitle"
+          :disabled="themeStore.uiTheme !== 'shadcn'"
+          :as-child="true"
+          side="right"
+        >
           <button
             class="logout-btn theme-btn"
             type="button"
@@ -275,7 +285,12 @@ const logoLetters = computed(() => logoText.split(""));
           </button>
         </Tooltip>
 
-        <Tooltip :content="uiThemeTitle" :as-child="true" side="right">
+        <Tooltip
+          :content="uiThemeTitle"
+          :disabled="themeStore.uiTheme !== 'shadcn'"
+          :as-child="true"
+          side="right"
+        >
           <button
             class="logout-btn theme-type-btn"
             type="button"
@@ -293,6 +308,7 @@ const logoLetters = computed(() => logoText.split(""));
       </div>
       <Tooltip
         :content="collapsed ? '展开' : '收起'"
+        :disabled="themeStore.uiTheme !== 'shadcn'"
         :as-child="true"
         side="right"
       >
@@ -497,6 +513,8 @@ const logoLetters = computed(() => logoText.split(""));
 .sidebar-nav {
   flex: 1;
   padding: var(--nb-space-md) var(--nb-space-sm);
+  /* 为浮动效果预留右侧空间 */
+  padding-right: calc(var(--nb-space-sm) + 4px);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -595,9 +613,11 @@ const logoLetters = computed(() => logoText.split(""));
 
 .user-section {
   padding: var(--nb-space-sm) var(--nb-space-md);
+  /* 为浮动效果预留右侧空间 */
+  padding-right: calc(var(--nb-space-md) + 4px);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: var(--nb-space-sm);
   border-bottom: var(--nb-border);
 }
