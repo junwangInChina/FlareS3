@@ -12,22 +12,22 @@
         <div class="files-actions">
           <div class="filter-row">
             <div class="filter-item filename">
-              <BrutalInput v-model="filters.filename" placeholder="文件名称" size="small" @keyup.enter="handleSearch" />
+              <Input v-model="filters.filename" placeholder="文件名称" size="small" @keyup.enter="handleSearch" />
             </div>
 
             <div v-if="authStore.isAdmin" class="filter-item owner">
-              <BrutalSelect v-model="filters.owner_id" :options="ownerOptions" :disabled="usersLoading" />
+              <Select v-model="filters.owner_id" :options="ownerOptions" :disabled="usersLoading" />
             </div>
 
             <div class="filter-item status">
-              <BrutalSelect v-model="filters.upload_status" :options="statusOptions" />
+              <Select v-model="filters.upload_status" :options="statusOptions" />
             </div>
 
             <div class="filter-item created-date">
-              <BrutalInput v-model="filters.created_date" type="date" size="small" placeholder="上传时间" />
+              <Input v-model="filters.created_date" type="date" size="small" placeholder="上传时间" />
             </div>
 
-            <BrutalButton
+            <Button
               type="default"
               size="small"
               :loading="filesStore.loading && activeAction === 'search'"
@@ -36,8 +36,8 @@
             >
               <Search :size="16" style="margin-right: 6px" />
               搜索
-            </BrutalButton>
-            <BrutalButton
+            </Button>
+            <Button
               type="default"
               size="small"
               :loading="filesStore.loading && activeAction === 'refresh'"
@@ -46,39 +46,39 @@
             >
               <RefreshCw :size="16" style="margin-right: 6px" />
               刷新
-            </BrutalButton>
+            </Button>
           </div>
         </div>
       </header>
 
       <section class="files-content">
-        <BrutalCard class="files-table-card">
-          <BrutalTable class="files-table" :columns="columns" :data="filesStore.files" :loading="tableLoading" />
+        <Card class="files-table-card">
+          <Table class="files-table" :columns="columns" :data="filesStore.files" :loading="tableLoading" />
 
           <div v-if="filesStore.total > 0" class="pagination">
             <span>共 {{ filesStore.total }} 条</span>
             <div class="page-btns">
-              <BrutalButton
+              <Button
                 size="small"
                 type="ghost"
                 :disabled="filesStore.loading || pagination.page <= 1"
                 @click="changePage(pagination.page - 1)"
-              >上一页</BrutalButton>
+              >上一页</Button>
               <span class="page-info">{{ pagination.page }}</span>
-              <BrutalButton
+              <Button
                 size="small"
                 type="ghost"
                 :disabled="filesStore.loading || pagination.page * pagination.pageSize >= filesStore.total"
                 @click="changePage(pagination.page + 1)"
-              >下一页</BrutalButton>
+              >下一页</Button>
             </div>
           </div>
-        </BrutalCard>
+        </Card>
       </section>
 
-      <BrutalModal v-model:show="showInfoModal" title="文件信息" width="500px">
+      <Modal v-model:show="showInfoModal" title="文件信息" width="500px">
         <template v-if="selectedFile">
-          <BrutalDescriptions
+          <Descriptions
             :items="[
               { label: '文件名', value: selectedFile.filename },
               { label: '文件大小', value: formatBytes(selectedFile.size) },
@@ -89,30 +89,30 @@
             :column="1"
           />
 
-          <BrutalDivider />
+          <Divider />
 
           <div class="link-group">
             <label class="link-label">短链接</label>
             <div class="link-row">
-              <BrutalInput :model-value="getShortUrl(selectedFile)" readonly size="small" />
-              <BrutalButton type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile), '短链接')">复制</BrutalButton>
+              <Input :model-value="getShortUrl(selectedFile)" readonly size="small" />
+              <Button type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile), '短链接')">复制</Button>
             </div>
           </div>
 
           <div class="link-group">
             <label class="link-label">直链</label>
             <div class="link-row">
-              <BrutalInput :model-value="getDownloadUrl(selectedFile)" readonly size="small" />
-              <BrutalButton type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile), '直链')">复制</BrutalButton>
+              <Input :model-value="getDownloadUrl(selectedFile)" readonly size="small" />
+              <Button type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile), '直链')">复制</Button>
             </div>
           </div>
         </template>
 
         <template #footer>
-          <BrutalButton type="default" @click="showInfoModal = false">关闭</BrutalButton>
-          <BrutalButton type="primary" @click="handleDownload(selectedFile)">下载文件</BrutalButton>
+          <Button type="default" @click="showInfoModal = false">关闭</Button>
+          <Button type="primary" @click="handleDownload(selectedFile)">下载文件</Button>
         </template>
-      </BrutalModal>
+      </Modal>
     </div>
   </AppLayout>
 </template>
@@ -124,16 +124,16 @@ import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
-import BrutalCard from '../components/ui/BrutalCard.vue'
-import BrutalButton from '../components/ui/BrutalButton.vue'
-import BrutalSelect from '../components/ui/BrutalSelect.vue'
-import BrutalTable from '../components/ui/BrutalTable.vue'
-import BrutalModal from '../components/ui/BrutalModal.vue'
-import BrutalDescriptions from '../components/ui/BrutalDescriptions.vue'
-import BrutalDivider from '../components/ui/BrutalDivider.vue'
-import BrutalInput from '../components/ui/BrutalInput.vue'
-import BrutalTag from '../components/ui/BrutalTag.vue'
-import Tooltip from '../components/ui/Tooltip.vue'
+import Card from '../components/ui/card/Card.vue'
+import Button from '../components/ui/button/Button.vue'
+import Select from '../components/ui/select/Select.vue'
+import Table from '../components/ui/table/Table.vue'
+import Modal from '../components/ui/modal/Modal.vue'
+import Descriptions from '../components/ui/descriptions/Descriptions.vue'
+import Divider from '../components/ui/divider/Divider.vue'
+import Input from '../components/ui/input/Input.vue'
+import Tag from '../components/ui/tag/Tag.vue'
+import Tooltip from "../components/ui/tooltip/Tooltip.vue"
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
@@ -204,7 +204,7 @@ const columns = computed(() => [
     render: (row) => {
       const statusText = row.upload_status === 'deleted' ? '失效' : '有效'
       return h(Tooltip, { content: statusText }, () =>
-        h(BrutalTag, {
+        h(Tag, {
           type: row.upload_status === 'deleted' ? 'danger' : 'success',
           size: 'small'
         }, () => statusText)
@@ -246,7 +246,7 @@ const columns = computed(() => [
     render: (row) => {
       const isDeleted = row.upload_status === 'deleted'
       return h('div', { class: 'action-buttons' }, [
-        h(BrutalButton, {
+        h(Button, {
           size: 'small',
           type: 'default',
           disabled: isDeleted,
@@ -255,7 +255,7 @@ const columns = computed(() => [
           h(Info, { size: 16, style: 'margin-right: 4px' }),
           '详情'
         ]),
-        h(BrutalButton, {
+        h(Button, {
           size: 'small',
           type: 'danger',
           disabled: isDeleted,
