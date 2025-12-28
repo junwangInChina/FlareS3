@@ -61,11 +61,11 @@
 import { ref, onMounted } from 'vue'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
-import BrutalCard from '../components/ui/BrutalCard.vue'
-import BrutalButton from '../components/ui/BrutalButton.vue'
-import BrutalProgress from '../components/ui/BrutalProgress.vue'
-import BrutalDescriptions from '../components/ui/BrutalDescriptions.vue'
-import BrutalAlert from '../components/ui/BrutalAlert.vue'
+import BrutalCard from "../components/ui/card/BrutalCard.vue"
+import BrutalButton from "../components/ui/button/BrutalButton.vue"
+import BrutalProgress from "../components/ui/progress/BrutalProgress.vue"
+import BrutalDescriptions from "../components/ui/descriptions/BrutalDescriptions.vue"
+import BrutalAlert from "../components/ui/alert/BrutalAlert.vue"
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
