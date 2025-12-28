@@ -289,14 +289,14 @@ import {
 } from "lucide-vue-next";
 import api from "../services/api";
 import AppLayout from "../components/layout/AppLayout.vue";
-import BrutalCard from "../components/ui/BrutalCard.vue";
-import BrutalButton from "../components/ui/BrutalButton.vue";
-import BrutalModal from "../components/ui/BrutalModal.vue";
-import BrutalFormItem from "../components/ui/BrutalFormItem.vue";
-import BrutalInput from "../components/ui/BrutalInput.vue";
-import BrutalAlert from "../components/ui/BrutalAlert.vue";
-import BrutalTag from "../components/ui/BrutalTag.vue";
-import Tooltip from "../components/ui/Tooltip.vue";
+import BrutalCard from "../components/ui/card/BrutalCard.vue";
+import BrutalButton from "../components/ui/button/BrutalButton.vue";
+import BrutalModal from "../components/ui/modal/BrutalModal.vue";
+import BrutalFormItem from "../components/ui/form-item/BrutalFormItem.vue";
+import BrutalInput from "../components/ui/input/BrutalInput.vue";
+import BrutalAlert from "../components/ui/alert/BrutalAlert.vue";
+import BrutalTag from "../components/ui/tag/BrutalTag.vue";
+import Tooltip from "../components/ui/tooltip/Tooltip.vue";
 import { useMessage } from "../composables/useMessage";
 
 const message = useMessage();
