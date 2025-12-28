@@ -51,12 +51,12 @@
 import { ref, h, onMounted } from 'vue'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
-import BrutalCard from '../components/ui/BrutalCard.vue'
-import BrutalButton from '../components/ui/BrutalButton.vue'
-import BrutalInput from '../components/ui/BrutalInput.vue'
-import BrutalTable from '../components/ui/BrutalTable.vue'
-import BrutalTag from '../components/ui/BrutalTag.vue'
-import Tooltip from '../components/ui/Tooltip.vue'
+import BrutalCard from "../components/ui/card/BrutalCard.vue"
+import BrutalButton from "../components/ui/button/BrutalButton.vue"
+import BrutalInput from "../components/ui/input/BrutalInput.vue"
+import BrutalTable from "../components/ui/table/BrutalTable.vue"
+import BrutalTag from "../components/ui/tag/BrutalTag.vue"
+import Tooltip from "../components/ui/tooltip/Tooltip.vue"
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
