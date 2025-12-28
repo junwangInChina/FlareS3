@@ -53,11 +53,9 @@
                 </span>
 
                 <div class="config-card-title">
-                  <Tooltip :content="toDisplayText(row.name)" as-child>
-                    <span class="config-card-name">{{
-                      toDisplayText(row.name)
-                    }}</span>
-                  </Tooltip>
+                  <span class="config-card-name">{{
+                    toDisplayText(row.name)
+                  }}</span>
                 </div>
               </div>
             </template>
@@ -84,22 +82,16 @@
                 <div class="kv-row">
                   <div class="kv-label">存储桶</div>
                   <div class="kv-value">
-                    <Tooltip :content="toDisplayText(row.bucket_name)" as-child>
-                      <span class="text-ellipsis">
-                        {{ toDisplayText(row.bucket_name) }}
-                      </span>
-                    </Tooltip>
+                    <span class="text-ellipsis">
+                      {{ toDisplayText(row.bucket_name) }}
+                    </span>
                   </div>
                 </div>
 
                 <div class="kv-row">
                   <div class="kv-label">Endpoint</div>
                   <div class="kv-value kv-mono">
-                    <Tooltip :content="toDisplayText(row.endpoint)" as-child>
-                      <code class="mono-chip">{{
-                        toDisplayText(row.endpoint)
-                      }}</code>
-                    </Tooltip>
+                    <code class="mono-chip">{{ toDisplayText(row.endpoint) }}</code>
                   </div>
                 </div>
               </div>
@@ -110,9 +102,7 @@
                 <div class="kv-row">
                   <div class="kv-label">配置 ID</div>
                   <div class="kv-value kv-mono">
-                    <Tooltip :content="toDisplayText(row.id)" as-child>
-                      <code class="mono-chip">{{ toDisplayText(row.id) }}</code>
-                    </Tooltip>
+                    <code class="mono-chip">{{ toDisplayText(row.id) }}</code>
                   </div>
                 </div>
               </div>
@@ -120,69 +110,62 @@
 
             <template #footer>
               <div class="config-actions">
-                <Tooltip content="测试连接" as-child>
-                  <BrutalButton
-                    type="default"
-                    size="small"
-                    :loading="testingId === row.id"
-                    :disabled="loading || testingId === row.id"
-                    @click="handleTest(row)"
-                  >
-                    <Network :size="14" />
-                  </BrutalButton>
-                </Tooltip>
-
-                <div class="action-divider"></div>
-
-                <Tooltip content="设为默认" as-child>
-                  <BrutalButton
-                    type="default"
-                    size="small"
-                    :loading="savingDefault && settingDefaultId === row.id"
-                    :disabled="
-                      loading ||
-                      savingDefault ||
-                      row.id === r2Options.default_config_id
-                    "
-                    @click="handleSetDefault(row.id)"
-                  >
-                    <Star
-                      :size="14"
-                      :fill="
-                        row.id === r2Options.default_config_id
-                          ? 'currentColor'
-                          : 'none'
-                      "
-                    />
-                  </BrutalButton>
-                </Tooltip>
-
-                <div class="action-divider"></div>
-
-                <Tooltip
-                  :content="row.source === 'db' ? '编辑' : '该配置不可修改'"
-                  as-child
+                <BrutalButton
+                  type="default"
+                  size="small"
+                  :loading="testingId === row.id"
+                  :disabled="loading || testingId === row.id"
+                  aria-label="测试连接"
+                  @click="handleTest(row)"
                 >
-                  <BrutalButton
-                    type="default"
-                    size="small"
-                    :disabled="row.source !== 'db'"
-                    @click="openEdit(row)"
-                  >
-                    <Pencil :size="14" />
-                  </BrutalButton>
-                </Tooltip>
+                  <Network :size="14" />
+                </BrutalButton>
+
+                <div class="action-divider"></div>
+
+                <BrutalButton
+                  type="default"
+                  size="small"
+                  :loading="savingDefault && settingDefaultId === row.id"
+                  :disabled="
+                    loading ||
+                    savingDefault ||
+                    row.id === r2Options.default_config_id
+                  "
+                  aria-label="设为默认"
+                  @click="handleSetDefault(row.id)"
+                >
+                  <Star
+                    :size="14"
+                    :fill="
+                      row.id === r2Options.default_config_id
+                        ? 'currentColor'
+                        : 'none'
+                    "
+                  />
+                </BrutalButton>
+
+                <div class="action-divider"></div>
+
+                <BrutalButton
+                  type="default"
+                  size="small"
+                  :disabled="row.source !== 'db'"
+                  :aria-label="row.source === 'db' ? '编辑' : '该配置不可修改'"
+                  @click="openEdit(row)"
+                >
+                  <Pencil :size="14" />
+                </BrutalButton>
 
                 <template v-if="row.source === 'db'">
-                  <Tooltip content="删除" as-child>
-                    <BrutalButton
-                      type="danger"
-                      size="small"
-                      @click="handleDelete(row)"
-                    >
-                      <Trash2 :size="14" />
-                    </BrutalButton>
-                  </Tooltip>
+                  <BrutalButton
+                    type="danger"
+                    size="small"
+                    aria-label="删除"
+                    @click="handleDelete(row)"
+                  >
+                    <Trash2 :size="14" />
+                  </BrutalButton>
                 </template>
               </div>
             </template>
@@ -296,7 +279,6 @@ import BrutalFormItem from "../components/ui/form-item/BrutalFormItem.vue";
 import BrutalInput from "../components/ui/input/BrutalInput.vue";
 import BrutalAlert from "../components/ui/alert/BrutalAlert.vue";
 import BrutalTag from "../components/ui/tag/BrutalTag.vue";
-import Tooltip from "../components/ui/tooltip/Tooltip.vue";
 import { useMessage } from "../composables/useMessage";
 
 const message = useMessage();
