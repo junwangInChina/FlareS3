@@ -103,6 +103,7 @@ defineProps({
 .brutal-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   background: transparent;
 }
 
@@ -128,16 +129,27 @@ defineProps({
 /* Cell with ellipsis */
 .cell-ellipsis {
   max-width: 0; /* Force ellipsis to work */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cell-ellipsis > span {
   display: inline-block;
   max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   vertical-align: middle;
   cursor: help; /* Show help cursor on hover */
+}
+
+.cell-ellipsis :deep(.brutal-tooltip-trigger),
+.cell-ellipsis :deep(.tooltip-trigger) {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: help;
 }
 
 .brutal-table th {
