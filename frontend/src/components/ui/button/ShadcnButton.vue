@@ -35,103 +35,91 @@ defineEmits(['click'])
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.5rem;
   font-family: var(--nb-font-ui);
-  font-weight: 500;
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
+  font-weight: var(--nb-font-weight-medium);
+  font-size: 0.875rem;
+  line-height: 1;
+  border: 1px solid transparent;
+  border-radius: var(--nb-radius-md);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   white-space: nowrap;
   outline: none;
 }
 
 .shadcn-btn:focus-visible {
-  outline: 2px solid var(--nb-primary);
-  outline-offset: 2px;
+  box-shadow: var(--nb-focus-ring);
 }
 
 /* Sizes */
 .size-small {
+  height: 36px;
   padding: 0 12px;
-  height: 32px;
-  font-size: 13px;
 }
 
 .size-medium {
+  height: 40px;
   padding: 0 16px;
-  height: 36px;
-  font-size: 14px;
 }
 
 .size-large {
-  padding: 0 20px;
-  height: 40px;
-  font-size: 14px;
+  height: 44px;
+  padding: 0 32px;
 }
 
 /* Types */
 .type-primary {
-  background-color: var(--nb-primary);
-  color: var(--nb-primary-foreground);
-  border-color: var(--nb-primary);
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--nb-shadow);
 }
 
 .type-primary:hover:not(.disabled):not(.loading) {
-  opacity: 0.9;
+  background-color: color-mix(in oklab, var(--primary) 90%, var(--background));
 }
 
 .type-secondary {
-  background-color: var(--nb-secondary);
-  color: var(--nb-secondary-foreground);
-  border-color: var(--nb-border-color);
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .type-secondary:hover:not(.disabled):not(.loading) {
-  background-color: var(--nb-gray-100);
+  background-color: color-mix(in oklab, var(--secondary) 80%, var(--background));
 }
 
 .type-danger {
-  background-color: transparent;
-  color: var(--nb-danger);
-  border-color: var(--nb-danger);
+  background-color: var(--destructive);
+  color: var(--destructive-foreground);
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .type-danger:hover:not(.disabled):not(.loading) {
-  background-color: var(--nb-danger);
-  color: var(--nb-danger-foreground);
+  background-color: color-mix(in oklab, var(--destructive) 90%, var(--background));
 }
 
 .type-ghost {
   background-color: transparent;
   border-color: transparent;
-  color: var(--nb-foreground);
+  color: var(--foreground);
 }
 
 .type-ghost:hover:not(.disabled):not(.loading) {
-  background-color: var(--nb-gray-100);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .type-default {
-  background-color: var(--nb-surface);
-  color: var(--nb-foreground);
-  border-color: var(--nb-border-color);
+  background-color: var(--background);
+  color: var(--foreground);
+  border-color: var(--input);
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .type-default:hover:not(.disabled):not(.loading) {
-  background-color: var(--nb-gray-50);
-}
-
-/* States */
-.type-primary:active:not(.disabled):not(.loading),
-.type-danger:active:not(.disabled):not(.loading) {
-  opacity: 0.8;
-}
-
-.type-secondary:active:not(.disabled):not(.loading),
-.type-default:active:not(.disabled):not(.loading),
-.type-ghost:active:not(.disabled):not(.loading) {
-  background-color: var(--nb-gray-200);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .block {
@@ -144,6 +132,13 @@ defineEmits(['click'])
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.shadcn-btn :deep(svg) {
+  pointer-events: none;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
 }
 
 .loader {
