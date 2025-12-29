@@ -5,7 +5,7 @@
 <style scoped>
 .shadcn-divider {
   height: 1px;
-  background-color: var(--nb-border-color);
+  background-color: var(--border);
   margin: 16px 0;
 }
 </style>
