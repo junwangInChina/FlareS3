@@ -11,6 +11,8 @@ export async function listUsers(request: Request, env: Env): Promise<Response> {
   const status = url.searchParams.get('status')
   const role = url.searchParams.get('role')
   const q = url.searchParams.get('q')
+  const createdFrom = url.searchParams.get('created_from')
+  const createdTo = url.searchParams.get('created_to')
   const offset = (page - 1) * limit
 
   const conditions: string[] = []
@@ -26,6 +28,14 @@ export async function listUsers(request: Request, env: Env): Promise<Response> {
   if (q) {
     conditions.push('username LIKE ?')
     params.push(`%${q}%`)
+  }
+  if (createdFrom) {
+    conditions.push('created_at >= ?')
+    params.push(createdFrom)
+  }
+  if (createdTo) {
+    conditions.push('created_at < ?')
+    params.push(createdTo)
   }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
