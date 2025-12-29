@@ -1,89 +1,130 @@
-/* shadcn/ui Theme - Based on Style Guide with OKLCH Colors */
+/* shadcn/ui theme (style: default, baseColor: neutral)
+   Token reference: https://ui.shadcn.com/docs/theming */
 
 /* ============================================
-   LIGHT MODE
+   TOKENS (LIGHT)
    ============================================ */
 :root[data-ui-theme="shadcn"] {
-  /* ===== Base Colors (OKLCH) ===== */
-  --nb-bg: oklch(0.985 0.001 264); /* Very Light Gray Background */
-  --nb-surface: oklch(1 0 0); /* White Cards */
-  --nb-ink: oklch(0.20 0.005 264); /* Dark Text */
-  --nb-black: oklch(0.20 0.005 264);
-  --nb-white: oklch(1 0 0);
+  color-scheme: light;
 
-  /* Selection */
-  --nb-selection-bg: oklch(0.7 0.08 240 / 0.2);
-  --nb-selection-color: oklch(0.20 0.005 264);
+  /* ---- Official shadcn/ui semantic tokens (neutral) ---- */
+  --radius: 0.625rem;
 
-  /* ===== Brand & Interactive Colors ===== */
-  --nb-primary: oklch(0.50 0.10 240); /* Subtle Blue */
-  --nb-primary-foreground: oklch(1 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
 
-  --nb-secondary: oklch(0.97 0.003 264); /* Very Subtle Gray */
-  --nb-secondary-foreground: oklch(0.20 0.005 264);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
 
-  --nb-accent: oklch(0.97 0.003 264);
-  --nb-accent-foreground: oklch(0.20 0.005 264);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
 
-  --nb-muted: oklch(0.97 0.003 264);
-  --nb-muted-foreground: oklch(0.45 0.005 264);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
 
-  /* Destructive/Danger */
-  --nb-danger: oklch(0.55 0.15 25); /* Subtle Red */
-  --nb-danger-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
 
-  /* Semantic Colors */
-  --nb-success: oklch(0.60 0.12 150); /* Subtle Green */
-  --nb-success-foreground: oklch(1 0 0);
-  --nb-warning: oklch(0.70 0.10 80); /* Subtle Yellow */
-  --nb-warning-foreground: oklch(0.20 0.005 264);
-  --nb-info: oklch(0.50 0.10 240); /* Subtle Blue */
-  --nb-info-foreground: oklch(1 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
 
-  /* ===== Gray Scale (OKLCH) ===== */
-  --nb-gray-50: oklch(0.99 0.001 264);
-  --nb-gray-100: oklch(0.975 0.002 264);
-  --nb-gray-200: oklch(0.95 0.003 264);
-  --nb-gray-300: oklch(0.90 0.005 264);
-  --nb-gray-400: oklch(0.70 0.008 264);
-  --nb-gray-500: oklch(0.50 0.005 264);
-  --nb-gray-600: oklch(0.30 0.005 264);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
 
-  /* ===== UI Elements ===== */
-  --nb-input-bg: oklch(1 0 0);
-  --nb-overlay-bg: oklch(0.15 0.005 264 / 0.6);
-  --nb-border-color: oklch(0.92 0.002 264); /* Very Subtle Border */
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* ---- Legacy tokens used in this codebase (mapped to official tokens) ---- */
+  --nb-bg: var(--background);
+  --nb-surface: var(--card);
+  --nb-ink: var(--foreground);
+  --nb-black: var(--foreground);
+  --nb-white: var(--background);
+
+  --nb-background: var(--background);
+  --nb-foreground: var(--foreground);
+
+  --nb-primary: var(--primary);
+  --nb-primary-foreground: var(--primary-foreground);
+  --nb-secondary: var(--secondary);
+  --nb-secondary-foreground: var(--secondary-foreground);
+  --nb-accent: var(--accent);
+  --nb-accent-foreground: var(--accent-foreground);
+  --nb-muted: var(--muted);
+  --nb-muted-foreground: var(--muted-foreground);
+
+  --nb-danger: var(--destructive);
+  --nb-danger-foreground: var(--destructive-foreground);
+
+  /* Keep semantic colors for app-specific UI (mapped to official chart palette) */
+  --nb-success: var(--chart-2);
+  --nb-warning: var(--chart-4);
+  --nb-info: var(--chart-3);
+
+  /* Gray aliases (app uses these in views/components) */
+  --nb-gray-50: var(--secondary);
+  --nb-gray-100: var(--muted);
+  --nb-gray-200: var(--border);
+  --nb-gray-300: var(--input);
+  --nb-gray-400: var(--ring);
+  --nb-gray-500: var(--muted-foreground);
+  --nb-gray-600: var(--foreground);
+
+  /* UI elements */
+  --nb-input-bg: var(--background);
+  --nb-overlay-bg: rgb(0 0 0 / 0.6);
+  --nb-border-color: var(--border);
   --nb-border-width: 1px;
-  --nb-border: var(--nb-border-width) solid var(--nb-border-color);
+  --nb-border: var(--nb-border-width) solid var(--border);
   --nb-border-thin: var(--nb-border);
 
-  /* ===== Sidebar Colors ===== */
-  --nb-sidebar: oklch(1 0 0);
-  --nb-sidebar-foreground: oklch(0.30 0.005 264);
-  --nb-sidebar-primary: oklch(0.50 0.10 240);
-  --nb-sidebar-primary-foreground: oklch(1 0 0);
-  --nb-sidebar-accent: oklch(0.97 0.003 264);
-  --nb-sidebar-accent-foreground: oklch(0.20 0.005 264);
-  --nb-sidebar-border: oklch(0.95 0.003 264);
-  --nb-sidebar-ring: oklch(0.50 0.10 240 / 0.2);
+  /* Sidebar aliases */
+  --nb-sidebar: var(--sidebar);
+  --nb-sidebar-foreground: var(--sidebar-foreground);
+  --nb-sidebar-primary: var(--sidebar-primary);
+  --nb-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --nb-sidebar-accent: var(--sidebar-accent);
+  --nb-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --nb-sidebar-border: var(--sidebar-border);
+  --nb-sidebar-ring: var(--sidebar-ring);
 
-  /* ===== Chart Colors ===== */
-  --nb-chart-1: oklch(0.60 0.20 30); /* Orange/Red */
-  --nb-chart-2: oklch(0.60 0.15 180); /* Teal/Cyan */
-  --nb-chart-3: oklch(0.55 0.18 240); /* Blue */
-  --nb-chart-4: oklch(0.75 0.15 80); /* Yellow */
-  --nb-chart-5: oklch(0.60 0.20 30); /* Orange */
-  --color-total: oklch(0.55 0.18 240); /* Blue */
-  --color-income: oklch(0.65 0.18 150); /* Green */
-  --color-expense: oklch(0.58 0.22 25); /* Red */
+  /* Chart aliases */
+  --nb-chart-1: var(--chart-1);
+  --nb-chart-2: var(--chart-2);
+  --nb-chart-3: var(--chart-3);
+  --nb-chart-4: var(--chart-4);
+  --nb-chart-5: var(--chart-5);
+  --color-total: var(--chart-3);
+  --color-income: var(--chart-2);
+  --color-expense: var(--destructive);
 
-  /* ===== Typography ===== */
-  --nb-font-sans: "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  /* Typography */
+  --nb-font-sans: "Geist Sans", "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI",
+    "Helvetica Neue", Arial, sans-serif;
   --nb-font-serif: "Georgia", serif;
-  --nb-font-mono: "JetBrains Mono", "SF Mono", "Monaco", "Noto Sans SC", monospace;
+  --nb-font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
   --nb-font-ui: var(--nb-font-sans);
 
-  /* Font Sizes */
   --nb-font-size-10: 10px;
   --nb-font-size-11: 11px;
   --nb-font-size-xs: 0.75rem; /* 12px */
@@ -93,38 +134,34 @@
   --nb-font-size-xl: 1.125rem; /* 18px */
   --nb-font-size-2xl: 1.5rem; /* 24px */
 
-  /* Font Weights */
   --nb-font-weight-regular: 400;
   --nb-font-weight-medium: 500;
   --nb-font-weight-semibold: 600;
   --nb-font-weight-bold: 700;
 
-  /* Heading Styles */
   --nb-heading-font-family: var(--nb-font-sans);
   --nb-heading-font-weight: 600;
   --nb-heading-text-transform: none;
   --nb-heading-letter-spacing: -0.01em;
   --nb-heading-line-height: 1.4;
 
-  /* UI Text Styles */
   --nb-ui-font-weight: 500;
   --nb-ui-font-weight-strong: 600;
   --nb-ui-text-transform: none;
   --nb-ui-letter-spacing: 0;
 
-  /* Link Colors */
-  --nb-link-color: var(--nb-primary);
-  --nb-link-hover-color: oklch(0.40 0.10 240);
+  --nb-link-color: var(--primary);
+  --nb-link-hover-color: color-mix(in oklab, var(--primary) 85%, var(--background));
 
-  /* ===== Border Radius System ===== */
-  --nb-radius: 0.5rem; /* 8px - Base */
-  --nb-radius-sm: 0.375rem; /* 6px */
-  --nb-radius-md: 0.5rem; /* 8px */
-  --nb-radius-lg: 0.75rem; /* 12px */
-  --nb-radius-xl: 1rem; /* 16px */
+  /* Radius (match shadcn tailwind config convention) */
+  --nb-radius: var(--radius);
+  --nb-radius-lg: var(--radius);
+  --nb-radius-md: calc(var(--radius) - 2px);
+  --nb-radius-sm: calc(var(--radius) - 4px);
+  --nb-radius-xl: calc(var(--radius) + 4px);
   --nb-radius-full: 9999px;
 
-  /* ===== Spacing Scale (4px base) ===== */
+  /* Spacing scale */
   --nb-spacing: 0.25rem; /* 4px */
   --nb-space-xs: 0.5rem; /* 8px */
   --nb-space-sm: 0.75rem; /* 12px */
@@ -133,175 +170,141 @@
   --nb-space-xl: 1.5rem; /* 24px */
   --nb-space-2xl: 2rem; /* 32px */
 
-  /* ===== Shadow System ===== */
-  --nb-shadow-color: oklch(0.15 0.005 264 / 0.04);
-  --nb-shadow-2xs: 0 1px 2px 0 var(--nb-shadow-color);
-  --nb-shadow-xs: 0 1px 2px 0 var(--nb-shadow-color);
-  --nb-shadow-sm: 0 1px 3px 0 var(--nb-shadow-color);
-  --nb-shadow: 0 2px 4px 0 var(--nb-shadow-color);
-  --nb-shadow-md: 0 4px 6px 0 var(--nb-shadow-color);
-  --nb-shadow-lg: 0 8px 12px 0 var(--nb-shadow-color);
-  --nb-shadow-xl: 0 12px 20px 0 var(--nb-shadow-color);
+  /* Shadows (tailwind defaults) */
+  --nb-shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --nb-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --nb-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --nb-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --nb-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --nb-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --nb-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
-  /* ===== Focus States ===== */
-  --nb-focus-ring: 0 0 0 3px oklch(0.55 0.18 240 / 0.2);
-  --nb-focus-outline-color: oklch(0.55 0.18 240);
+  /* Focus ring (ring + ring-offset) */
+  --nb-focus-ring: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  --nb-focus-outline-color: var(--ring);
   --nb-focus-outline-width: 2px;
   --nb-focus-outline-offset: 2px;
 
-  /* ===== Layout ===== */
+  /* Layout */
   --nb-header-height-mobile: 64px;
   --nb-header-height-desktop: 72px;
   --nb-container-padding: 24px;
 
-  /* ===== Transitions ===== */
+  /* Transitions */
   --nb-transition-fast: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --nb-transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --nb-transition-duration: 200ms;
   --nb-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ===== Scrollbar ===== */
+  /* Scrollbar (override the global neo-brutal defaults) */
   --nb-scrollbar-track-bg: transparent;
-  --nb-scrollbar-thumb-bg: oklch(0.88 0.01 264);
-  --nb-scrollbar-thumb-hover-bg: oklch(0.68 0.015 264);
-  --nb-scrollbar-thumb-radius: 4px;
+  --nb-scrollbar-thumb-bg: color-mix(in oklab, var(--foreground) 20%, transparent);
+  --nb-scrollbar-thumb-hover-bg: color-mix(in oklab, var(--foreground) 30%, transparent);
+  --nb-scrollbar-thumb-radius: 999px;
 
-  /* ===== Modal/Dialog ===== */
-  --nb-modal-overlay-bg: oklch(0.15 0.01 264 / 0.75);
-  --nb-modal-header-bg: var(--nb-surface);
-  --nb-modal-header-foreground: var(--nb-black);
-  --nb-modal-header-border-color: var(--nb-border-color);
-  --nb-modal-footer-bg: var(--nb-surface);
+  /* Modal/Dialog */
+  --nb-modal-overlay-bg: rgb(0 0 0 / 0.8);
+  --nb-modal-header-bg: transparent;
+  --nb-modal-header-foreground: var(--foreground);
+  --nb-modal-header-border-color: var(--border);
+  --nb-modal-footer-bg: transparent;
   --nb-modal-close-bg: transparent;
-  --nb-modal-close-foreground: oklch(0.5 0.01 264);
+  --nb-modal-close-foreground: var(--muted-foreground);
   --nb-modal-close-border: 1px solid transparent;
-  --nb-modal-close-hover-bg: oklch(0.96 0.005 264);
-  --nb-modal-close-hover-foreground: var(--nb-black);
+  --nb-modal-close-hover-bg: var(--accent);
+  --nb-modal-close-hover-foreground: var(--accent-foreground);
 
-  /* ===== Card ===== */
-  --nb-card-header-border-color: var(--nb-border-color);
+  /* Card */
+  --nb-card-header-border-color: var(--border);
 
-  /* ===== Interaction Lifts ===== */
+  /* Selection */
+  --nb-selection-bg: color-mix(in oklab, var(--ring) 25%, transparent);
+  --nb-selection-color: var(--foreground);
+
+  /* Interaction lifts (unused in shadcn default) */
   --nb-lift-x: 0px;
   --nb-lift-y: 0px;
 }
 
 /* ============================================
-   DARK MODE
+   TOKENS (DARK)
    ============================================ */
 :root[data-ui-theme="shadcn"][data-theme="dark"] {
-  /* Base Colors */
-  --nb-bg: oklch(0.18 0.01 264); /* Dark Background */
-  --nb-surface: oklch(0.22 0.01 264); /* Card Background */
-  --nb-ink: oklch(0.95 0.005 264);
-  --nb-black: oklch(0.95 0.005 264);
-  --nb-white: oklch(0.18 0.01 264);
+  color-scheme: dark;
 
-  /* Selection */
-  --nb-selection-bg: oklch(0.55 0.18 240 / 0.3);
-  --nb-selection-color: oklch(0.95 0.005 264);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
 
-  /* Brand & Interactive Colors */
-  --nb-primary: oklch(0.60 0.18 240); /* Brighter Blue for dark mode */
-  --nb-primary-foreground: oklch(1 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
 
-  --nb-secondary: oklch(0.28 0.01 264); /* Darker Gray */
-  --nb-secondary-foreground: oklch(0.95 0.005 264);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
 
-  --nb-accent: oklch(0.28 0.01 264);
-  --nb-accent-foreground: oklch(0.95 0.005 264);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
 
-  --nb-muted: oklch(0.28 0.01 264);
-  --nb-muted-foreground: oklch(0.65 0.01 264);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
 
-  /* Destructive */
-  --nb-danger: oklch(0.62 0.22 25);
-  --nb-danger-foreground: oklch(1 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
 
-  /* Semantic */
-  --nb-success: oklch(0.68 0.18 150);
-  --nb-success-foreground: oklch(0.18 0.01 264);
-  --nb-warning: oklch(0.78 0.15 80);
-  --nb-warning-foreground: oklch(0.18 0.01 264);
-  --nb-info: oklch(0.60 0.18 240);
-  --nb-info-foreground: oklch(1 0 0);
+  --accent: oklch(0.371 0 0);
+  --accent-foreground: oklch(0.985 0 0);
 
-  /* Gray Scale */
-  --nb-gray-50: oklch(0.18 0.01 264);
-  --nb-gray-100: oklch(0.25 0.01 264);
-  --nb-gray-200: oklch(0.32 0.01 264);
-  --nb-gray-300: oklch(0.40 0.01 264);
-  --nb-gray-400: oklch(0.55 0.01 264);
-  --nb-gray-500: oklch(0.65 0.01 264);
-  --nb-gray-600: oklch(0.85 0.005 264);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
 
-  /* UI Elements */
-  --nb-input-bg: oklch(0.22 0.01 264);
-  --nb-overlay-bg: oklch(0.10 0.01 264 / 0.85);
-  --nb-border-color: oklch(0.32 0.01 264);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
 
-  /* Sidebar */
-  --nb-sidebar: oklch(0.20 0.01 264);
-  --nb-sidebar-foreground: oklch(0.85 0.005 264);
-  --nb-sidebar-primary: oklch(0.60 0.18 240);
-  --nb-sidebar-primary-foreground: oklch(1 0 0);
-  --nb-sidebar-accent: oklch(0.28 0.01 264);
-  --nb-sidebar-accent-foreground: oklch(0.95 0.005 264);
-  --nb-sidebar-border: oklch(0.32 0.01 264);
-  --nb-sidebar-ring: oklch(0.60 0.18 240 / 0.3);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
 
-  /* Focus */
-  --nb-focus-ring: 0 0 0 3px oklch(0.60 0.18 240 / 0.3);
-  --nb-focus-outline-color: oklch(0.60 0.18 240);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.439 0 0);
 
-  /* Scrollbar */
-  --nb-scrollbar-thumb-bg: oklch(0.40 0.01 264);
-  --nb-scrollbar-thumb-hover-bg: oklch(0.55 0.01 264);
+  /* Gray aliases tuned for dark mode readability */
+  --nb-gray-50: var(--background);
+  --nb-gray-100: var(--secondary);
+  --nb-gray-200: var(--muted);
+  --nb-gray-300: var(--accent);
+  --nb-gray-400: var(--ring);
+  --nb-gray-500: var(--muted-foreground);
+  --nb-gray-600: var(--foreground);
 
-  /* Modal */
-  --nb-modal-overlay-bg: oklch(0.10 0.01 264 / 0.85);
-  --nb-modal-close-hover-bg: var(--nb-secondary);
-  --nb-modal-close-hover-foreground: var(--nb-secondary-foreground);
-
-  /* Shadow (lighter for dark mode) */
-  --nb-shadow-color: oklch(0.05 0 0 / 0.3);
+  --nb-overlay-bg: rgb(0 0 0 / 0.85);
+  --nb-focus-ring: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  --nb-scrollbar-thumb-bg: color-mix(in oklab, var(--foreground) 18%, transparent);
+  --nb-scrollbar-thumb-hover-bg: color-mix(in oklab, var(--foreground) 28%, transparent);
 }
 
 /* ============================================
-   GLOBAL RESETS & BASE STYLES
+   BASE STYLES (shadcn theme only)
    ============================================ */
 :root[data-ui-theme="shadcn"] * {
-  border-color: var(--nb-border-color);
-}
-
-:root[data-ui-theme="shadcn"] *:focus-visible {
-  outline: var(--nb-focus-outline-width) solid var(--nb-focus-outline-color);
-  outline-offset: var(--nb-focus-outline-offset);
+  border-color: var(--border);
 }
 
 :root[data-ui-theme="shadcn"] body {
   font-family: var(--nb-font-sans);
   font-size: var(--nb-font-size-base);
   line-height: 1.5;
-  color: var(--nb-ink);
-  background-color: var(--nb-bg);
+  color: var(--foreground);
+  background-color: var(--background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-:root[data-ui-theme="shadcn"] h1 {
-  font-size: var(--nb-font-size-2xl);
-  margin-bottom: var(--nb-space-md);
-}
-
-:root[data-ui-theme="shadcn"] h2 {
-  font-size: var(--nb-font-size-xl);
-  margin-bottom: var(--nb-space-sm);
-}
-
-:root[data-ui-theme="shadcn"] h3 {
-  font-size: var(--nb-font-size-lg);
-  margin-bottom: var(--nb-space-sm);
 }
 
 :root[data-ui-theme="shadcn"] h1,
@@ -315,13 +318,13 @@
   text-transform: var(--nb-heading-text-transform);
   letter-spacing: var(--nb-heading-letter-spacing);
   line-height: var(--nb-heading-line-height);
-  color: var(--nb-black);
+  color: var(--foreground);
 }
 
-/* ===== Scrollbar ===== */
+/* Scrollbar */
 :root[data-ui-theme="shadcn"] ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 :root[data-ui-theme="shadcn"] ::-webkit-scrollbar-track {
   background: var(--nb-scrollbar-track-bg);
@@ -347,35 +350,13 @@
   color: var(--nb-selection-color);
 }
 
-/* ============================================
-   ANIMATIONS & KEYFRAMES
-   ============================================ */
+/* Utilities */
+:root[data-ui-theme="shadcn"] .animate-spin {
+  animation: spinner 1s linear infinite;
+}
+
 @keyframes spinner {
   to {
     transform: rotate(360deg);
   }
-}
-
-@keyframes modal-overlay {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes modal {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-:root[data-ui-theme="shadcn"] .animate-spin {
-  animation: spinner 1s linear infinite;
 }
