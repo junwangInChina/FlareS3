@@ -41,9 +41,9 @@ const handleOpenChange = (open) => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--nb-modal-overlay-bg);
+  backdrop-filter: blur(4px);
   z-index: 1000;
-  animation: fadeIn 0.15s ease;
 }
 
 .modal-content {
@@ -51,38 +51,43 @@ const handleOpenChange = (open) => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: var(--nb-surface);
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--nb-radius-lg);
   box-shadow: var(--nb-shadow-lg);
   width: 90vw;
   max-height: 85vh;
   overflow: auto;
   z-index: 1001;
-  animation: slideIn 0.2s ease;
+  padding: 24px;
 }
 
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: var(--nb-border);
+  gap: 16px;
 }
 
 .modal-title {
   margin: 0;
   font-size: 18px;
   font-weight: var(--nb-font-weight-semibold);
-  color: var(--nb-foreground);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
 }
 
 .close-btn {
+  position: absolute;
+  right: 16px;
+  top: 16px;
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: 20px;
   line-height: 1;
-  color: var(--nb-muted-foreground);
+  color: var(--muted-foreground);
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -91,40 +96,29 @@ const handleOpenChange = (open) => {
   align-items: center;
   justify-content: center;
   border-radius: var(--nb-radius-sm);
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  opacity: 0.7;
 }
 
 .close-btn:hover {
-  background-color: var(--nb-gray-100);
-  color: var(--nb-foreground);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  opacity: 1;
+}
+
+.close-btn:focus-visible {
+  box-shadow: var(--nb-focus-ring);
+  opacity: 1;
 }
 
 .modal-body {
-  padding: 20px;
+  padding-top: 16px;
 }
 
 .modal-footer {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  padding: 16px 20px;
-  border-top: var(--nb-border);
-  background-color: var(--nb-gray-50);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -48%);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
+  padding-top: 16px;
 }
 </style>
