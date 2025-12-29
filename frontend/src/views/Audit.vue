@@ -11,37 +11,37 @@
 
         <div class="audit-actions">
           <div class="filter-row">
-            <BrutalInput v-model="filters.action" placeholder="动作" size="small" />
-            <BrutalInput v-model="filters.actor" placeholder="操作者 ID" size="small" />
-            <BrutalButton type="default" size="small" @click="handleSearch">查询</BrutalButton>
-            <BrutalButton type="ghost" size="small" @click="handleReset">重置</BrutalButton>
+            <Input v-model="filters.action" placeholder="动作" size="small" clearable />
+            <Input v-model="filters.actor" placeholder="操作者 ID" size="small" clearable />
+            <Button type="default" size="small" @click="handleSearch">查询</Button>
+            <Button type="ghost" size="small" @click="handleReset">重置</Button>
           </div>
         </div>
       </header>
 
       <section class="audit-content">
-        <BrutalCard class="audit-table-card">
-          <BrutalTable class="audit-table" :columns="columns" :data="logs" :loading="loading" />
+        <Card class="audit-table-card">
+          <Table class="audit-table" :columns="columns" :data="logs" :loading="loading" />
 
           <div v-if="pagination.itemCount > 0" class="pagination">
             <span>共 {{ pagination.itemCount }} 条</span>
             <div class="page-btns">
-              <BrutalButton
+              <Button
                 size="small"
                 type="ghost"
                 :disabled="pagination.page <= 1"
                 @click="changePage(pagination.page - 1)"
-              >上一页</BrutalButton>
+              >上一页</Button>
               <span class="page-info">{{ pagination.page }}</span>
-              <BrutalButton
+              <Button
                 size="small"
                 type="ghost"
                 :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
                 @click="changePage(pagination.page + 1)"
-              >下一页</BrutalButton>
+              >下一页</Button>
             </div>
           </div>
-        </BrutalCard>
+        </Card>
       </section>
     </div>
   </AppLayout>
@@ -51,11 +51,11 @@
 import { ref, h, onMounted } from 'vue'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
-import BrutalCard from "../components/ui/card/BrutalCard.vue"
-import BrutalButton from "../components/ui/button/BrutalButton.vue"
-import BrutalInput from "../components/ui/input/BrutalInput.vue"
-import BrutalTable from "../components/ui/table/BrutalTable.vue"
-import BrutalTag from "../components/ui/tag/BrutalTag.vue"
+import Card from "../components/ui/card/Card.vue"
+import Button from "../components/ui/button/Button.vue"
+import Input from "../components/ui/input/Input.vue"
+import Table from "../components/ui/table/Table.vue"
+import Tag from "../components/ui/tag/Tag.vue"
 import Tooltip from "../components/ui/tooltip/Tooltip.vue"
 import { useMessage } from '../composables/useMessage'
 
@@ -98,7 +98,7 @@ const columns = [
     align: 'center',
     render: (row) => {
       const text = toDisplayText(row.action)
-      return withTooltip(text, h(BrutalTag, { type: 'info', size: 'small' }, () => text))
+      return withTooltip(text, h(Tag, { type: 'info', size: 'small' }, () => text))
     }
   },
   {
