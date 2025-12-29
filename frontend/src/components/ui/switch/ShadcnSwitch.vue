@@ -36,41 +36,11 @@ const emit = defineEmits(['update:modelValue'])
   gap: 8px;
 }
 
-.switch-root {
-  width: 44px;
-  height: 24px;
-  background-color: var(--nb-gray-300);
-  border-radius: 12px;
-  position: relative;
-  transition: background-color 0.15s ease;
-  border: none;
-  cursor: pointer;
-}
-
-.switch-root[data-state="checked"] {
-  background-color: var(--nb-primary);
-}
-
-.switch-thumb {
-  display: block;
-  width: 20px;
-  height: 20px;
-  background-color: var(--nb-white);
-  border-radius: 10px;
-  transition: transform 0.15s ease;
-  transform: translateX(2px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.switch-root[data-state="checked"] .switch-thumb {
-  transform: translateX(22px);
-}
-
 .switch-label {
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-medium);
-  font-size: 14px;
-  color: var(--nb-foreground);
+  font-size: 0.875rem;
+  color: var(--foreground);
 }
 
 .disabled {
@@ -80,5 +50,67 @@ const emit = defineEmits(['update:modelValue'])
 
 .disabled .switch-root {
   cursor: not-allowed;
+}
+</style>
+
+<!-- Align with shadcn/ui Switch (default + neutral):
+     https://ui.shadcn.com/docs/components/switch -->
+<style>
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  padding: 0;
+  margin: 0;
+  line-height: 0;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-color: var(--input);
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  appearance: none;
+}
+
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[data-state="checked"] {
+  background-color: var(--primary);
+}
+
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[data-state="unchecked"] {
+  background-color: var(--input);
+}
+
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root:focus-visible {
+  box-shadow: var(--nb-focus-ring);
+}
+
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[disabled],
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-thumb {
+  pointer-events: none;
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background-color: var(--background);
+  box-shadow: var(--nb-shadow-lg);
+  transition: transform 0.15s ease;
+  transform: translateX(0);
+}
+
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-thumb[data-state="checked"] {
+  transform: translateX(20px);
+}
+
+:root[data-ui-theme="shadcn"] .shadcn-switch .switch-thumb[data-state="unchecked"] {
+  transform: translateX(0);
 }
 </style>
