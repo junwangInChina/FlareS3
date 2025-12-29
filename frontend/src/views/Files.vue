@@ -12,19 +12,24 @@
         <div class="files-actions">
           <div class="filter-row">
             <div class="filter-item filename">
-              <Input v-model="filters.filename" placeholder="文件名称" size="small" @keyup.enter="handleSearch" />
+              <Input v-model="filters.filename" placeholder="文件名称" size="small" clearable @keyup.enter="handleSearch" />
             </div>
 
             <div v-if="authStore.isAdmin" class="filter-item owner">
-              <Select v-model="filters.owner_id" :options="ownerOptions" :disabled="usersLoading" />
+              <Select v-model="filters.owner_id" :options="ownerOptions" size="small" :disabled="usersLoading" />
             </div>
 
             <div class="filter-item status">
-              <Select v-model="filters.upload_status" :options="statusOptions" />
+              <Select v-model="filters.upload_status" :options="statusOptions" size="small" />
             </div>
 
-            <div class="filter-item created-date">
-              <Input v-model="filters.created_date" type="date" size="small" placeholder="上传时间" />
+            <div class="filter-item created-range">
+              <DateRangePicker
+                v-model:startValue="filters.created_from_date"
+                v-model:endValue="filters.created_to_date"
+                size="small"
+                clearable
+              />
             </div>
 
             <Button
@@ -132,6 +137,7 @@ import Modal from '../components/ui/modal/Modal.vue'
 import Descriptions from '../components/ui/descriptions/Descriptions.vue'
 import Divider from '../components/ui/divider/Divider.vue'
 import Input from '../components/ui/input/Input.vue'
+import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from "../components/ui/tooltip/Tooltip.vue"
 import { useMessage } from '../composables/useMessage'
@@ -147,7 +153,8 @@ const filters = ref({
   filename: '',
   owner_id: '',
   upload_status: '',
-  created_date: ''
+  created_from_date: '',
+  created_to_date: ''
 })
 
 const usersLoading = ref(false)
@@ -181,9 +188,10 @@ const columns = computed(() => [
     key: 'size',
     width: 100,
     align: 'center',
+    ellipsis: false,
     render: (row) => {
       const sizeText = formatBytes(row.size)
-      return h(Tooltip, { content: sizeText }, () => sizeText)
+      return h('span', sizeText)
     }
   },
   {
@@ -191,9 +199,10 @@ const columns = computed(() => [
     key: 'expires_in',
     width: 80,
     align: 'center',
+    ellipsis: false,
     render: (row) => {
       const text = row.expires_in === -30 ? '30秒' : row.expires_in + '天'
-      return h(Tooltip, { content: text }, () => text)
+      return h('span', text)
     }
   },
   {
@@ -201,14 +210,18 @@ const columns = computed(() => [
     key: 'status',
     width: 80,
     align: 'center',
+    ellipsis: false,
     render: (row) => {
-      const statusText = row.upload_status === 'deleted' ? '失效' : '有效'
-      return h(Tooltip, { content: statusText }, () =>
-        h(Tag, {
-          type: row.upload_status === 'deleted' ? 'danger' : 'success',
-          size: 'small'
-        }, () => statusText)
-      )
+      const isDeleted = row.upload_status === 'deleted'
+      const expiresAt = row.expires_at ? new Date(row.expires_at).getTime() : Number.NaN
+      const isExpired = !isDeleted && Number.isFinite(expiresAt) && Date.now() > expiresAt
+
+      const statusText = isDeleted ? '失效' : isExpired ? '已过期' : '有效'
+      const tagType = isDeleted ? 'danger' : isExpired ? 'warning' : 'success'
+      return h(Tag, {
+        type: tagType,
+        size: 'small'
+      }, () => statusText)
     }
   },
   {
@@ -236,9 +249,10 @@ const columns = computed(() => [
     key: 'owner',
     width: 120,
     align: 'center',
+    ellipsis: false,
     render: (row) => {
       const text = row.owner_username || row.owner_id
-      return h(Tooltip, { content: text }, () => text)
+      return h('span', text)
     }
   }] : []),
   {
@@ -317,12 +331,33 @@ const buildQueryParams = () => {
     params.upload_status = filters.value.upload_status
   }
 
-  if (filters.value.created_date) {
-    const createdFrom = toIsoStartOfDay(filters.value.created_date)
-    const createdTo = createdFrom ? addOneDayIso(createdFrom) : null
-    if (createdFrom && createdTo) {
-      params.created_from = createdFrom
-      params.created_to = createdTo
+  const createdFromDate = filters.value.created_from_date
+  const createdToDate = filters.value.created_to_date
+
+  if (createdFromDate || createdToDate) {
+    let fromDate = createdFromDate
+    let toDate = createdToDate
+
+    if (fromDate && toDate && fromDate > toDate) {
+      ;[fromDate, toDate] = [toDate, fromDate]
+    }
+
+    const fromIso = fromDate ? toIsoStartOfDay(fromDate) : null
+    const toBaseIso = toDate ? toIsoStartOfDay(toDate) : null
+    const toIso = toBaseIso ? addOneDayIso(toBaseIso) : null
+
+    if (fromIso && toIso) {
+      params.created_from = fromIso
+      params.created_to = toIso
+    } else if (fromIso) {
+      const singleTo = addOneDayIso(fromIso)
+      if (singleTo) {
+        params.created_from = fromIso
+        params.created_to = singleTo
+      }
+    } else if (toIso && toBaseIso) {
+      params.created_from = toBaseIso
+      params.created_to = toIso
     }
   }
 
@@ -452,8 +487,8 @@ onMounted(() => {
   width: 120px;
 }
 
-.filter-item.created-date {
-  width: 160px;
+.filter-item.created-range {
+  width: 280px;
 }
 
 .files-content {
@@ -467,12 +502,15 @@ onMounted(() => {
   /* min-height removed to avoid empty space */
 }
 
-:deep(.files-table .brutal-table) {
+:deep(.files-table .brutal-table),
+:deep(.files-table .shadcn-table) {
   table-layout: fixed;
 }
 
 :deep(.files-table .brutal-table th),
-:deep(.files-table .brutal-table td) {
+:deep(.files-table .brutal-table td),
+:deep(.files-table .shadcn-table th),
+:deep(.files-table .shadcn-table td) {
   white-space: nowrap;
 }
 
