@@ -4,7 +4,7 @@ defineProps({
   type: { type: String, default: 'line' },
   showIndicator: { type: Boolean, default: true },
   color: String,
-  height: { type: Number, default: 24 }
+  height: { type: Number, default: 16 }
 })
 </script>
 
@@ -15,7 +15,7 @@ defineProps({
         class="progress-bar"
         :style="{
           width: `${Math.min(percentage, 100)}%`,
-          backgroundColor: color || 'var(--nb-primary)'
+          backgroundColor: color || 'var(--primary)'
         }"
       ></div>
       <span v-if="showIndicator" class="progress-text">{{ Math.round(percentage) }}%</span>
@@ -30,7 +30,7 @@ defineProps({
         cy="50"
         r="42"
         fill="none"
-        stroke="var(--nb-gray-200)"
+        stroke="var(--secondary)"
         stroke-width="8"
       />
       <circle
@@ -39,7 +39,7 @@ defineProps({
         cy="50"
         r="42"
         fill="none"
-        :stroke="color || 'var(--nb-primary)'"
+        :stroke="color || 'var(--primary)'"
         stroke-width="8"
         stroke-linecap="round"
         :stroke-dasharray="264"
@@ -62,16 +62,16 @@ defineProps({
 
 .progress-container {
   width: 100%;
-  background: var(--nb-gray-200);
+  background: var(--secondary);
   position: relative;
   overflow: hidden;
-  border-radius: var(--nb-radius-sm);
+  border-radius: 9999px;
 }
 
 .progress-bar {
   height: 100%;
   transition: width 0.3s ease;
-  border-radius: var(--nb-radius-sm);
+  border-radius: 9999px;
 }
 
 .progress-text {
@@ -82,7 +82,7 @@ defineProps({
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-medium);
   font-size: 12px;
-  color: var(--nb-foreground);
+  color: var(--foreground);
 }
 
 .shadcn-progress-circle {
@@ -106,6 +106,6 @@ defineProps({
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-semibold);
   font-size: 18px;
-  color: var(--nb-foreground);
+  color: var(--foreground);
 }
 </style>
