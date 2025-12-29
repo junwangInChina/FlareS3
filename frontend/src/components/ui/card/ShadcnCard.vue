@@ -31,32 +31,30 @@ defineProps({
 
 <style scoped>
 .shadcn-card {
-  background-color: var(--nb-surface);
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
-  box-shadow: var(--nb-shadow-xs);
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--nb-shadow);
   overflow: hidden;
-  transition: box-shadow 0.15s ease;
-}
-
-.shadcn-card:hover {
-  box-shadow: var(--nb-shadow-sm);
 }
 
 .card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: var(--nb-space-md) var(--nb-space-lg);
-  border-bottom: var(--nb-border);
+  gap: 16px;
+  padding: 24px;
 }
 
 .card-title {
   margin: 0;
-  font-size: var(--nb-font-size-lg);
+  font-size: 1.5rem;
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-semibold);
-  color: var(--nb-foreground);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: inherit;
 }
 
 .header-extra {
@@ -66,12 +64,20 @@ defineProps({
 }
 
 .card-body {
-  padding: var(--nb-space-lg);
+  padding: 24px;
+}
+
+.card-header + .card-body {
+  padding-top: 0;
 }
 
 .card-footer {
-  padding: var(--nb-space-md) var(--nb-space-lg);
-  border-top: var(--nb-border);
-  background-color: var(--nb-gray-50);
+  display: flex;
+  align-items: center;
+  padding: 24px;
+}
+
+.card-body + .card-footer {
+  padding-top: 0;
 }
 </style>
