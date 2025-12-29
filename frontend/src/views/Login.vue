@@ -8,26 +8,26 @@
       <p class="subtitle">轻量级临时文件分享</p>
 
       <form class="login-form" @submit.prevent="handleSubmit">
-        <BrutalFormItem label="用户名">
-          <BrutalInput
+        <FormItem label="用户名">
+          <Input
             v-model="formValue.username"
             placeholder="请输入用户名"
             size="large"
             @keyup.enter="handleSubmit"
           />
-        </BrutalFormItem>
+        </FormItem>
 
-        <BrutalFormItem label="密码">
-          <BrutalInput
+        <FormItem label="密码">
+          <Input
             v-model="formValue.password"
             type="password"
             placeholder="请输入密码"
             size="large"
             @keyup.enter="handleSubmit"
           />
-        </BrutalFormItem>
+        </FormItem>
 
-        <BrutalButton
+        <Button
           type="primary"
           size="large"
           block
@@ -35,11 +35,11 @@
           @click="handleSubmit"
         >
           登录
-        </BrutalButton>
+        </Button>
 
-        <BrutalAlert v-if="errorMessage" type="error" class="error-alert">
+        <Alert v-if="errorMessage" type="error" class="error-alert">
           {{ errorMessage }}
-        </BrutalAlert>
+        </Alert>
       </form>
 
       <p class="footer-text">管理员账号通过环境变量初始化</p>
@@ -55,10 +55,10 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import BrutalInput from '../components/ui/input/BrutalInput.vue'
-import BrutalButton from '../components/ui/button/BrutalButton.vue'
-import BrutalAlert from '../components/ui/alert/BrutalAlert.vue'
-import BrutalFormItem from '../components/ui/form-item/BrutalFormItem.vue'
+import Input from '../components/ui/input/Input.vue'
+import Button from '../components/ui/button/Button.vue'
+import Alert from '../components/ui/alert/Alert.vue'
+import FormItem from '../components/ui/form-item/FormItem.vue'
 
 const router = useRouter()
 const route = useRoute()
