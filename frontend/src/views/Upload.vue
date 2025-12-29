@@ -1,19 +1,19 @@
 <template>
   <AppLayout>
-    <BrutalCard title="上传文件">
-      <BrutalUpload
+    <Card title="上传文件">
+      <Upload
         ref="uploadRef"
         @file-selected="handleUpload"
         @before-upload="beforeUpload"
       >
         <p class="upload-hint">支持单个文件上传，最大 5GB</p>
-      </BrutalUpload>
+      </Upload>
 
-      <BrutalDivider />
+      <Divider />
 
       <div class="upload-options">
-        <BrutalFormItem label="过期时间">
-          <BrutalRadio
+        <FormItem label="过期时间">
+          <Radio
             v-model="expiresIn"
             :options="[
               { label: '1天', value: 1 },
@@ -23,30 +23,30 @@
             ]"
             name="expires"
           />
-        </BrutalFormItem>
+        </FormItem>
 
-        <BrutalFormItem label="R2 配置">
-          <BrutalSelect
+        <FormItem label="R2 配置">
+          <Select
             v-model="selectedR2ConfigId"
             :options="r2ConfigOptions"
             :disabled="isUploading || r2OptionsLoading"
           />
-        </BrutalFormItem>
+        </FormItem>
 
-        <BrutalFormItem label="下载权限">
-          <BrutalSwitch
+        <FormItem label="下载权限">
+          <Switch
             v-model="requireLogin"
             :checked-text="'需要登录'"
             :unchecked-text="'公开下载'"
           />
-        </BrutalFormItem>
+        </FormItem>
       </div>
 
-      <BrutalAlert v-if="isUploading" type="info" class="upload-status">
+      <Alert v-if="isUploading" type="info" class="upload-status">
         <template #default>
           <div class="upload-info">
             <strong>上传中: {{ currentFile?.name }}</strong>
-            <BrutalProgress :percentage="displayProgress" :height="20" />
+            <Progress :percentage="displayProgress" :height="20" />
             <div class="upload-stats">
               <span
                 >{{ formatBytes(uploadedSize) }} /
@@ -57,39 +57,39 @@
             </div>
           </div>
         </template>
-      </BrutalAlert>
+      </Alert>
 
       <div v-if="uploadResult" class="upload-result">
-        <BrutalAlert :type="uploadResult.success ? 'success' : 'error'">
+        <Alert :type="uploadResult.success ? 'success' : 'error'">
           <template #default>
             <div v-if="uploadResult.success">
               <div class="file-info">
                 <strong>📄 {{ uploadResult.filename }}</strong>
               </div>
               <div class="upload-summary">
-                <BrutalTag type="info">{{ uploadResult.fileSize }}</BrutalTag>
-                <BrutalTag type="success">{{
+                <Tag type="info">{{ uploadResult.fileSize }}</Tag>
+                <Tag type="success">{{
                   uploadResult.avgSpeed
-                }}</BrutalTag>
-                <BrutalTag type="warning">{{
+                }}</Tag>
+                <Tag type="warning">{{
                   uploadResult.duration
-                }}</BrutalTag>
+                }}</Tag>
               </div>
               <p class="expire-note">文件将在 {{ expiresIn }} 天后自动删除</p>
 
               <div class="link-group">
                 <label class="link-label">短链接</label>
                 <div class="link-row">
-                  <BrutalInput
+                  <Input
                     :model-value="uploadResult.shortUrl"
                     readonly
                     size="small"
                   />
-                  <BrutalButton
+                  <Button
                     type="primary"
                     size="small"
                     @click="copyShortUrl"
-                    >复制</BrutalButton
+                    >复制</Button
                   >
                 </div>
               </div>
@@ -97,16 +97,16 @@
               <div class="link-group">
                 <label class="link-label">直链</label>
                 <div class="link-row">
-                  <BrutalInput
+                  <Input
                     :model-value="uploadResult.downloadUrl"
                     readonly
                     size="small"
                   />
-                  <BrutalButton
+                  <Button
                     type="default"
                     size="small"
                     @click="copyDownloadUrl"
-                    >复制</BrutalButton
+                    >复制</Button
                   >
                 </div>
               </div>
@@ -115,9 +115,9 @@
               {{ uploadResult.message }}
             </div>
           </template>
-        </BrutalAlert>
+        </Alert>
       </div>
-    </BrutalCard>
+    </Card>
   </AppLayout>
 </template>
 
@@ -125,18 +125,18 @@
 import { ref, onMounted } from "vue";
 import api from "../services/api";
 import AppLayout from "../components/layout/AppLayout.vue";
-import BrutalCard from "../components/ui/card/BrutalCard.vue";
-import BrutalUpload from "../components/ui/upload/BrutalUpload.vue";
-import BrutalDivider from "../components/ui/divider/BrutalDivider.vue";
-import BrutalFormItem from "../components/ui/form-item/BrutalFormItem.vue";
-import BrutalRadio from "../components/ui/radio/BrutalRadio.vue";
-import BrutalSwitch from "../components/ui/switch/BrutalSwitch.vue";
-import BrutalSelect from "../components/ui/select/BrutalSelect.vue";
-import BrutalAlert from "../components/ui/alert/BrutalAlert.vue";
-import BrutalProgress from "../components/ui/progress/BrutalProgress.vue";
-import BrutalTag from "../components/ui/tag/BrutalTag.vue";
-import BrutalInput from "../components/ui/input/BrutalInput.vue";
-import BrutalButton from "../components/ui/button/BrutalButton.vue";
+import Card from "../components/ui/card/Card.vue";
+import Upload from "../components/ui/upload/Upload.vue";
+import Divider from "../components/ui/divider/Divider.vue";
+import FormItem from "../components/ui/form-item/FormItem.vue";
+import Radio from "../components/ui/radio/Radio.vue";
+import Switch from "../components/ui/switch/Switch.vue";
+import Select from "../components/ui/select/Select.vue";
+import Alert from "../components/ui/alert/Alert.vue";
+import Progress from "../components/ui/progress/Progress.vue";
+import Tag from "../components/ui/tag/Tag.vue";
+import Input from "../components/ui/input/Input.vue";
+import Button from "../components/ui/button/Button.vue";
 import { useMessage } from "../composables/useMessage";
 
 const message = useMessage();
