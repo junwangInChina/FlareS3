@@ -11,11 +11,11 @@
         </div>
 
         <div class="setup-actions">
-          <BrutalButton type="primary" size="large" @click="openCreate">
+          <Button type="primary" size="large" @click="openCreate">
             <Plus :size="18" style="margin-right: 6px" />
             添加新配置
-          </BrutalButton>
-          <BrutalButton
+          </Button>
+          <Button
             type="default"
             size="large"
             :loading="loading"
@@ -23,23 +23,23 @@
           >
             <RefreshCw :size="18" style="margin-right: 6px" />
             刷新列表
-          </BrutalButton>
+          </Button>
         </div>
       </header>
 
       <section class="config-list">
         <div v-if="loading" class="config-state">加载中...</div>
 
-        <BrutalAlert
+        <Alert
           v-else-if="configs.length === 0"
           type="info"
           title="暂无配置"
         >
           还没有任何 R2 配置，点击“添加新配置”开始创建。
-        </BrutalAlert>
+        </Alert>
 
         <div v-else class="config-cards">
-          <BrutalCard
+          <Card
             v-for="row in configs"
             :key="row.id"
             header-bg="var(--nb-surface)"
@@ -62,18 +62,18 @@
 
             <template #header-extra>
               <div class="config-card-tags">
-                <BrutalTag type="info" size="small">R2</BrutalTag>
-                <BrutalTag :type="getSourceTagType(row.source)" size="small">
+                <Tag type="info" size="small">R2</Tag>
+                <Tag :type="getSourceTagType(row.source)" size="small">
                   {{ formatSource(row.source) }}
-                </BrutalTag>
+                </Tag>
 
-                <BrutalTag
+                <Tag
                   v-if="row.id === r2Options.default_config_id"
                   type="success"
                   size="small"
                 >
                   默认
-                </BrutalTag>
+                </Tag>
               </div>
             </template>
 
@@ -110,7 +110,7 @@
 
             <template #footer>
               <div class="config-actions">
-                <BrutalButton
+                <Button
                   type="default"
                   size="small"
                   :loading="testingId === row.id"
@@ -119,11 +119,11 @@
                   @click="handleTest(row)"
                 >
                   <Network :size="14" />
-                </BrutalButton>
+                </Button>
 
                 <div class="action-divider"></div>
 
-                <BrutalButton
+                <Button
                   type="default"
                   size="small"
                   :loading="savingDefault && settingDefaultId === row.id"
@@ -143,11 +143,11 @@
                         : 'none'
                     "
                   />
-                </BrutalButton>
+                </Button>
 
                 <div class="action-divider"></div>
 
-                <BrutalButton
+                <Button
                   type="default"
                   size="small"
                   :disabled="row.source !== 'db'"
@@ -155,79 +155,79 @@
                   @click="openEdit(row)"
                 >
                   <Pencil :size="14" />
-                </BrutalButton>
+                </Button>
 
                 <template v-if="row.source === 'db'">
-                  <BrutalButton
+                  <Button
                     type="danger"
                     size="small"
                     aria-label="删除"
                     @click="handleDelete(row)"
                   >
                     <Trash2 :size="14" />
-                  </BrutalButton>
+                  </Button>
                 </template>
               </div>
             </template>
-          </BrutalCard>
+          </Card>
         </div>
       </section>
 
-      <BrutalModal
+      <Modal
         v-model:show="modalVisible"
         :title="modalTitle"
         width="560px"
       >
         <div class="form-grid">
-          <BrutalFormItem label="名称">
-            <BrutalInput
+          <FormItem label="名称">
+            <Input
               v-model="formValue.name"
               placeholder="例如：生产环境"
             />
-          </BrutalFormItem>
+          </FormItem>
 
-          <BrutalFormItem label="R2 端点 URL">
-            <BrutalInput
+          <FormItem label="R2 端点 URL">
+            <Input
               v-model="formValue.endpoint"
               placeholder="https://<account_id>.r2.cloudflarestorage.com"
             />
-          </BrutalFormItem>
+          </FormItem>
 
-          <BrutalFormItem label="Bucket Name">
-            <BrutalInput
+          <FormItem label="Bucket Name">
+            <Input
               v-model="formValue.bucket_name"
               placeholder="存储桶名称"
             />
-          </BrutalFormItem>
+          </FormItem>
 
-          <BrutalFormItem
+          <FormItem
             :label="
               modalMode === 'create'
                 ? 'Access Key ID'
                 : 'Access Key ID（留空不更新）'
             "
           >
-            <BrutalInput
+            <Input
               v-model="formValue.access_key_id"
               placeholder="R2 访问密钥 ID"
             />
-          </BrutalFormItem>
+          </FormItem>
 
-          <BrutalFormItem
+          <FormItem
             :label="
               modalMode === 'create'
                 ? 'Secret Access Key'
                 : 'Secret Access Key（留空不更新）'
             "
           >
-            <BrutalInput
+            <Input
               v-model="formValue.secret_access_key"
               type="password"
               placeholder="R2 访问密钥"
             />
-          </BrutalFormItem>
+          </FormItem>
 
-          <BrutalAlert type="info" title="提示">
+          <Alert type="info" title="提示">
             <ul class="help-list">
               <li>
                 R2 端点 URL 格式为
@@ -239,22 +239,22 @@
                 Read/Write）。
               </li>
             </ul>
-          </BrutalAlert>
+          </Alert>
         </div>
 
         <template #footer>
-          <BrutalButton type="default" @click="modalVisible = false">
+          <Button type="default" @click="modalVisible = false">
             取消
-          </BrutalButton>
-          <BrutalButton
+          </Button>
+          <Button
             type="primary"
             :loading="modalSubmitting"
             @click="handleSubmit"
           >
             保存
-          </BrutalButton>
+          </Button>
         </template>
-      </BrutalModal>
+      </Modal>
     </div>
   </AppLayout>
 </template>
@@ -272,13 +272,13 @@ import {
 } from "lucide-vue-next";
 import api from "../services/api";
 import AppLayout from "../components/layout/AppLayout.vue";
-import BrutalCard from "../components/ui/card/BrutalCard.vue";
-import BrutalButton from "../components/ui/button/BrutalButton.vue";
-import BrutalModal from "../components/ui/modal/BrutalModal.vue";
-import BrutalFormItem from "../components/ui/form-item/BrutalFormItem.vue";
-import BrutalInput from "../components/ui/input/BrutalInput.vue";
-import BrutalAlert from "../components/ui/alert/BrutalAlert.vue";
-import BrutalTag from "../components/ui/tag/BrutalTag.vue";
+import Card from "../components/ui/card/Card.vue";
+import Button from "../components/ui/button/Button.vue";
+import Modal from "../components/ui/modal/Modal.vue";
+import FormItem from "../components/ui/form-item/FormItem.vue";
+import Input from "../components/ui/input/Input.vue";
+import Alert from "../components/ui/alert/Alert.vue";
+import Tag from "../components/ui/tag/Tag.vue";
 import { useMessage } from "../composables/useMessage";
 
 const message = useMessage();
