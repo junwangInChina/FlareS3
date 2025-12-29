@@ -62,30 +62,30 @@ defineExpose({ clear })
         <p class="upload-hint">点击或拖拽文件到此处上传</p>
         <p class="upload-desc">支持单个文件上传</p>
       </div>
+      <slot />
     </div>
   </div>
 </template>
 
 <style scoped>
 .shadcn-upload {
-  border: 2px dashed var(--nb-border-color);
-  border-radius: var(--nb-radius-sm);
+  border: 2px dashed var(--input);
+  border-radius: var(--nb-radius-lg);
   padding: 32px;
   text-align: center;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: var(--nb-surface);
+  background: var(--background);
 }
 
 .shadcn-upload:hover {
-  border-color: var(--nb-primary);
-  background: var(--nb-gray-50);
+  border-color: var(--ring);
+  background: color-mix(in oklab, var(--accent) 50%, var(--background));
 }
 
 .shadcn-upload.dragging {
-  border-color: var(--nb-primary);
-  background: var(--nb-primary);
-  opacity: 0.1;
+  border-color: var(--primary);
+  background: color-mix(in oklab, var(--accent) 65%, var(--background));
 }
 
 .upload-content {
@@ -109,13 +109,13 @@ defineExpose({ clear })
 .upload-hint {
   font-size: 14px;
   font-weight: var(--nb-font-weight-medium);
-  color: var(--nb-foreground);
+  color: var(--foreground);
   margin: 0;
 }
 
 .upload-desc {
   font-size: 12px;
-  color: var(--nb-muted-foreground);
+  color: var(--muted-foreground);
   margin: 0;
 }
 </style>
