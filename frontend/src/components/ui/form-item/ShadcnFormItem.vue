@@ -22,9 +22,10 @@ defineProps({
   display: block;
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-medium);
-  font-size: 14px;
-  color: var(--nb-foreground);
-  margin-bottom: 6px;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--foreground);
+  margin-bottom: 8px;
 }
 
 .form-content {
