@@ -1,6 +1,20 @@
 <script setup>
 import { computed } from 'vue'
-import { SelectContent, SelectGroup, SelectItem, SelectItemText, SelectPortal, SelectRoot, SelectTrigger, SelectValue } from 'radix-vue'
+import { Check, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import {
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  SelectPortal,
+  SelectRoot,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectTrigger,
+  SelectValue,
+  SelectViewport,
+} from 'radix-vue'
 
 const props = defineProps({
   modelValue: [String, Number],
@@ -38,19 +52,34 @@ const currentValue = computed(() => {
     <SelectRoot :model-value="currentValue" :disabled="disabled" @update:model-value="handleValueChange">
       <SelectTrigger class="shadcn-select-trigger">
         <SelectValue :placeholder="placeholder || '请选择'" />
+        <ChevronDown class="select-icon" :size="16" />
       </SelectTrigger>
       <SelectPortal>
         <SelectContent class="shadcn-select-content" position="popper" :side-offset="4">
-          <SelectGroup>
-            <SelectItem
-              v-for="opt in processedOptions"
-              :key="opt.value"
-              :value="String(opt.value)"
-              class="shadcn-select-item"
-            >
-              <SelectItemText>{{ opt.label }}</SelectItemText>
-            </SelectItem>
-          </SelectGroup>
+          <SelectScrollUpButton class="shadcn-select-scroll-btn">
+            <ChevronUp class="shadcn-select-scroll-icon" :size="16" />
+          </SelectScrollUpButton>
+
+          <SelectViewport class="shadcn-select-viewport">
+            <SelectGroup>
+              <SelectItem
+                v-for="opt in processedOptions"
+                :key="opt.value"
+                :value="String(opt.value)"
+                :disabled="opt.disabled"
+                class="shadcn-select-item"
+              >
+                <SelectItemText>{{ opt.label }}</SelectItemText>
+                <SelectItemIndicator class="shadcn-select-item-indicator">
+                  <Check :size="16" />
+                </SelectItemIndicator>
+              </SelectItem>
+            </SelectGroup>
+          </SelectViewport>
+
+          <SelectScrollDownButton class="shadcn-select-scroll-btn">
+            <ChevronDown class="shadcn-select-scroll-icon" :size="16" />
+          </SelectScrollDownButton>
         </SelectContent>
       </SelectPortal>
     </SelectRoot>
@@ -66,79 +95,103 @@ const currentValue = computed(() => {
   display: block;
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-medium);
-  font-size: 14px;
-  color: var(--nb-foreground);
-  margin-bottom: 6px;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--foreground);
+  margin-bottom: 8px;
 }
 
 .shadcn-select-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   width: 100%;
   font-family: var(--nb-font-sans);
-  font-weight: 400;
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
-  background: var(--nb-input-bg);
-  color: var(--nb-foreground);
+  font-weight: var(--nb-font-weight-regular);
+  font-size: 0.875rem;
+  border: 1px solid var(--input);
+  border-radius: var(--nb-radius-md);
+  background: var(--background);
+  color: var(--foreground);
   cursor: pointer;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .size-small .shadcn-select-trigger {
-  padding: 0 10px;
-  height: 32px;
-  font-size: 13px;
+  height: 36px;
+  padding: 0 12px;
 }
 
 .size-medium .shadcn-select-trigger {
+  height: 40px;
   padding: 0 12px;
-  height: 36px;
-  font-size: 14px;
 }
 
 .size-large .shadcn-select-trigger {
-  padding: 0 14px;
-  height: 40px;
-  font-size: 15px;
+  height: 44px;
+  padding: 0 16px;
 }
 
-.shadcn-select-trigger:hover:not([disabled]) {
-  border-color: var(--nb-gray-400);
+.shadcn-select-trigger:focus-visible {
+  box-shadow: var(--nb-focus-ring);
 }
 
-.shadcn-select-trigger:focus {
-  border-color: var(--nb-primary);
-  box-shadow: 0 0 0 3px var(--nb-primary-foreground, rgba(0, 0, 0, 0.05));
-}
-
-.shadcn-select-trigger[disabled] {
-  background-color: var(--nb-gray-100);
-  color: var(--nb-gray-400);
-  border-color: var(--nb-gray-300);
+.shadcn-select-trigger[disabled],
+.shadcn-select-trigger[data-disabled] {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
+.shadcn-select-trigger[data-placeholder] {
+  color: var(--muted-foreground);
+}
+
+.select-icon {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+</style>
+
+<style>
 .shadcn-select-content {
   min-width: var(--radix-select-trigger-width);
   max-height: 300px;
-  overflow-y: auto;
-  background: var(--nb-surface);
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
+  overflow: hidden;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--nb-radius-md);
   box-shadow: var(--nb-shadow-md);
+  z-index: 1100;
+}
+
+.shadcn-select-viewport {
+  max-height: 300px;
+  overflow-y: auto;
   padding: 4px;
-  z-index: 50;
+}
+
+.shadcn-select-scroll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.shadcn-select-scroll-icon {
+  opacity: 0.7;
 }
 
 .shadcn-select-item {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
-  font-size: 14px;
+  position: relative;
+  padding: 6px 32px 6px 8px;
+  font-size: 0.875rem;
   border-radius: var(--nb-radius-sm);
   cursor: pointer;
   outline: none;
@@ -147,15 +200,34 @@ const currentValue = computed(() => {
 }
 
 .shadcn-select-item:hover {
-  background-color: var(--nb-gray-100);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .shadcn-select-item[data-highlighted] {
-  background-color: var(--nb-gray-100);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .shadcn-select-item[data-state="checked"] {
-  background-color: var(--nb-primary);
-  color: var(--nb-primary-foreground);
+  font-weight: var(--nb-font-weight-medium);
+}
+
+.shadcn-select-item[data-disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.shadcn-select-item-indicator {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
 }
 </style>
