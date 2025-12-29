@@ -1,79 +1,87 @@
 <script setup>
-defineProps({
+import { Comment, Text, computed, useSlots } from 'vue'
+import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'radix-vue'
+
+defineOptions({ inheritAttrs: false })
+
+const props = defineProps({
   text: String,
-  maxWidth: { type: String, default: '300px' }
+  maxWidth: { type: String, default: '300px' },
+  side: { type: String, default: 'top' },
+  align: { type: String, default: 'center' },
+  sideOffset: { type: Number, default: 4 },
+  alignOffset: { type: Number, default: undefined },
+  delayDuration: { type: Number, default: 200 },
+})
+
+const slots = useSlots()
+
+const useDirectTrigger = computed(() => {
+  const nodes = (slots.default?.() ?? []).filter((node) => {
+    if (node.type === Comment) return false
+    if (node.type !== Text) return true
+    return typeof node.children !== 'string' || node.children.trim() !== ''
+  })
+  if (nodes.length !== 1) return false
+  return typeof nodes[0].type === 'string'
 })
 </script>
 
 <template>
-  <span class="tooltip-wrapper" :data-tooltip="text">
-    <slot />
-  </span>
+  <TooltipProvider>
+    <TooltipRoot :delay-duration="delayDuration">
+      <TooltipTrigger as-child>
+        <slot v-if="useDirectTrigger" />
+        <span v-else class="brutal-tooltip-trigger">
+          <slot />
+        </span>
+      </TooltipTrigger>
+      <TooltipPortal>
+        <TooltipContent
+          class="brutal-tooltip-content"
+          :side="side"
+          :align="align"
+          :side-offset="sideOffset"
+          :align-offset="alignOffset"
+          :style="{ maxWidth }"
+        >
+          {{ props.text }}
+          <TooltipArrow class="brutal-tooltip-arrow" />
+        </TooltipContent>
+      </TooltipPortal>
+    </TooltipRoot>
+  </TooltipProvider>
 </template>
 
 <style scoped>
-.tooltip-wrapper {
-  position: relative;
-  display: block;
-  max-width: 100%;
-  cursor: help;
+.brutal-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
 }
+</style>
 
-.tooltip-wrapper[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 8px;
+<style>
+:root[data-ui-theme="motherduck-neobrutalism"] .brutal-tooltip-content {
   padding: 6px 12px;
   background-color: var(--nb-black);
   color: var(--nb-white);
   font-size: 13px;
   line-height: 1.4;
-  white-space: normal;
-  word-wrap: break-word;
-  border-radius: var(--nb-radius-sm);
+  border-radius: var(--nb-radius);
+  border: var(--nb-border);
   box-shadow: var(--nb-shadow-lg);
-  z-index: 1000;
-  max-width: v-bind(maxWidth);
-  pointer-events: none;
-  animation: tooltip-fade-in 0.2s ease-out;
+  z-index: 1100;
+  user-select: none;
 }
 
-.tooltip-wrapper[data-tooltip]:hover::before {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 2px;
-  border: 6px solid transparent;
-  border-top-color: var(--nb-black);
-  z-index: 1000;
-  pointer-events: none;
-  animation: tooltip-fade-in 0.2s ease-out;
+:root[data-ui-theme="motherduck-neobrutalism"] .brutal-tooltip-arrow {
+  fill: var(--nb-black);
+  stroke: var(--nb-black);
+  stroke-width: 1px;
 }
 
-@keyframes tooltip-fade-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-/* shadcn/ui theme: Lighter tooltip */
-:root[data-ui-theme="shadcn"] .tooltip-wrapper[data-tooltip]:hover::after {
-  background-color: var(--nb-gray-600);
-  color: var(--nb-white);
-  font-weight: 500;
-}
-
-:root[data-ui-theme="shadcn"] .tooltip-wrapper[data-tooltip]:hover::before {
-  border-top-color: var(--nb-gray-600);
+:root[data-ui-theme="motherduck-neobrutalism"][data-theme="dark"] .brutal-tooltip-content {
+  background-color: var(--nb-black);
+  color: var(--nb-bg);
 }
 </style>
