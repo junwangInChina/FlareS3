@@ -17,7 +17,7 @@ defineProps({
 <style scoped>
 .shadcn-descriptions {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .columns-1 { grid-template-columns: 1fr; }
@@ -31,13 +31,13 @@ defineProps({
 }
 
 .desc-label {
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: var(--nb-font-weight-medium);
-  color: var(--nb-muted-foreground);
+  color: var(--muted-foreground);
 }
 
 .desc-value {
-  font-size: 14px;
-  color: var(--nb-foreground);
+  font-size: 0.875rem;
+  color: var(--foreground);
 }
 </style>
