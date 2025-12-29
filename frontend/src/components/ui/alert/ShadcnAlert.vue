@@ -32,23 +32,27 @@ const emit = defineEmits(['close'])
 
 <style scoped>
 .shadcn-alert {
+  width: 100%;
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 16px;
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--nb-radius-lg);
+  background: var(--background);
+  color: var(--foreground);
   position: relative;
 }
 
 .alert-icon {
-  font-size: 18px;
+  font-size: 16px;
   flex-shrink: 0;
   width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--muted-foreground);
 }
 
 .alert-content {
@@ -58,56 +62,53 @@ const emit = defineEmits(['close'])
 .alert-title {
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-semibold);
-  font-size: 14px;
+  font-size: 0.875rem;
+  line-height: 1.25;
   margin-bottom: 4px;
 }
 
 .alert-body {
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 
 .close-btn {
-  background: none;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  background: transparent;
   border: none;
-  font-size: 20px;
+  font-size: 16px;
   cursor: pointer;
   padding: 0;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: currentColor;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
+  border-radius: var(--nb-radius-sm);
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .close-btn:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
   opacity: 1;
 }
 
-.type-info {
-  background-color: var(--nb-info);
-  color: var(--nb-info-foreground);
-  border-color: var(--nb-info);
-}
-
-.type-success {
-  background-color: var(--nb-success);
-  color: var(--nb-success-foreground);
-  border-color: var(--nb-success);
-}
-
-.type-warning {
-  background-color: var(--nb-warning);
-  color: var(--nb-warning-foreground);
-  border-color: var(--nb-warning);
+.close-btn:focus-visible {
+  box-shadow: var(--nb-focus-ring);
+  opacity: 1;
 }
 
 .type-error {
-  background-color: var(--nb-danger);
-  color: var(--nb-danger-foreground);
-  border-color: var(--nb-danger);
+  border-color: var(--destructive);
+}
+
+.type-error .alert-icon,
+.type-error .alert-title {
+  color: var(--destructive);
 }
 </style>
