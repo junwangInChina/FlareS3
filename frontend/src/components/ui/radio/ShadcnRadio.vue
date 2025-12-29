@@ -45,34 +45,31 @@ const emit = defineEmits(['update:modelValue'])
   cursor: pointer;
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-medium);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .radio-item {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--nb-gray-400);
-  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--primary);
+  border-radius: 9999px;
   margin-right: 8px;
   position: relative;
-  background: var(--nb-surface);
-  transition: border-color 0.15s ease;
+  background: var(--background);
+  color: var(--primary);
+  transition: box-shadow 0.15s ease, opacity 0.15s ease;
   cursor: pointer;
 }
 
-.radio-item:hover {
-  border-color: var(--nb-primary);
-}
-
-.radio-item[data-state="checked"] {
-  border-color: var(--nb-primary);
+.radio-item:focus-visible {
+  box-shadow: var(--nb-focus-ring);
 }
 
 .radio-indicator {
-  width: 10px;
-  height: 10px;
-  background: var(--nb-primary);
-  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 9999px;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -85,7 +82,7 @@ const emit = defineEmits(['update:modelValue'])
 }
 
 .radio-text {
-  color: var(--nb-foreground);
+  color: var(--foreground);
 }
 
 .disabled {
