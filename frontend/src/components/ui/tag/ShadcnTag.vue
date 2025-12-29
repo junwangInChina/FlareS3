@@ -24,55 +24,66 @@ defineProps({
   display: inline-flex;
   align-items: center;
   font-family: var(--nb-font-ui);
-  font-weight: 500;
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
+  font-weight: var(--nb-font-weight-semibold);
+  border: 1px solid transparent;
+  border-radius: 9999px;
   white-space: nowrap;
+  line-height: 1;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .size-small {
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 
 .size-medium {
-  padding: 3px 10px;
-  font-size: 12px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
 }
 
 .type-default {
-  background-color: var(--nb-gray-100);
-  color: var(--nb-foreground);
-  border-color: var(--nb-gray-300);
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
 }
 
 .type-primary {
-  background-color: var(--nb-primary);
-  color: var(--nb-primary-foreground);
-  border-color: var(--nb-primary);
+  background-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .type-success {
-  background-color: var(--nb-success);
-  color: var(--nb-success-foreground);
-  border-color: var(--nb-success);
+  background-color: transparent;
+  color: var(--nb-success);
+  border-color: currentColor;
 }
 
 .type-warning {
-  background-color: var(--nb-warning);
-  color: var(--nb-warning-foreground);
-  border-color: var(--nb-warning);
+  background-color: transparent;
+  color: var(--nb-warning);
+  border-color: currentColor;
 }
 
 .type-danger {
-  background-color: var(--nb-danger);
-  color: var(--nb-danger-foreground);
-  border-color: var(--nb-danger);
+  background-color: var(--destructive);
+  color: var(--destructive-foreground);
 }
 
 .type-info {
-  background-color: var(--nb-info);
-  color: var(--nb-info-foreground);
-  border-color: var(--nb-info);
+  background-color: transparent;
+  color: var(--nb-info);
+  border-color: currentColor;
+}
+
+.type-default:hover {
+  background-color: color-mix(in oklab, var(--secondary) 80%, var(--background));
+}
+
+.type-primary:hover {
+  background-color: color-mix(in oklab, var(--primary) 90%, var(--background));
+}
+
+.type-danger:hover {
+  background-color: color-mix(in oklab, var(--destructive) 90%, var(--background));
 }
 </style>
