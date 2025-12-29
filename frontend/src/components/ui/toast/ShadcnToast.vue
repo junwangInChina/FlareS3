@@ -74,13 +74,14 @@ defineExpose({ add, remove, success, error, warning, info })
 
 .shadcn-toast {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 12px 16px;
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
-  background: var(--nb-surface);
-  box-shadow: var(--nb-shadow-md);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--nb-radius-lg);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--nb-shadow-lg);
   cursor: pointer;
   pointer-events: auto;
   min-width: 300px;
@@ -90,16 +91,14 @@ defineExpose({ add, remove, success, error, warning, info })
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  margin-top: 2px;
+  color: var(--muted-foreground);
 }
 
 .toast-message {
   flex: 1;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
-}
-
-.type-success {
-  border-left: 4px solid var(--nb-success);
 }
 
 .type-success .toast-icon {
@@ -107,23 +106,15 @@ defineExpose({ add, remove, success, error, warning, info })
 }
 
 .type-error {
-  border-left: 4px solid var(--nb-danger);
+  border-color: var(--destructive);
 }
 
 .type-error .toast-icon {
-  color: var(--nb-danger);
-}
-
-.type-warning {
-  border-left: 4px solid var(--nb-warning);
+  color: var(--destructive);
 }
 
 .type-warning .toast-icon {
   color: var(--nb-warning);
-}
-
-.type-info {
-  border-left: 4px solid var(--nb-info);
 }
 
 .type-info .toast-icon {
