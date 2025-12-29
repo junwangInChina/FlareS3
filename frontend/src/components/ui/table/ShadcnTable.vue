@@ -56,7 +56,6 @@ defineProps({
 .shadcn-table-wrapper {
   position: relative;
   overflow-x: auto;
-  background: var(--nb-surface);
 }
 
 .loading-overlay {
@@ -65,7 +64,8 @@ defineProps({
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,42 +75,40 @@ defineProps({
 .loader {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--nb-gray-200);
-  border-top-color: var(--nb-primary);
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  animation: spinner 0.8s linear infinite;
 }
 
 .shadcn-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  table-layout: fixed;
+  font-size: 0.875rem;
 }
 
-.shadcn-table thead {
-  background-color: var(--nb-gray-50);
-  border-bottom: var(--nb-border);
+.shadcn-table thead tr {
+  border-bottom: 1px solid var(--border);
 }
 
 .shadcn-table th {
-  padding: 12px 16px;
+  height: 48px;
+  padding: 0 16px;
   font-weight: var(--nb-font-weight-medium);
-  color: var(--nb-foreground);
+  color: var(--muted-foreground);
   text-align: left;
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .shadcn-table tbody tr {
-  border-bottom: var(--nb-border);
+  border-bottom: 1px solid var(--border);
   transition: background-color 0.15s ease;
 }
 
 .shadcn-table tbody tr:hover {
-  background-color: var(--nb-gray-50);
+  background-color: color-mix(in oklab, var(--muted) 50%, var(--background));
 }
 
 .shadcn-table tbody tr:last-child {
@@ -118,20 +116,37 @@ defineProps({
 }
 
 .shadcn-table td {
-  padding: 12px 16px;
-  color: var(--nb-foreground);
+  padding: 16px;
+  color: var(--foreground);
+  vertical-align: middle;
 }
 
 .cell-ellipsis {
-  max-width: 200px;
+  max-width: 0; /* Force ellipsis to work with fixed table layout */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.cell-ellipsis > span {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.cell-ellipsis :deep(.tooltip-trigger),
+.cell-ellipsis :deep(.brutal-tooltip-trigger) {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .empty-cell {
   text-align: center;
   padding: 32px;
-  color: var(--nb-muted-foreground);
+  color: var(--muted-foreground);
 }
 </style>
