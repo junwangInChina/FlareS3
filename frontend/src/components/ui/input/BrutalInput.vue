@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import { X } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: [String, Number],
@@ -9,16 +10,37 @@ const props = defineProps({
   disabled: Boolean,
   readonly: Boolean,
   rows: { type: Number, default: 3 },
-  size: { type: String, default: 'medium' }
+  size: { type: String, default: 'medium' },
+  clearable: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'keyup'])
 
 const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}`)
+
+const inputEl = ref(null)
+
+const nonClearableTypes = new Set(['textarea', 'date', 'time', 'datetime-local', 'file'])
+const supportsClear = computed(() => !nonClearableTypes.has(props.type))
+
+const reserveClearSpace = computed(() => props.clearable && supportsClear.value)
+
+const hasValue = computed(() => {
+  if (props.modelValue === null || props.modelValue === undefined) return false
+  return String(props.modelValue) !== ''
+})
+
+const showClear = computed(() => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly)
+
+const handleClear = async () => {
+  emit('update:modelValue', '')
+  await nextTick()
+  inputEl.value?.focus?.()
+}
 </script>
 
 <template>
-  <div class="brutal-input-wrapper" :class="[`size-${size}`]">
+  <div class="brutal-input-wrapper" :class="[`size-${size}`, { 'has-clear': reserveClearSpace }]">
     <label v-if="label" class="input-label" :for="inputId">{{ label }}</label>
     <textarea
       v-if="type === 'textarea'"
@@ -32,23 +54,40 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
       @input="emit('update:modelValue', $event.target.value)"
       @keyup="emit('keyup', $event)"
     />
-    <input
-      v-else
-      :id="inputId"
-      :type="type"
-      class="brutal-input"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :disabled="disabled"
-      :readonly="readonly"
-      @input="emit('update:modelValue', $event.target.value)"
-      @keyup="emit('keyup', $event)"
-    />
+    <div v-else class="brutal-input-control">
+      <input
+        :id="inputId"
+        ref="inputEl"
+        :type="type"
+        class="brutal-input"
+        :value="modelValue"
+        :placeholder="placeholder"
+        :disabled="disabled"
+        :readonly="readonly"
+        @input="emit('update:modelValue', $event.target.value)"
+        @keyup="emit('keyup', $event)"
+      />
+      <button
+        v-if="showClear"
+        type="button"
+        class="brutal-input-clear"
+        aria-label="清除输入"
+        @mousedown.prevent
+        @click="handleClear"
+      >
+        <X :size="16" />
+      </button>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .brutal-input-wrapper {
+  width: 100%;
+}
+
+.brutal-input-control {
+  position: relative;
   width: 100%;
 }
 
@@ -118,6 +157,37 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
   height: 52px;
   font-size: 18px;
   line-height: 50px;
+}
+
+.brutal-input-wrapper.has-clear input.brutal-input {
+  padding-right: 40px;
+}
+
+.brutal-input-clear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--nb-radius);
+  color: var(--nb-gray-500);
+  cursor: pointer;
+  transition: var(--nb-transition);
+}
+
+.brutal-input-clear:hover {
+  background: var(--nb-gray-100);
+  color: var(--nb-black);
+}
+
+.brutal-input-clear:focus-visible {
+  box-shadow: var(--nb-focus-ring);
 }
 
 /* shadcn/ui theme: Compact large input */
