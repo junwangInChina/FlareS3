@@ -50,24 +50,25 @@ defineProps({
 }
 
 .step-indicator {
-  width: 36px;
-  height: 36px;
-  border: 2px solid var(--nb-gray-300);
-  background: var(--nb-surface);
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: var(--background);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
   position: relative;
   z-index: 1;
-  border-radius: 50%;
-  transition: all 0.15s ease;
+  border-radius: 9999px;
+  color: var(--muted-foreground);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .step-number {
   font-family: var(--nb-font-ui);
-  font-weight: var(--nb-font-weight-semibold);
-  font-size: 16px;
+  font-weight: var(--nb-font-weight-medium);
+  font-size: 0.875rem;
 }
 
 .step-content {
@@ -77,54 +78,53 @@ defineProps({
 .step-title {
   font-family: var(--nb-font-ui);
   font-weight: var(--nb-font-weight-medium);
-  font-size: 14px;
-  color: var(--nb-foreground);
+  font-size: 0.875rem;
+  color: var(--foreground);
 }
 
 .step-desc {
-  font-size: 12px;
-  color: var(--nb-muted-foreground);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
   margin-top: 4px;
 }
 
 .step-connector {
   position: absolute;
-  top: 18px;
+  top: 16px;
   left: calc(50% + 20px);
   right: calc(-50% + 20px);
   height: 2px;
-  background: var(--nb-gray-300);
+  background: var(--border);
 }
 
 .completed .step-indicator {
-  background: var(--nb-success);
-  color: var(--nb-success-foreground);
-  border-color: var(--nb-success);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .completed .step-connector {
-  background: var(--nb-success);
+  background: var(--primary);
 }
 
 .active .step-indicator {
-  background: var(--nb-primary);
-  color: var(--nb-primary-foreground);
-  border-color: var(--nb-primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
 }
 
 .pending .step-indicator {
-  background: var(--nb-gray-100);
-  color: var(--nb-muted-foreground);
+  background: var(--background);
+  color: var(--muted-foreground);
 }
 
 .pending .step-title,
 .pending .step-desc {
-  color: var(--nb-muted-foreground);
+  color: var(--muted-foreground);
 }
 
 .error .step-indicator {
-  background: var(--nb-danger);
-  color: var(--nb-danger-foreground);
-  border-color: var(--nb-danger);
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  border-color: var(--destructive);
 }
 </style>
