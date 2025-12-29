@@ -6,7 +6,7 @@ import ShadcnCard from './ShadcnCard.vue'
 
 const props = defineProps({
   title: String,
-  headerBg: { type: String, default: 'var(--nb-accent)' },
+  headerBg: { type: String },
   headerColor: String
 })
 
