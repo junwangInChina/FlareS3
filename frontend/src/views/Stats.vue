@@ -1,15 +1,15 @@
 <template>
   <AppLayout>
-    <BrutalCard title="存储空间使用情况">
+    <Card title="存储空间使用情况">
       <template #header-extra>
-        <BrutalButton type="default" size="small" @click="loadStats">刷新</BrutalButton>
+        <Button type="default" size="small" @click="loadStats">刷新</Button>
       </template>
 
       <div v-if="loading" class="loading">加载中...</div>
 
       <div v-else-if="stats" class="stats-content">
         <div class="progress-section">
-          <BrutalProgress
+          <Progress
             type="circle"
             :percentage="stats.usagePercent"
             :color="getProgressColor(stats.usagePercent)"
@@ -18,10 +18,10 @@
               <span class="percentage">{{ Math.round(stats.usagePercent) }}%</span>
               <span class="label">已使用</span>
             </div>
-          </BrutalProgress>
+          </Progress>
         </div>
 
-        <BrutalDescriptions
+        <Descriptions
           :items="[
             { label: '已用空间', value: stats.usedSpaceFormatted },
             { label: '总空间', value: stats.totalSpaceFormatted },
@@ -32,28 +32,28 @@
           :column="2"
         />
       </div>
-    </BrutalCard>
+    </Card>
 
-    <BrutalCard
+    <Card
       title="使用提示"
       header-bg="var(--nb-secondary)"
       header-color="var(--nb-ink)"
     >
       <div class="tips-grid">
-        <BrutalAlert type="warning" title="用量说明">
+        <Alert type="warning" title="用量说明">
           显示的存储用量基于本地数据库统计，可能与 R2 实际用量存在差异。
-        </BrutalAlert>
-        <BrutalAlert type="info" title="存储空间">
+        </Alert>
+        <Alert type="info" title="存储空间">
           当前使用 Cloudflare R2 免费层，总容量 10GB。超出后可能产生费用。
-        </BrutalAlert>
-        <BrutalAlert type="warning" title="文件过期">
+        </Alert>
+        <Alert type="warning" title="文件过期">
           文件会根据设置的过期时间自动删除，请及时下载重要文件。
-        </BrutalAlert>
-        <BrutalAlert type="success" title="流量说明">
+        </Alert>
+        <Alert type="success" title="流量说明">
           R2 不收取出站流量费用，下载文件完全免费。
-        </BrutalAlert>
+        </Alert>
       </div>
-    </BrutalCard>
+    </Card>
   </AppLayout>
 </template>
 
@@ -61,11 +61,11 @@
 import { ref, onMounted } from 'vue'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
-import BrutalCard from "../components/ui/card/BrutalCard.vue"
-import BrutalButton from "../components/ui/button/BrutalButton.vue"
-import BrutalProgress from "../components/ui/progress/BrutalProgress.vue"
-import BrutalDescriptions from "../components/ui/descriptions/BrutalDescriptions.vue"
-import BrutalAlert from "../components/ui/alert/BrutalAlert.vue"
+import Card from "../components/ui/card/Card.vue"
+import Button from "../components/ui/button/Button.vue"
+import Progress from "../components/ui/progress/Progress.vue"
+import Descriptions from "../components/ui/descriptions/Descriptions.vue"
+import Alert from "../components/ui/alert/Alert.vue"
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
