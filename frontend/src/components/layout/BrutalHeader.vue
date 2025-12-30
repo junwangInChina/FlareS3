@@ -25,12 +25,6 @@ const handleLogout = async () => {
     <nav v-if="showNav" class="nav-links">
       <button class="nav-btn" @click="router.push('/')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" />
-        </svg>
-        上传
-      </button>
-      <button class="nav-btn" @click="router.push('/files')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
           <path
             d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
           />
