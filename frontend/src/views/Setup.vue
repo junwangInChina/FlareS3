@@ -3,7 +3,18 @@
     <div class="setup-page">
       <header class="setup-header">
         <div class="setup-title-group">
-          <h1 class="setup-title">存储管理</h1>
+          <div class="setup-title-row">
+            <h1 class="setup-title">存储管理</h1>
+            <Button
+              type="ghost"
+              size="small"
+              class="setup-help-btn"
+              aria-label="使用提示"
+              @click="usageTipsVisible = true"
+            >
+              <AlertTriangle :size="18" />
+            </Button>
+          </div>
           <p class="setup-subtitle">
             管理多套 Cloudflare R2 配置，你可以在这里管理多套 Cloudflare R2
             配置，并设置默认配置。 上传文件时可选择使用哪套配置。
@@ -94,6 +105,38 @@
                     <code class="mono-chip">{{ toDisplayText(row.endpoint) }}</code>
                   </div>
                 </div>
+              </div>
+
+              <div
+                v-if="row.totalSpaceFormatted && row.usedSpaceFormatted"
+                class="usage-panel"
+              >
+                <div class="usage-metrics">
+                  <div class="usage-metric">
+                    <div class="usage-label">总容量</div>
+                    <div class="usage-value">{{ row.totalSpaceFormatted }}</div>
+                  </div>
+                  <div class="usage-metric">
+                    <div class="usage-label">已用容量</div>
+                    <div class="usage-value">{{ row.usedSpaceFormatted }}</div>
+                  </div>
+                  <div class="usage-metric">
+                    <div class="usage-label">使用进度</div>
+                    <div
+                      class="usage-value"
+                      :style="{ color: getUsageColor(row.usagePercent) }"
+                    >
+                      {{ formatUsagePercent(row.usagePercent) }}
+                    </div>
+                  </div>
+                </div>
+
+                <Progress
+                  :percentage="clampProgressPercent(row.usagePercent)"
+                  :color="getUsageColor(row.usagePercent)"
+                  :height="10"
+                  :show-indicator="false"
+                />
               </div>
 
               <div class="kv-divider" />
@@ -200,6 +243,14 @@
             />
           </FormItem>
 
+          <FormItem label="总容量（字节）">
+            <Input
+              v-model="formValue.quota_bytes"
+              type="number"
+              placeholder="例如 10737418240（10GB）"
+            />
+          </FormItem>
+
           <FormItem
             :label="
               modalMode === 'create'
@@ -255,6 +306,23 @@
           </Button>
         </template>
       </Modal>
+
+      <Modal
+        v-model:show="usageTipsVisible"
+        title="使用提示"
+        width="520px"
+      >
+        <div class="usage-tips-grid">
+          <Alert
+            v-for="tip in usageTips"
+            :key="tip.key"
+            :type="tip.type"
+            :title="tip.title"
+          >
+            {{ tip.content }}
+          </Alert>
+        </div>
+      </Modal>
     </div>
   </AppLayout>
 </template>
@@ -262,6 +330,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import {
+  AlertTriangle,
   Database,
   Pencil,
   Plus,
@@ -271,6 +340,7 @@ import {
   Network,
 } from "lucide-vue-next";
 import api from "../services/api";
+import { usageTips } from "../lib/usageTips";
 import AppLayout from "../components/layout/AppLayout.vue";
 import Card from "../components/ui/card/Card.vue";
 import Button from "../components/ui/button/Button.vue";
@@ -279,6 +349,7 @@ import FormItem from "../components/ui/form-item/FormItem.vue";
 import Input from "../components/ui/input/Input.vue";
 import Alert from "../components/ui/alert/Alert.vue";
 import Tag from "../components/ui/tag/Tag.vue";
+import Progress from "../components/ui/progress/Progress.vue";
 import { useMessage } from "../composables/useMessage";
 
 const message = useMessage();
@@ -301,11 +372,13 @@ const modalVisible = ref(false);
 const modalMode = ref("create");
 const modalSubmitting = ref(false);
 const editingId = ref("");
+const usageTipsVisible = ref(false);
 
 const formValue = ref({
   name: "",
   endpoint: "",
   bucket_name: "",
+  quota_bytes: "10737418240",
   access_key_id: "",
   secret_access_key: "",
 });
@@ -315,6 +388,7 @@ const resetForm = () => {
     name: "",
     endpoint: "",
     bucket_name: "",
+    quota_bytes: "10737418240",
     access_key_id: "",
     secret_access_key: "",
   };
@@ -335,6 +409,26 @@ const getSourceTagType = (source) => {
 const toDisplayText = (value) => {
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
+};
+
+const formatUsagePercent = (percent) => {
+  const value = Number(percent);
+  if (!Number.isFinite(value) || value <= 0) return "0%";
+  return `${Math.round(value)}%`;
+};
+
+const clampProgressPercent = (percent) => {
+  const value = Number(percent);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.max(0, Math.min(100, value));
+};
+
+const getUsageColor = (percent) => {
+  const value = Number(percent);
+  if (!Number.isFinite(value)) return undefined;
+  if (value > 90) return "var(--nb-danger)";
+  if (value > 70) return "var(--nb-warning)";
+  return "var(--nb-success)";
 };
 
 const modalTitle = computed(() => {
@@ -402,6 +496,7 @@ const openEdit = (row) => {
     name: row.name || "",
     endpoint: row.endpoint || "",
     bucket_name: row.bucket_name || "",
+    quota_bytes: row.totalSpace ? String(row.totalSpace) : "10737418240",
     access_key_id: "",
     secret_access_key: "",
   };
@@ -412,9 +507,16 @@ const handleSubmit = async () => {
   if (
     !formValue.value.name ||
     !formValue.value.endpoint ||
-    !formValue.value.bucket_name
+    !formValue.value.bucket_name ||
+    !formValue.value.quota_bytes
   ) {
-    message.error("请填写名称、端点和 Bucket");
+    message.error("请填写名称、端点、Bucket 和总容量");
+    return;
+  }
+
+  const quotaBytes = Number(formValue.value.quota_bytes);
+  if (!Number.isFinite(quotaBytes) || quotaBytes <= 0) {
+    message.error("总容量必须为大于 0 的数字（字节）");
     return;
   }
 
@@ -435,6 +537,7 @@ const handleSubmit = async () => {
         access_key_id: formValue.value.access_key_id,
         secret_access_key: formValue.value.secret_access_key,
         bucket_name: formValue.value.bucket_name,
+        quota_bytes: quotaBytes,
       });
       message.success("配置创建成功");
     } else {
@@ -442,6 +545,7 @@ const handleSubmit = async () => {
         name: formValue.value.name,
         endpoint: formValue.value.endpoint,
         bucket_name: formValue.value.bucket_name,
+        quota_bytes: quotaBytes,
       };
 
       if (formValue.value.access_key_id)
@@ -495,12 +599,28 @@ onMounted(() => refresh());
   min-width: 0;
 }
 
+.setup-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--nb-space-sm);
+}
+
 .setup-title {
   margin: 0;
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
   font-weight: var(--nb-heading-font-weight, 900);
   font-size: var(--nb-font-size-2xl);
   line-height: 1.2;
+}
+
+.setup-help-btn {
+  padding: 0 10px;
+  height: 32px;
+}
+
+.setup-help-btn :deep(svg) {
+  width: 18px;
+  height: 18px;
 }
 
 .setup-subtitle {
@@ -577,10 +697,62 @@ onMounted(() => refresh());
 .config-card-tags {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .config-detail {
   margin-top: var(--nb-space-sm);
+}
+
+.usage-panel {
+  margin-top: var(--nb-space-sm);
+  padding: var(--nb-space-sm);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius);
+  background: var(--nb-gray-100);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:root[data-ui-theme="shadcn"] .usage-panel {
+  background: var(--nb-gray-50);
+}
+
+:root[data-ui-theme="shadcn"] .usage-panel :deep(.progress-container) {
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.usage-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.usage-label {
+  color: var(--nb-gray-500);
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-size: 12px;
+  font-weight: var(--nb-ui-font-weight, 700);
+  text-transform: var(--nb-ui-text-transform, uppercase);
+}
+
+:root[data-ui-theme="shadcn"] .usage-label {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.usage-value {
+  margin-top: 2px;
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
+  font-size: 13px;
+  color: var(--nb-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kv-group {
@@ -683,6 +855,11 @@ onMounted(() => refresh());
 
 .form-grid :deep(.brutal-form-item) {
   margin-bottom: 0;
+}
+
+.usage-tips-grid {
+  display: grid;
+  gap: var(--nb-space-md);
 }
 
 .help-list {
