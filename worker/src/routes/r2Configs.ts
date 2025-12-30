@@ -1,6 +1,8 @@
 import type { Env } from "../config/env";
+import { getTotalStorage } from "../config/env";
 import { jsonResponse, parseJson } from "./utils";
 import { encryptString, validateBase64KeyLength } from "../services/crypto";
+import { formatBytes } from "../utils/format";
 import {
   ENV_R2_CONFIG_ID,
   LEGACY_R2_CONFIG_ID,
@@ -20,6 +22,7 @@ type R2ConfigInput = {
   access_key_id: string;
   secret_access_key: string;
   bucket_name: string;
+  quota_bytes: number;
 };
 
 export async function listOptions(
@@ -34,26 +37,69 @@ export async function listConfigs(
   _request: Request,
   env: Env
 ): Promise<Response> {
-  const { default_config_id, options } = await listR2ConfigOptions(env);
+  const { default_config_id, legacy_files_config_id, options } =
+    await listR2ConfigOptions(env);
+  const legacyAssignedId = legacy_files_config_id || default_config_id;
   const configs: Array<{
     id: string;
     name: string;
     source: string;
     endpoint: string;
     bucket_name: string;
+    usedSpace: number;
+    totalSpace: number;
+    usedSpaceFormatted: string;
+    totalSpaceFormatted: string;
+    usagePercent: number;
   }> = [];
+
+  const legacyUsedSpaceRow = await env.DB.prepare(
+    "SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE upload_status = 'completed' AND deleted_at IS NULL AND r2_key NOT LIKE 'flares3/%/%'"
+  ).first("usedSpace");
+  const legacyUsedSpace = Number(legacyUsedSpaceRow || 0);
 
   for (const option of options) {
     const loaded = await loadR2ConfigById(env, option.id);
     if (!loaded) {
       continue;
     }
+
+    let totalSpace = getTotalStorage(env);
+    if (option.source === "db") {
+      const quota = await env.DB.prepare(
+        "SELECT quota_bytes FROM r2_configs WHERE id = ? LIMIT 1"
+      )
+        .bind(option.id)
+        .first("quota_bytes");
+      const quotaBytes = Number(quota);
+      if (Number.isFinite(quotaBytes) && quotaBytes > 0) {
+        totalSpace = quotaBytes;
+      }
+    }
+
+    const prefix = `flares3/${option.id}/%`;
+    const usedSpaceRow = await env.DB.prepare(
+      "SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE upload_status = 'completed' AND deleted_at IS NULL AND r2_key LIKE ?"
+    )
+      .bind(prefix)
+      .first("usedSpace");
+    let usedSpace = Number(usedSpaceRow || 0);
+    if (legacyAssignedId && legacyUsedSpace > 0 && option.id === legacyAssignedId) {
+      usedSpace += legacyUsedSpace;
+    }
+
+    const usagePercent = totalSpace ? (usedSpace / totalSpace) * 100 : 0;
     configs.push({
       id: option.id,
       name: option.name,
       source: option.source,
       endpoint: loaded.config.endpoint,
       bucket_name: loaded.config.bucketName,
+      usedSpace,
+      totalSpace,
+      usedSpaceFormatted: formatBytes(usedSpace),
+      totalSpaceFormatted: formatBytes(totalSpace),
+      usagePercent,
     });
   }
 
@@ -93,9 +139,15 @@ export async function createConfig(
       !body.endpoint ||
       !body.access_key_id ||
       !body.secret_access_key ||
-      !body.bucket_name
+      !body.bucket_name ||
+      body.quota_bytes === undefined
     ) {
       return jsonResponse({ error: "所有字段都是必填的" }, 400);
+    }
+
+    const quotaBytes = Number(body.quota_bytes);
+    if (!Number.isFinite(quotaBytes) || quotaBytes <= 0) {
+      return jsonResponse({ error: "quota_bytes 必须为大于 0 的数字" }, 400);
     }
 
     await ensureR2ConfigStorage(env);
@@ -106,8 +158,8 @@ export async function createConfig(
     const secretEnc = await encryptString(body.secret_access_key, masterKey);
 
     const result = await env.DB.prepare(
-      `INSERT INTO r2_configs (id, name, endpoint, bucket_name, access_key_id_enc, secret_access_key_enc, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO r2_configs (id, name, endpoint, bucket_name, access_key_id_enc, secret_access_key_enc, quota_bytes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
@@ -116,6 +168,7 @@ export async function createConfig(
         body.bucket_name,
         accessEnc,
         secretEnc,
+        quotaBytes,
         now,
         now
       )
@@ -173,7 +226,7 @@ export async function updateConfig(
     await ensureR2ConfigStorage(env);
 
     const existing = await env.DB.prepare(
-      "SELECT id, name, endpoint, bucket_name, access_key_id_enc, secret_access_key_enc FROM r2_configs WHERE id = ? LIMIT 1"
+      "SELECT id, name, endpoint, bucket_name, quota_bytes, access_key_id_enc, secret_access_key_enc FROM r2_configs WHERE id = ? LIMIT 1"
     )
       .bind(id)
       .first<{
@@ -181,6 +234,7 @@ export async function updateConfig(
         name: string;
         endpoint: string;
         bucket_name: string;
+        quota_bytes: number;
         access_key_id_enc: string;
         secret_access_key_enc: string;
       }>();
@@ -197,6 +251,13 @@ export async function updateConfig(
     const nextName = body.name ?? String(existing.name);
     const nextEndpoint = body.endpoint ?? String(existing.endpoint);
     const nextBucketName = body.bucket_name ?? String(existing.bucket_name);
+    let nextQuotaBytes = Number(existing.quota_bytes);
+    if (body.quota_bytes !== undefined) {
+      nextQuotaBytes = Number(body.quota_bytes);
+    }
+    if (!Number.isFinite(nextQuotaBytes) || nextQuotaBytes <= 0) {
+      return jsonResponse({ error: "quota_bytes 必须为大于 0 的数字" }, 400);
+    }
 
     let accessEnc = String(existing.access_key_id_enc);
     let secretEnc = String(existing.secret_access_key_enc);
@@ -225,13 +286,14 @@ export async function updateConfig(
     const now = new Date().toISOString();
     await env.DB.prepare(
       `UPDATE r2_configs
-       SET name = ?, endpoint = ?, bucket_name = ?, access_key_id_enc = ?, secret_access_key_enc = ?, updated_at = ?
+       SET name = ?, endpoint = ?, bucket_name = ?, quota_bytes = ?, access_key_id_enc = ?, secret_access_key_enc = ?, updated_at = ?
        WHERE id = ?`
     )
       .bind(
         nextName,
         nextEndpoint,
         nextBucketName,
+        nextQuotaBytes,
         accessEnc,
         secretEnc,
         now,
