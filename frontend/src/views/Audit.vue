@@ -11,10 +11,48 @@
 
         <div class="audit-actions">
           <div class="filter-row">
-            <Input v-model="filters.action" placeholder="动作" size="small" clearable />
-            <Input v-model="filters.actor" placeholder="操作者 ID" size="small" clearable />
-            <Button type="default" size="small" @click="handleSearch">查询</Button>
-            <Button type="ghost" size="small" @click="handleReset">重置</Button>
+            <div class="filter-item action">
+              <Select v-model="filters.action" :options="actionOptions" size="small" />
+            </div>
+
+            <div class="filter-item actor">
+              <Select
+                v-model="filters.actor_user_id"
+                :options="actorOptions"
+                size="small"
+                :disabled="usersLoading"
+              />
+            </div>
+
+            <div class="filter-item created-range">
+              <DateRangePicker
+                v-model:startValue="filters.created_from_date"
+                v-model:endValue="filters.created_to_date"
+                size="small"
+                clearable
+              />
+            </div>
+
+            <Button
+              type="default"
+              size="small"
+              :loading="loading && activeAction === 'search'"
+              :disabled="loading"
+              @click="handleSearch"
+            >
+              <Search :size="16" style="margin-right: 6px" />
+              搜索
+            </Button>
+            <Button
+              type="default"
+              size="small"
+              :loading="loading && activeAction === 'refresh'"
+              :disabled="loading"
+              @click="handleRefresh"
+            >
+              <RefreshCw :size="16" style="margin-right: 6px" />
+              刷新
+            </Button>
           </div>
         </div>
       </header>
@@ -48,13 +86,15 @@
 </template>
 
 <script setup>
-import { ref, h, onMounted } from 'vue'
+import { computed, ref, h, onMounted } from 'vue'
+import { RefreshCw, Search } from 'lucide-vue-next'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from "../components/ui/card/Card.vue"
 import Button from "../components/ui/button/Button.vue"
-import Input from "../components/ui/input/Input.vue"
+import Select from "../components/ui/select/Select.vue"
 import Table from "../components/ui/table/Table.vue"
+import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Tag from "../components/ui/tag/Tag.vue"
 import Tooltip from "../components/ui/tooltip/Tooltip.vue"
 import { useMessage } from '../composables/useMessage'
@@ -62,22 +102,81 @@ import { useMessage } from '../composables/useMessage'
 const message = useMessage()
 const logs = ref([])
 const loading = ref(false)
-const filters = ref({ action: '', actor: '' })
+const activeAction = ref('')
+const filters = ref({ action: '', actor_user_id: '', created_from_date: '', created_to_date: '' })
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 
-const formatTarget = (row) => {
-  if (row.target_type && row.target_id) return `${row.target_type}:${row.target_id}`
-  return row.target_type || row.target_id || '-'
-}
+const users = ref([])
+const usersLoading = ref(false)
+
+const knownActions = [
+  'BOOTSTRAP_ADMIN',
+  'FILE_DELETE',
+  'FILE_DOWNLOAD',
+  'LOGIN_FAILED',
+  'LOGIN_SUCCESS',
+  'R2_CONFIG_UPDATE',
+  'UPLOAD_PRESIGN',
+  'USER_CREATE',
+  'USER_DELETE',
+  'USER_RESET_PASSWORD',
+  'USER_UPDATE',
+]
+
+const actionOptions = computed(() => {
+  const actionSet = new Set(knownActions)
+
+  for (const row of logs.value) {
+    if (!row?.action) continue
+    actionSet.add(String(row.action))
+  }
+
+  const currentAction = String(filters.value.action ?? '').trim()
+  if (currentAction) {
+    actionSet.add(currentAction)
+  }
+
+  return [
+    { label: '全部动作', value: '' },
+    ...Array.from(actionSet)
+      .sort((a, b) => a.localeCompare(b))
+      .map((action) => ({ label: action, value: action })),
+  ]
+})
+
+const actorOptions = computed(() => {
+  const actorMap = new Map()
+
+  for (const user of users.value) {
+    if (!user?.id) continue
+    actorMap.set(String(user.id), String(user.username ?? user.id))
+  }
+
+  for (const row of logs.value) {
+    if (!row?.actor_user_id) continue
+    const id = String(row.actor_user_id)
+    if (actorMap.has(id)) continue
+    actorMap.set(id, String(row.actor_username ?? id))
+  }
+
+  const currentActorId = String(filters.value.actor_user_id ?? '').trim()
+  if (currentActorId && !actorMap.has(currentActorId)) {
+    actorMap.set(currentActorId, currentActorId)
+  }
+
+  const sorted = Array.from(actorMap.entries()).sort(([_idA, labelA], [_idB, labelB]) =>
+    labelA.localeCompare(labelB, 'zh-CN')
+  )
+
+  return [
+    { label: '全部操作者', value: '' },
+    ...sorted.map(([value, label]) => ({ label, value })),
+  ]
+})
 
 const toDisplayText = (value) => {
   if (value === null || value === undefined || value === '') return '-'
   return String(value)
-}
-
-const withTooltip = (content, vnode) => {
-  const text = toDisplayText(content)
-  return h(Tooltip, { content: text }, () => vnode ?? text)
 }
 
 const columns = [
@@ -88,7 +187,7 @@ const columns = [
     align: 'center',
     render: (row) => {
       const text = row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '-'
-      return withTooltip(text)
+      return h('span', text)
     }
   },
   {
@@ -98,7 +197,8 @@ const columns = [
     align: 'center',
     render: (row) => {
       const text = toDisplayText(row.action)
-      return withTooltip(text, h(Tag, { type: 'info', size: 'small' }, () => text))
+      if (text === '-') return text
+      return h(Tag, { type: 'info', size: 'small' }, () => text)
     }
   },
   {
@@ -107,18 +207,8 @@ const columns = [
     width: 140,
     align: 'center',
     render: (row) => {
-      const text = row.actor_username || row.actor_user_id || '-'
-      return withTooltip(text)
-    }
-  },
-  {
-    title: '目标',
-    key: 'target',
-    width: 180,
-    align: 'center',
-    render: (row) => {
-      const text = formatTarget(row)
-      return withTooltip(text)
+      const text = toDisplayText(row.actor_username || row.actor_user_id)
+      return h('span', text)
     }
   },
   {
@@ -127,27 +217,87 @@ const columns = [
     width: 120,
     align: 'center',
     render: (row) => {
-      const text = row.ip || '-'
-      return withTooltip(text)
+      const text = toDisplayText(row.ip)
+      return h('span', text)
     }
   },
   {
     title: 'User-Agent',
     key: 'user_agent',
-    align: 'left',
+    align: 'center',
     render: (row) => {
-      const text = row.user_agent || '-'
-      return withTooltip(text, h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, text))
+      const text = toDisplayText(row.user_agent)
+      return h(Tooltip, { content: text }, () =>
+        h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, text)
+      )
     }
   }
 ]
+
+const toIsoStartOfDay = (dateValue) => {
+  const local = new Date(`${dateValue}T00:00:00`)
+  if (Number.isNaN(local.getTime())) return null
+  return local.toISOString()
+}
+
+const addOneDayIso = (isoString) => {
+  const date = new Date(isoString)
+  if (Number.isNaN(date.getTime())) return null
+  date.setDate(date.getDate() + 1)
+  return date.toISOString()
+}
+
+const loadUsers = async () => {
+  if (users.value.length) return
+  usersLoading.value = true
+  try {
+    const result = await api.getUsers({ page: 1, limit: 100 })
+    users.value = (result.users || []).filter((u) => u.status !== 'deleted')
+  } catch (error) {
+    message.error('加载用户列表失败')
+  } finally {
+    usersLoading.value = false
+  }
+}
 
 const loadLogs = async () => {
   loading.value = true
   try {
     const params = { page: pagination.value.page, limit: pagination.value.pageSize }
-    if (filters.value.action?.trim()) params.action = filters.value.action.trim()
-    if (filters.value.actor?.trim()) params.actor_user_id = filters.value.actor.trim()
+    const action = String(filters.value.action ?? '').trim()
+    if (action) params.action = action
+
+    const actorUserId = String(filters.value.actor_user_id ?? '').trim()
+    if (actorUserId) params.actor_user_id = actorUserId
+
+    const createdFromDate = filters.value.created_from_date
+    const createdToDate = filters.value.created_to_date
+    if (createdFromDate || createdToDate) {
+      let fromDate = createdFromDate
+      let toDate = createdToDate
+
+      if (fromDate && toDate && fromDate > toDate) {
+        ;[fromDate, toDate] = [toDate, fromDate]
+      }
+
+      const fromIso = fromDate ? toIsoStartOfDay(fromDate) : null
+      const toBaseIso = toDate ? toIsoStartOfDay(toDate) : null
+      const toIso = toBaseIso ? addOneDayIso(toBaseIso) : null
+
+      if (fromIso && toIso) {
+        params.created_from = fromIso
+        params.created_to = toIso
+      } else if (fromIso) {
+        const singleTo = addOneDayIso(fromIso)
+        if (singleTo) {
+          params.created_from = fromIso
+          params.created_to = singleTo
+        }
+      } else if (toIso && toBaseIso) {
+        params.created_from = toBaseIso
+        params.created_to = toIso
+      }
+    }
 
     const result = await api.getAudit(params)
     logs.value = result.logs || []
@@ -156,17 +306,20 @@ const loadLogs = async () => {
     message.error('加载审计日志失败')
   } finally {
     loading.value = false
+    activeAction.value = ''
   }
 }
 
 const handleSearch = () => {
+  if (loading.value) return
+  activeAction.value = 'search'
   pagination.value.page = 1
   loadLogs()
 }
 
-const handleReset = () => {
-  filters.value = { action: '', actor: '' }
-  pagination.value.page = 1
+const handleRefresh = () => {
+  if (loading.value) return
+  activeAction.value = 'refresh'
   loadLogs()
 }
 
@@ -175,7 +328,10 @@ const changePage = (page) => {
   loadLogs()
 }
 
-onMounted(() => loadLogs())
+onMounted(() => {
+  loadLogs()
+  loadUsers()
+})
 </script>
 
 <style scoped>
@@ -232,11 +388,20 @@ onMounted(() => loadLogs())
   display: flex;
   gap: var(--nb-space-sm);
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
-.filter-row > :first-child,
-.filter-row > :nth-child(2) {
-  width: 140px;
+.filter-item.action {
+  width: 160px;
+}
+
+.filter-item.actor {
+  width: 160px;
+}
+
+.filter-item.created-range {
+  width: 280px;
 }
 
 :deep(.audit-table .brutal-table) {
