@@ -1,20 +1,7 @@
 import type { Env } from '../config/env'
 import { getTotalStorage } from '../config/env'
+import { formatBytes } from '../utils/format'
 import { jsonResponse, getUser } from './utils'
-
-function formatBytes(bytes: number): string {
-  const unit = 1024
-  if (bytes < unit) return `${bytes} B`
-  let div = unit
-  let exp = 0
-  while (bytes / div >= unit && exp < 4) {
-    div *= unit
-    exp += 1
-  }
-  const value = bytes / div
-  const suffix = ['KB', 'MB', 'GB', 'TB', 'PB'][exp]
-  return `${value.toFixed(2)} ${suffix}`
-}
 
 export async function getStats(request: Request, env: Env): Promise<Response> {
   const user = getUser(request)
