@@ -52,7 +52,7 @@ const currentValue = computed(() => {
       @update:model-value="handleValueChange"
     >
       <SelectTrigger class="brutal-select-trigger">
-        <SelectValue :placeholder="placeholder || '请选择'" />
+        <SelectValue class="select-value" :placeholder="placeholder || '请选择'" />
         <ChevronDown class="select-icon" :size="16" />
       </SelectTrigger>
 
@@ -156,6 +156,15 @@ const currentValue = computed(() => {
 
 .brutal-select-trigger[data-placeholder] {
   color: var(--nb-gray-400);
+}
+
+.select-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
 }
 
 .select-icon {
