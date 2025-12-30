@@ -12,7 +12,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { XMLParser } from "fast-xml-parser";
 import type { Env } from "../config/env";
-import { hasEnvR2Config } from "../config/env";
+import { DEFAULT_TOTAL_STORAGE, hasEnvR2Config } from "../config/env";
 import { decryptString } from "./crypto";
 export const ENV_R2_CONFIG_ID = "env";
 export const LEGACY_R2_CONFIG_ID = "legacy";
@@ -46,6 +46,7 @@ export type R2ConfigSummary = {
   source: R2ConfigSource;
   endpoint: string;
   bucketName: string;
+  quotaBytes: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -60,6 +61,7 @@ async function ensureR2ConfigsTable(db: D1Database): Promise<void> {
       bucket_name TEXT NOT NULL,
       access_key_id_enc TEXT NOT NULL,
       secret_access_key_enc TEXT NOT NULL,
+      quota_bytes INTEGER NOT NULL DEFAULT ${DEFAULT_TOTAL_STORAGE},
       created_at DATETIME NOT NULL,
       updated_at DATETIME NOT NULL
     )`
@@ -71,6 +73,20 @@ async function ensureR2ConfigsTable(db: D1Database): Promise<void> {
       "CREATE UNIQUE INDEX IF NOT EXISTS idx_r2_configs_name ON r2_configs(name)"
     )
     .run();
+
+  const tableInfo = await db.prepare("PRAGMA table_info(r2_configs)").all<{
+    name: string;
+  }>();
+  const hasQuotaBytes = (tableInfo.results || []).some(
+    (col) => String(col.name) === "quota_bytes"
+  );
+  if (!hasQuotaBytes) {
+    await db
+      .prepare(
+        `ALTER TABLE r2_configs ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT ${DEFAULT_TOTAL_STORAGE}`
+      )
+      .run();
+  }
 }
 
 export async function ensureR2ConfigStorage(env: Env): Promise<void> {
@@ -211,13 +227,14 @@ export async function listDbR2Configs(
   await ensureR2ConfigsTable(db);
   const rows = await db
     .prepare(
-      "SELECT id, name, endpoint, bucket_name, created_at, updated_at FROM r2_configs ORDER BY created_at DESC"
+      "SELECT id, name, endpoint, bucket_name, quota_bytes, created_at, updated_at FROM r2_configs ORDER BY created_at DESC"
     )
     .all<{
       id: string;
       name: string;
       endpoint: string;
       bucket_name: string;
+      quota_bytes: number;
       created_at: string;
       updated_at: string;
     }>();
@@ -227,6 +244,7 @@ export async function listDbR2Configs(
     source: "db",
     endpoint: String(row.endpoint),
     bucketName: String(row.bucket_name),
+    quotaBytes: Number(row.quota_bytes || DEFAULT_TOTAL_STORAGE),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   }));
