@@ -27,15 +27,13 @@ const routes = [
   },
   {
     path: '/',
-    name: 'Upload',
-    component: () => import('../views/Upload.vue'),
+    name: 'Files',
+    component: () => import('../views/Files.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/files',
-    name: 'Files',
-    component: () => import('../views/Files.vue'),
-    meta: { requiresAuth: true }
+    redirect: '/'
   }
 ]
 
