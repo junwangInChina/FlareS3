@@ -3,7 +3,18 @@
     <div class="files-page">
       <header class="files-header">
         <div class="files-title-group">
-          <h1 class="files-title">文件列表</h1>
+          <div class="files-title-row">
+            <h1 class="files-title">文件列表</h1>
+            <Button
+              type="ghost"
+              size="small"
+              class="files-upload-btn"
+              aria-label="上传文件"
+              @click="showUploadModal = true"
+            >
+              <Upload :size="18" />
+            </Button>
+          </div>
           <p class="files-subtitle">
             查看和管理所有上传的文件
           </p>
@@ -118,13 +129,17 @@
           <Button type="primary" @click="handleDownload(selectedFile)">下载文件</Button>
         </template>
       </Modal>
+
+      <Modal v-model:show="showUploadModal" title="上传文件" width="760px">
+        <UploadPanel v-if="showUploadModal" @uploaded="handleUploaded" />
+      </Modal>
     </div>
   </AppLayout>
 </template>
 
 <script setup>
 import { ref, h, onMounted, computed } from 'vue'
-import { Info, Trash2, RefreshCw, Search } from 'lucide-vue-next'
+import { Info, Trash2, RefreshCw, Search, Upload } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
 import api from '../services/api'
@@ -140,6 +155,7 @@ import Input from '../components/ui/input/Input.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from "../components/ui/tooltip/Tooltip.vue"
+import UploadPanel from '../components/upload/UploadPanel.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
@@ -148,6 +164,7 @@ const message = useMessage()
 
 const showInfoModal = ref(false)
 const selectedFile = ref(null)
+const showUploadModal = ref(false)
 
 const filters = ref({
   filename: '',
@@ -421,6 +438,10 @@ const handleDelete = async (fileId) => {
   }
 }
 
+const handleUploaded = () => {
+  loadFiles()
+}
+
 onMounted(() => {
   loadFiles()
   loadUsers()
@@ -445,12 +466,28 @@ onMounted(() => {
   min-width: 0;
 }
 
+.files-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--nb-space-sm);
+}
+
 .files-title {
   margin: 0;
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
   font-weight: var(--nb-heading-font-weight, 900);
   font-size: var(--nb-font-size-2xl);
   line-height: 1.2;
+}
+
+.files-upload-btn {
+  padding: 0 10px;
+  height: 32px;
+}
+
+.files-upload-btn :deep(svg) {
+  width: 18px;
+  height: 18px;
 }
 
 .files-subtitle {
