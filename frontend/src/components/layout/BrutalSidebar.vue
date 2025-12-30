@@ -22,7 +22,6 @@ const menuItems = computed(() => {
   const items = [
     { key: "/", icon: "upload", label: "上传", path: "/" },
     { key: "/files", icon: "folder", label: "文件", path: "/files" },
-    { key: "/stats", icon: "chart", label: "统计", path: "/stats" },
   ];
 
   if (authStore.isAdmin) {
