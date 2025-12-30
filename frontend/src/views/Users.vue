@@ -12,13 +12,7 @@
         <div class="users-actions">
           <div class="filter-row">
             <div class="filter-item username">
-              <Input
-                v-model="filters.q"
-                placeholder="用户名"
-                size="small"
-                clearable
-                @keyup.enter="handleSearch"
-              />
+              <Select v-model="filters.q" :options="userOptions" size="small" :disabled="userOptionsLoading" />
             </div>
 
             <div class="filter-item status">
@@ -123,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, h, onMounted } from 'vue'
+import { computed, ref, h, onMounted } from 'vue'
 import { KeyRound, Trash2, UserCheck, UserX, Plus, Search, RefreshCw } from 'lucide-vue-next'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
@@ -150,6 +144,15 @@ const filters = ref({
   created_from_date: '',
   created_to_date: '',
 })
+
+const userOptionsLoading = ref(false)
+const userOptionsUsers = ref([])
+const userOptions = computed(() => [
+  { label: '全部用户', value: '' },
+  ...userOptionsUsers.value
+    .filter((u) => u?.username)
+    .map((u) => ({ label: u.username, value: u.username }))
+])
 
 const roleOptions = [
   { label: '管理员', value: 'admin' },
@@ -300,6 +303,19 @@ const buildQueryParams = () => {
   return params
 }
 
+const loadUserOptions = async () => {
+  if (userOptionsUsers.value.length) return
+  userOptionsLoading.value = true
+  try {
+    const result = await api.getUsers({ page: 1, limit: 100 })
+    userOptionsUsers.value = (result.users || []).filter((u) => u.status !== 'deleted')
+  } catch (error) {
+    message.error('加载用户列表失败')
+  } finally {
+    userOptionsLoading.value = false
+  }
+}
+
 const loadUsers = async () => {
   loading.value = true
   try {
@@ -342,8 +358,9 @@ const handleCreate = async () => {
     return
   }
   try {
+    const createdUsername = createForm.value.username
     creating.value = true
-    await api.createUser({
+    const result = await api.createUser({
       username: createForm.value.username,
       password: createForm.value.password,
       role: createForm.value.role,
@@ -352,6 +369,17 @@ const handleCreate = async () => {
     message.success('用户创建成功')
     showCreateModal.value = false
     createForm.value = { username: '', password: '', role: 'user', quota_bytes: '10737418240' }
+    if (createdUsername) {
+      const createdUserId = result?.user_id ? String(result.user_id) : ''
+      const exists = userOptionsUsers.value.some((u) => String(u.id) === createdUserId || u.username === createdUsername)
+      if (!exists) {
+        userOptionsUsers.value.unshift({
+          id: createdUserId,
+          username: createdUsername,
+          status: 'active',
+        })
+      }
+    }
     pagination.value.page = 1
     loadUsers()
   } catch (error) {
@@ -399,6 +427,7 @@ const handleDelete = async (row) => {
   try {
     await api.deleteUser(row.id)
     message.success('用户已删除')
+    userOptionsUsers.value = userOptionsUsers.value.filter((u) => String(u.id) !== String(row.id))
     if (users.value.length <= 1 && pagination.value.page > 1) pagination.value.page -= 1
     loadUsers()
   } catch (error) {
@@ -406,7 +435,10 @@ const handleDelete = async (row) => {
   }
 }
 
-onMounted(() => loadUsers())
+onMounted(() => {
+  loadUsers()
+  loadUserOptions()
+})
 </script>
 
 <style scoped>
