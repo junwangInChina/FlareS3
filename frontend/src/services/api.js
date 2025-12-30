@@ -111,11 +111,6 @@ export default {
     return `/api/files/${fileId}/download`;
   },
 
-  // 存储统计
-  getStats() {
-    return api.get("/stats");
-  },
-
   // 用户管理
   getUsers(params = {}) {
     return api.get("/users", { params });
