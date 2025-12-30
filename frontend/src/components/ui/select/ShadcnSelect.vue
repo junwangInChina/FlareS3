@@ -51,7 +51,7 @@ const currentValue = computed(() => {
     <label v-if="label" class="select-label">{{ label }}</label>
     <SelectRoot :model-value="currentValue" :disabled="disabled" @update:model-value="handleValueChange">
       <SelectTrigger class="shadcn-select-trigger">
-        <SelectValue :placeholder="placeholder || '请选择'" />
+        <SelectValue class="select-value" :placeholder="placeholder || '请选择'" />
         <ChevronDown class="select-icon" :size="16" />
       </SelectTrigger>
       <SelectPortal>
@@ -146,6 +146,15 @@ const currentValue = computed(() => {
 
 .shadcn-select-trigger[data-placeholder] {
   color: var(--muted-foreground);
+}
+
+.select-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
 }
 
 .select-icon {
