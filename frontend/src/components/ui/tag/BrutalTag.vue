@@ -30,32 +30,13 @@ defineProps({
   border-radius: var(--nb-radius);
 }
 
-/* shadcn/ui theme: Compact tag styling */
-:root[data-ui-theme="shadcn"] .brutal-tag {
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 .size-small {
   padding: 2px 6px;
   font-size: 10px;
 }
 
-/* shadcn/ui theme: Compact small tag */
-:root[data-ui-theme="shadcn"] .size-small {
-  padding: 2px 8px;
-  font-size: 11px;
-}
-
 .size-medium {
   padding: 4px 10px;
-  font-size: 12px;
-}
-
-/* shadcn/ui theme: Compact medium tag */
-:root[data-ui-theme="shadcn"] .size-medium {
-  padding: 3px 10px;
   font-size: 12px;
 }
 
