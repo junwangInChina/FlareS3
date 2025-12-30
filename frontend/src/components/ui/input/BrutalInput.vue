@@ -115,12 +115,6 @@ const handleClear = async () => {
   transition: var(--nb-transition);
 }
 
-/* shadcn/ui theme: Compact input styling */
-:root[data-ui-theme="shadcn"] .brutal-input {
-  font-size: 14px;
-  font-weight: 400;
-}
-
 /* Input sizing (Fixed height, centered text) */
 .size-small input.brutal-input {
   padding: 0 12px;
@@ -129,27 +123,11 @@ const handleClear = async () => {
   line-height: 34px;
 }
 
-/* shadcn/ui theme: Compact small input */
-:root[data-ui-theme="shadcn"] .size-small input.brutal-input {
-  padding: 0 10px;
-  height: 32px;
-  font-size: 13px;
-  line-height: 30px;
-}
-
 .size-medium input.brutal-input {
   padding: 0 16px;
   height: 44px;
   font-size: 16px;
   line-height: 42px;
-}
-
-/* shadcn/ui theme: Compact medium input */
-:root[data-ui-theme="shadcn"] .size-medium input.brutal-input {
-  padding: 0 12px;
-  height: 36px;
-  font-size: 14px;
-  line-height: 34px;
 }
 
 .size-large input.brutal-input {
@@ -190,23 +168,10 @@ const handleClear = async () => {
   box-shadow: var(--nb-focus-ring);
 }
 
-/* shadcn/ui theme: Compact large input */
-:root[data-ui-theme="shadcn"] .size-large input.brutal-input {
-  padding: 0 14px;
-  height: 40px;
-  font-size: 15px;
-  line-height: 38px;
-}
-
 /* Textarea sizing (Auto height, padding) */
 .size-small textarea.brutal-input {
   padding: 8px 12px;
   font-size: 14px;
-}
-
-:root[data-ui-theme="shadcn"] .size-small textarea.brutal-input {
-  padding: 6px 10px;
-  font-size: 13px;
 }
 
 .size-medium textarea.brutal-input {
@@ -214,29 +179,13 @@ const handleClear = async () => {
   font-size: 16px;
 }
 
-:root[data-ui-theme="shadcn"] .size-medium textarea.brutal-input {
-  padding: 8px 12px;
-  font-size: 14px;
-}
-
 .size-large textarea.brutal-input {
   padding: 16px 20px;
   font-size: 18px;
 }
 
-:root[data-ui-theme="shadcn"] .size-large textarea.brutal-input {
-  padding: 10px 14px;
-  font-size: 15px;
-}
-
 .brutal-input:focus {
   border-color: var(--nb-deep-blue);
-  box-shadow: var(--nb-focus-ring);
-}
-
-/* shadcn/ui theme: Subtle focus */
-:root[data-ui-theme="shadcn"] .brutal-input:focus {
-  border-color: var(--nb-primary);
   box-shadow: var(--nb-focus-ring);
 }
 
