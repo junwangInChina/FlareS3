@@ -7,6 +7,8 @@ export async function listAudit(request: Request, env: Env): Promise<Response> {
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 20)))
   const action = url.searchParams.get('action')
   const actorUserId = url.searchParams.get('actor_user_id')
+  const createdFrom = url.searchParams.get('created_from')
+  const createdTo = url.searchParams.get('created_to')
   const offset = (page - 1) * limit
 
   const conditions: string[] = []
@@ -18,6 +20,14 @@ export async function listAudit(request: Request, env: Env): Promise<Response> {
   if (actorUserId) {
     conditions.push('a.actor_user_id = ?')
     params.push(actorUserId)
+  }
+  if (createdFrom) {
+    conditions.push('a.created_at >= ?')
+    params.push(createdFrom)
+  }
+  if (createdTo) {
+    conditions.push('a.created_at < ?')
+    params.push(createdTo)
   }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
