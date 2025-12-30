@@ -36,12 +36,6 @@ const routes = [
     name: 'Files',
     component: () => import('../views/Files.vue'),
     meta: { requiresAuth: true }
-  },
-  {
-    path: '/stats',
-    name: 'Stats',
-    component: () => import('../views/Stats.vue'),
-    meta: { requiresAuth: true }
   }
 ]
 
