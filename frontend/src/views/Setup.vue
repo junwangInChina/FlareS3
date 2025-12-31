@@ -4,27 +4,26 @@
       <header class="setup-header">
         <div class="setup-title-group">
           <div class="setup-title-row">
-            <h1 class="setup-title">存储管理</h1>
+            <h1 class="setup-title">{{ t("setup.title") }}</h1>
             <Button
               type="ghost"
               size="small"
               class="setup-help-btn"
-              aria-label="使用提示"
+              :aria-label="t('setup.help')"
               @click="usageTipsVisible = true"
             >
               <AlertTriangle :size="18" />
             </Button>
           </div>
           <p class="setup-subtitle">
-            管理多套 Cloudflare R2 配置，你可以在这里管理多套 Cloudflare R2
-            配置，并设置默认配置。 上传文件时可选择使用哪套配置。
+            {{ t("setup.subtitle") }}
           </p>
         </div>
 
         <div class="setup-actions">
           <Button type="primary" size="large" @click="openCreate">
             <Plus :size="18" style="margin-right: 6px" />
-            添加新配置
+            {{ t("setup.actions.addConfig") }}
           </Button>
           <Button
             type="default"
@@ -33,20 +32,20 @@
             @click="refresh"
           >
             <RefreshCw :size="18" style="margin-right: 6px" />
-            刷新列表
+            {{ t("setup.actions.refreshList") }}
           </Button>
         </div>
       </header>
 
       <section class="config-list">
-        <div v-if="loading" class="config-state">加载中...</div>
+        <div v-if="loading" class="config-state">{{ t("setup.state.loading") }}</div>
 
         <Alert
           v-else-if="configs.length === 0"
           type="info"
-          title="暂无配置"
+          :title="t('setup.state.emptyTitle')"
         >
-          还没有任何 R2 配置，点击“添加新配置”开始创建。
+          {{ t("setup.state.emptyContent") }}
         </Alert>
 
         <div v-else class="config-cards">
@@ -83,7 +82,7 @@
                   type="success"
                   size="small"
                 >
-                  默认
+                  {{ t("setup.state.defaultTag") }}
                 </Tag>
               </div>
             </template>
@@ -91,7 +90,7 @@
             <div class="config-detail">
               <div class="kv-group">
                 <div class="kv-row">
-                  <div class="kv-label">存储桶</div>
+                  <div class="kv-label">{{ t("setup.labels.bucket") }}</div>
                   <div class="kv-value">
                     <span class="text-ellipsis">
                       {{ toDisplayText(row.bucket_name) }}
@@ -113,15 +112,15 @@
               >
                 <div class="usage-metrics">
                   <div class="usage-metric">
-                    <div class="usage-label">总容量</div>
+                    <div class="usage-label">{{ t("setup.labels.totalSpace") }}</div>
                     <div class="usage-value">{{ row.totalSpaceFormatted }}</div>
                   </div>
                   <div class="usage-metric">
-                    <div class="usage-label">已用容量</div>
+                    <div class="usage-label">{{ t("setup.labels.usedSpace") }}</div>
                     <div class="usage-value">{{ row.usedSpaceFormatted }}</div>
                   </div>
                   <div class="usage-metric">
-                    <div class="usage-label">使用进度</div>
+                    <div class="usage-label">{{ t("setup.labels.usagePercent") }}</div>
                     <div
                       class="usage-value"
                       :style="{ color: getUsageColor(row.usagePercent) }"
@@ -143,7 +142,7 @@
 
               <div class="kv-group kv-group-compact">
                 <div class="kv-row">
-                  <div class="kv-label">配置 ID</div>
+                  <div class="kv-label">{{ t("setup.labels.configId") }}</div>
                   <div class="kv-value kv-mono">
                     <code class="mono-chip">{{ toDisplayText(row.id) }}</code>
                   </div>
@@ -158,7 +157,7 @@
                   size="small"
                   :loading="testingId === row.id"
                   :disabled="loading || testingId === row.id"
-                  aria-label="测试连接"
+                  :aria-label="t('setup.aria.testConnection')"
                   @click="handleTest(row)"
                 >
                   <Network :size="14" />
@@ -175,7 +174,7 @@
                     savingDefault ||
                     row.id === r2Options.default_config_id
                   "
-                  aria-label="设为默认"
+                  :aria-label="t('setup.aria.setDefault')"
                   @click="handleSetDefault(row.id)"
                 >
                   <Star
@@ -194,7 +193,11 @@
                   type="default"
                   size="small"
                   :disabled="row.source !== 'db'"
-                  :aria-label="row.source === 'db' ? '编辑' : '该配置不可修改'"
+                  :aria-label="
+                    row.source === 'db'
+                      ? t('setup.aria.edit')
+                      : t('setup.aria.notEditable')
+                  "
                   @click="openEdit(row)"
                 >
                   <Pencil :size="14" />
@@ -204,7 +207,7 @@
                   <Button
                     type="danger"
                     size="small"
-                    aria-label="删除"
+                    :aria-label="t('setup.aria.delete')"
                     @click="handleDelete(row)"
                   >
                     <Trash2 :size="14" />
@@ -222,72 +225,72 @@
         width="560px"
       >
         <div class="form-grid">
-          <FormItem label="名称">
+          <FormItem :label="t('setup.labels.name')">
             <Input
               v-model="formValue.name"
-              placeholder="例如：生产环境"
+              :placeholder="t('setup.placeholders.name')"
             />
           </FormItem>
 
-          <FormItem label="R2 端点 URL">
+          <FormItem :label="t('setup.labels.endpoint')">
             <Input
               v-model="formValue.endpoint"
-              placeholder="https://<account_id>.r2.cloudflarestorage.com"
+              :placeholder="t('setup.placeholders.endpoint')"
             />
           </FormItem>
 
-          <FormItem label="Bucket Name">
+          <FormItem :label="t('setup.labels.bucketName')">
             <Input
               v-model="formValue.bucket_name"
-              placeholder="存储桶名称"
+              :placeholder="t('setup.placeholders.bucketName')"
             />
           </FormItem>
 
-          <FormItem label="总容量（字节）">
+          <FormItem :label="t('setup.labels.quotaBytes')">
             <Input
               v-model="formValue.quota_bytes"
               type="number"
-              placeholder="例如 10737418240（10GB）"
+              :placeholder="t('setup.placeholders.quotaBytes')"
             />
           </FormItem>
 
           <FormItem
             :label="
               modalMode === 'create'
-                ? 'Access Key ID'
-                : 'Access Key ID（留空不更新）'
+                ? t('setup.labels.accessKeyId')
+                : t('setup.labels.accessKeyIdOptional')
             "
           >
             <Input
               v-model="formValue.access_key_id"
-              placeholder="R2 访问密钥 ID"
+              :placeholder="t('setup.placeholders.accessKeyId')"
             />
           </FormItem>
 
           <FormItem
             :label="
               modalMode === 'create'
-                ? 'Secret Access Key'
-                : 'Secret Access Key（留空不更新）'
+                ? t('setup.labels.secretAccessKey')
+                : t('setup.labels.secretAccessKeyOptional')
             "
           >
             <Input
               v-model="formValue.secret_access_key"
               type="password"
-              placeholder="R2 访问密钥"
+              :placeholder="t('setup.placeholders.secretAccessKey')"
             />
           </FormItem>
 
-          <Alert type="info" title="提示">
+          <Alert type="info" :title="t('setup.hint.title')">
             <ul class="help-list">
               <li>
-                R2 端点 URL 格式为
+                {{ t("setup.hint.endpointFormatPrefix") }}
                 <code>https://&lt;account_id&gt;.r2.cloudflarestorage.com</code>
               </li>
               <li>
-                访问密钥请在 Cloudflare Dashboard 的
-                <strong>R2 → Manage R2 API Tokens</strong> 中创建（需要 Object
-                Read/Write）。
+                {{ t("setup.hint.tokenCreatePrefix") }}
+                <strong>R2 → Manage R2 API Tokens</strong>
+                {{ t("setup.hint.tokenCreateSuffix") }}
               </li>
             </ul>
           </Alert>
@@ -295,21 +298,21 @@
 
         <template #footer>
           <Button type="default" @click="modalVisible = false">
-            取消
+            {{ t("common.cancel") }}
           </Button>
           <Button
             type="primary"
             :loading="modalSubmitting"
             @click="handleSubmit"
           >
-            保存
+            {{ t("setup.modal.save") }}
           </Button>
         </template>
       </Modal>
 
       <Modal
         v-model:show="usageTipsVisible"
-        title="使用提示"
+        :title="t('setup.help')"
         width="520px"
       >
         <div class="usage-tips-grid">
@@ -339,8 +342,9 @@ import {
   Trash2,
   Network,
 } from "lucide-vue-next";
+import { useI18n } from "vue-i18n";
 import api from "../services/api";
-import { usageTips } from "../lib/usageTips";
+import { buildUsageTips } from "../lib/usageTips";
 import AppLayout from "../components/layout/AppLayout.vue";
 import Card from "../components/ui/card/Card.vue";
 import Button from "../components/ui/button/Button.vue";
@@ -353,6 +357,7 @@ import Progress from "../components/ui/progress/Progress.vue";
 import { useMessage } from "../composables/useMessage";
 
 const message = useMessage();
+const { t } = useI18n({ useScope: "global" });
 
 const loading = ref(false);
 const savingDefault = ref(false);
@@ -373,6 +378,7 @@ const modalMode = ref("create");
 const modalSubmitting = ref(false);
 const editingId = ref("");
 const usageTipsVisible = ref(false);
+const usageTips = computed(() => buildUsageTips(t));
 
 const formValue = ref({
   name: "",
@@ -432,7 +438,9 @@ const getUsageColor = (percent) => {
 };
 
 const modalTitle = computed(() => {
-  return modalMode.value === "create" ? "新增 R2 配置" : "编辑 R2 配置";
+  return modalMode.value === "create"
+    ? t("setup.modal.createTitle")
+    : t("setup.modal.editTitle");
 });
 
 const refresh = async () => {
@@ -446,7 +454,7 @@ const refresh = async () => {
     r2Options.value = optionsResult;
     configs.value = configsResult.configs || [];
   } catch (error) {
-    message.error(error.response?.data?.error || "加载 R2 配置失败");
+    message.error(error.response?.data?.error || t("setup.messages.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -459,10 +467,12 @@ const handleSetDefault = async (id) => {
     savingDefault.value = true;
     settingDefaultId.value = id;
     await api.setDefaultR2Config(id);
-    message.success("默认配置已更新");
+    message.success(t("setup.messages.defaultUpdated"));
     await refresh();
   } catch (error) {
-    message.error(error.response?.data?.error || "设置默认配置失败");
+    message.error(
+      error.response?.data?.error || t("setup.messages.setDefaultFailed")
+    );
   } finally {
     savingDefault.value = false;
     settingDefaultId.value = "";
@@ -473,10 +483,11 @@ const handleTest = async (row) => {
   try {
     testingId.value = row.id;
     const result = await api.testR2Config(row.id);
-    if (result?.success) message.success(result.message || "连接测试成功");
-    else message.error(result?.message || "连接测试失败");
+    if (result?.success)
+      message.success(result.message || t("setup.messages.testSuccess"));
+    else message.error(result?.message || t("setup.messages.testFailed"));
   } catch (error) {
-    message.error(error.response?.data?.message || "连接测试失败");
+    message.error(error.response?.data?.message || t("setup.messages.testFailed"));
   } finally {
     testingId.value = "";
   }
@@ -510,19 +521,19 @@ const handleSubmit = async () => {
     !formValue.value.bucket_name ||
     !formValue.value.quota_bytes
   ) {
-    message.error("请填写名称、端点、Bucket 和总容量");
+    message.error(t("setup.validation.required"));
     return;
   }
 
   const quotaBytes = Number(formValue.value.quota_bytes);
   if (!Number.isFinite(quotaBytes) || quotaBytes <= 0) {
-    message.error("总容量必须为大于 0 的数字（字节）");
+    message.error(t("setup.validation.quotaInvalid"));
     return;
   }
 
   if (modalMode.value === "create") {
     if (!formValue.value.access_key_id || !formValue.value.secret_access_key) {
-      message.error("新增配置需要填写 Access Key 和 Secret Key");
+      message.error(t("setup.validation.createNeedKeys"));
       return;
     }
   }
@@ -539,7 +550,7 @@ const handleSubmit = async () => {
         bucket_name: formValue.value.bucket_name,
         quota_bytes: quotaBytes,
       });
-      message.success("配置创建成功");
+      message.success(t("setup.messages.createSuccess"));
     } else {
       const payload = {
         name: formValue.value.name,
@@ -554,27 +565,27 @@ const handleSubmit = async () => {
         payload.secret_access_key = formValue.value.secret_access_key;
 
       await api.updateR2Config(editingId.value, payload);
-      message.success("配置已更新");
+      message.success(t("setup.messages.updateSuccess"));
     }
 
     modalVisible.value = false;
     await refresh();
   } catch (error) {
-    message.error(error.response?.data?.error || "保存失败");
+    message.error(error.response?.data?.error || t("setup.messages.saveFailed"));
   } finally {
     modalSubmitting.value = false;
   }
 };
 
 const handleDelete = async (row) => {
-  if (!confirm("确定删除该配置？（删除前请确保没有关联文件）")) return;
+  if (!confirm(t("setup.messages.deleteConfirm"))) return;
 
   try {
     await api.deleteR2Config(row.id);
-    message.success("配置已删除");
+    message.success(t("setup.messages.deleteSuccess"));
     await refresh();
   } catch (error) {
-    message.error(error.response?.data?.error || "删除配置失败");
+    message.error(error.response?.data?.error || t("setup.messages.deleteFailed"));
   }
 };
 
