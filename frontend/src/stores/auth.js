@@ -22,7 +22,7 @@ export const useAuthStore = defineStore('auth', {
         }
         return { success: false, message: response.message }
       } catch (error) {
-        return { success: false, message: error.response?.data?.error || '登录失败' }
+        return { success: false, message: error.response?.data?.error || '' }
       }
     },
 
