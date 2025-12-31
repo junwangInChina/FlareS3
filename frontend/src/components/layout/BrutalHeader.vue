@@ -1,5 +1,6 @@
 <script setup>
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../../stores/auth";
 
 const props = defineProps({
@@ -9,6 +10,7 @@ const props = defineProps({
 
 const router = useRouter();
 const authStore = useAuthStore();
+const { t } = useI18n({ useScope: "global" });
 
 const handleLogout = async () => {
   await authStore.logout();
@@ -29,12 +31,18 @@ const handleLogout = async () => {
             d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
           />
         </svg>
-        文件
+        {{ t("nav.files") }}
       </button>
       <template v-if="authStore.isAdmin">
-        <button class="nav-btn" @click="router.push('/users')">用户</button>
-        <button class="nav-btn" @click="router.push('/audit')">审计</button>
-        <button class="nav-btn" @click="router.push('/setup')">R2 配置</button>
+        <button class="nav-btn" @click="router.push('/users')">
+          {{ t("nav.users") }}
+        </button>
+        <button class="nav-btn" @click="router.push('/audit')">
+          {{ t("nav.audit") }}
+        </button>
+        <button class="nav-btn" @click="router.push('/setup')">
+          {{ t("nav.setup") }}
+        </button>
       </template>
     </nav>
 
@@ -50,7 +58,9 @@ const handleLogout = async () => {
           />
         </svg>
       </a>
-      <button class="logout-btn" @click="handleLogout">退出</button>
+      <button class="logout-btn" @click="handleLogout">
+        {{ t("common.logout") }}
+      </button>
     </div>
   </header>
 </template>
