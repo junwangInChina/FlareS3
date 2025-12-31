@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 import {
   PopoverContent,
   PopoverPortal,
@@ -22,7 +23,7 @@ import { parseDate } from '@internationalized/date'
 const props = defineProps({
   startValue: { type: String, default: '' }, // YYYY-MM-DD
   endValue: { type: String, default: '' }, // YYYY-MM-DD
-  placeholder: { type: String, default: '开始日期 - 结束日期' },
+  placeholder: { type: String, default: '' },
   disabled: Boolean,
   readonly: Boolean,
   size: { type: String, default: 'medium' },
@@ -31,6 +32,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:startValue', 'update:endValue'])
+const { t } = useI18n({ useScope: 'global' })
 
 const open = ref(false)
 
@@ -60,10 +62,12 @@ const hasStart = computed(() => !!props.startValue)
 const hasEnd = computed(() => !!props.endValue)
 const hasValue = computed(() => hasStart.value || hasEnd.value)
 
+const resolvedPlaceholder = computed(() => props.placeholder || t('dateRange.placeholder'))
+
 const displayText = computed(() => {
   if (hasStart.value && hasEnd.value) return `${props.startValue} - ${props.endValue}`
-  if (hasStart.value && !hasEnd.value) return `${props.startValue} - 结束日期`
-  return props.placeholder
+  if (hasStart.value && !hasEnd.value) return `${props.startValue} - ${t('dateRange.endDate')}`
+  return resolvedPlaceholder.value
 })
 
 const reserveClearSpace = computed(() => props.clearable)
@@ -113,7 +117,7 @@ const formatMonthTitle = (monthValue) => {
         type="button"
         class="date-range-clear"
         :disabled="disabled"
-        aria-label="清除日期范围"
+        :aria-label="t('dateRange.clear')"
         @click.stop="handleClear"
       >
         <X :size="14" />
