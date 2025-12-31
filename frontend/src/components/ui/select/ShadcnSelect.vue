@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Check, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 import {
   SelectContent,
   SelectGroup,
@@ -26,6 +27,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n({ useScope: 'global' })
 
 const handleValueChange = (value) => {
   // 将特殊值转换回空字符串
@@ -44,6 +46,8 @@ const processedOptions = computed(() => {
 const currentValue = computed(() => {
   return props.modelValue === '' ? '__empty__' : String(props.modelValue)
 })
+
+const resolvedPlaceholder = computed(() => props.placeholder || t('common.pleaseSelect'))
 </script>
 
 <template>
@@ -51,7 +55,7 @@ const currentValue = computed(() => {
     <label v-if="label" class="select-label">{{ label }}</label>
     <SelectRoot :model-value="currentValue" :disabled="disabled" @update:model-value="handleValueChange">
       <SelectTrigger class="shadcn-select-trigger">
-        <SelectValue class="select-value" :placeholder="placeholder || '请选择'" />
+        <SelectValue class="select-value" :placeholder="resolvedPlaceholder" />
         <ChevronDown class="select-icon" :size="16" />
       </SelectTrigger>
       <SelectPortal>
