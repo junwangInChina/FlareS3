@@ -1,10 +1,12 @@
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits(['file-selected', 'before-upload'])
 
 const isDragging = ref(false)
 const fileInput = ref(null)
+const { t } = useI18n({ useScope: 'global' })
 
 const onDragOver = (e) => {
   e.preventDefault()
@@ -59,8 +61,8 @@ defineExpose({ clear })
     <div class="upload-content">
       <div class="upload-icon">📁</div>
       <div class="upload-text">
-        <p class="upload-hint">点击或拖拽文件到此处上传</p>
-        <p class="upload-desc">支持单个文件上传</p>
+        <p class="upload-hint">{{ t('uiUpload.dropHint') }}</p>
+        <p class="upload-desc">{{ t('uiUpload.dropDesc') }}</p>
       </div>
       <slot />
     </div>

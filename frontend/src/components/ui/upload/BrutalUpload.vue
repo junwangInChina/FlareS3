@@ -1,10 +1,12 @@
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits(['file-selected', 'before-upload'])
 
 const isDragging = ref(false)
 const fileInput = ref(null)
+const { t } = useI18n({ useScope: 'global' })
 
 const onDragOver = (e) => {
   e.preventDefault()
@@ -63,8 +65,8 @@ defineExpose({ clear })
         </svg>
       </div>
       <div class="upload-text">
-        <strong>拖拽文件到此处</strong>
-        <span>或点击上传</span>
+        <strong>{{ t('uiUpload.brutalDrag') }}</strong>
+        <span>{{ t('uiUpload.brutalOrClick') }}</span>
       </div>
       <slot />
     </div>
