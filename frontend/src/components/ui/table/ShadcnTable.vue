@@ -1,4 +1,8 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n({ useScope: 'global' })
+
 defineProps({
   columns: { type: Array, default: () => [] },
   data: { type: Array, default: () => [] },
@@ -29,7 +33,7 @@ defineProps({
       <tbody>
         <tr v-if="data.length === 0">
           <td :colspan="columns.length" class="empty-cell">
-            暂无数据
+            {{ t('table.empty') }}
           </td>
         </tr>
         <tr v-for="(row, index) in data" :key="index">
