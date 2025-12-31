@@ -53,6 +53,16 @@
               <RefreshCw :size="16" style="margin-right: 6px" />
               {{ t('common.refresh') }}
             </Button>
+
+            <Button
+              type="danger"
+              size="small"
+              :disabled="loading || deleting || selectedIds.length === 0"
+              @click="handleBatchDelete"
+            >
+              <Trash2 :size="16" style="margin-right: 6px" />
+              {{ t('audit.actions.deleteSelected', { count: selectedIds.length }) }}
+            </Button>
           </div>
         </div>
       </header>
@@ -71,13 +81,29 @@
           />
         </Card>
       </section>
+
+      <Modal
+        :show="showDeleteModal"
+        :title="t('audit.modals.deleteTitle')"
+        width="420px"
+        @update:show="handleDeleteModalUpdate"
+      >
+        <p class="audit-delete-confirm">
+          {{ deleteConfirmText }}
+        </p>
+
+        <template #footer>
+          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">{{ t('common.cancel') }}</Button>
+          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">{{ t('audit.actions.delete') }}</Button>
+        </template>
+      </Modal>
     </div>
   </AppLayout>
 </template>
 
 <script setup>
 import { computed, ref, h, onMounted } from 'vue'
-import { RefreshCw, Search } from 'lucide-vue-next'
+import { RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
@@ -89,6 +115,7 @@ import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.
 import Pagination from "../components/ui/pagination/Pagination.vue"
 import Tag from "../components/ui/tag/Tag.vue"
 import Tooltip from "../components/ui/tooltip/Tooltip.vue"
+import Modal from "../components/ui/modal/Modal.vue"
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
@@ -98,6 +125,11 @@ const loading = ref(false)
 const activeAction = ref('')
 const filters = ref({ action: '', actor_user_id: '', created_from_date: '', created_to_date: '' })
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
+
+const selectedIds = ref([])
+const deleting = ref(false)
+const showDeleteModal = ref(false)
+const pendingDeleteIds = ref([])
 
 const users = ref([])
 const usersLoading = ref(false)
@@ -172,7 +204,148 @@ const toDisplayText = (value) => {
   return String(value)
 }
 
+const normalizeId = (value) => String(value ?? '').trim()
+const pageRowIds = computed(() =>
+  logs.value
+    .map((row) => normalizeId(row?.id))
+    .filter(Boolean)
+)
+const selectedIdSet = computed(() => new Set(selectedIds.value.map((id) => normalizeId(id)).filter(Boolean)))
+const allRowsSelected = computed(() => {
+  const ids = pageRowIds.value
+  if (!ids.length) return false
+  const set = selectedIdSet.value
+  return ids.every((id) => set.has(id))
+})
+const someRowsSelected = computed(() => {
+  const ids = pageRowIds.value
+  if (!ids.length) return false
+  const set = selectedIdSet.value
+  return ids.some((id) => set.has(id))
+})
+const selectAllIndeterminate = computed(() => someRowsSelected.value && !allRowsSelected.value)
+
+const toggleSelectAll = (checked) => {
+  if (checked) {
+    selectedIds.value = [...pageRowIds.value]
+    return
+  }
+  selectedIds.value = []
+}
+
+const toggleRowSelection = (rowId, checked) => {
+  const id = normalizeId(rowId)
+  if (!id) return
+
+  const next = new Set(selectedIds.value.map((value) => normalizeId(value)).filter(Boolean))
+  if (checked) {
+    next.add(id)
+  } else {
+    next.delete(id)
+  }
+  selectedIds.value = Array.from(next)
+}
+
+const openDeleteModal = (ids) => {
+  const normalized = Array.from(new Set(ids.map((id) => normalizeId(id)).filter(Boolean)))
+  if (!normalized.length) return
+  pendingDeleteIds.value = normalized
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  pendingDeleteIds.value = []
+}
+
+const handleDeleteModalUpdate = (nextValue) => {
+  if (deleting.value) return
+  if (!nextValue) {
+    closeDeleteModal()
+    return
+  }
+  showDeleteModal.value = true
+}
+
+const handleDeleteCancel = () => {
+  if (deleting.value) return
+  closeDeleteModal()
+}
+
+const deleteConfirmText = computed(() => {
+  const count = pendingDeleteIds.value.length
+  if (count <= 1) return t('audit.confirmDelete')
+  return t('audit.confirmBatchDelete', { count })
+})
+
+const handleDeleteRow = (row) => {
+  const id = normalizeId(row?.id)
+  if (!id) return
+  openDeleteModal([id])
+}
+
+const handleBatchDelete = () => {
+  if (!selectedIds.value.length) return
+  openDeleteModal([...selectedIds.value])
+}
+
+const handleDeleteConfirm = async () => {
+  if (deleting.value) return
+
+  const ids = pendingDeleteIds.value.map((id) => normalizeId(id)).filter(Boolean)
+  if (!ids.length) return
+
+  deleting.value = true
+  try {
+    if (ids.length === 1) {
+      await api.deleteAuditLog(ids[0])
+    } else {
+      await api.batchDeleteAuditLogs(ids)
+    }
+
+    message.success(t('audit.messages.deleteSuccess', { count: ids.length }))
+
+    closeDeleteModal()
+    selectedIds.value = []
+
+    if (ids.length >= logs.value.length && pagination.value.page > 1) {
+      pagination.value.page -= 1
+    }
+
+    await loadLogs()
+  } catch (error) {
+    message.error(t('audit.messages.deleteFailed'))
+  } finally {
+    deleting.value = false
+  }
+}
+
 const columns = computed(() => [
+  {
+    title: '',
+    key: 'select',
+    width: 48,
+    align: 'center',
+    ellipsis: false,
+    titleRender: () => h('input', {
+      class: 'audit-checkbox',
+      type: 'checkbox',
+      disabled: loading.value || pageRowIds.value.length === 0,
+      checked: allRowsSelected.value,
+      indeterminate: selectAllIndeterminate.value,
+      onChange: (event) => toggleSelectAll(Boolean(event?.target?.checked))
+    }),
+    render: (row) => {
+      const id = normalizeId(row?.id)
+      return h('input', {
+        class: 'audit-checkbox',
+        type: 'checkbox',
+        disabled: loading.value || !id,
+        checked: selectedIdSet.value.has(id),
+        onChange: (event) => toggleRowSelection(id, Boolean(event?.target?.checked))
+      })
+    }
+  },
   {
     title: t('audit.columns.time'),
     key: 'created_at',
@@ -225,6 +398,27 @@ const columns = computed(() => [
       return h(Tooltip, { content: text }, () =>
         h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, text)
       )
+    }
+  },
+  {
+    title: t('audit.columns.actions'),
+    key: 'actions',
+    width: locale.value === 'zh-CN' ? 120 : 160,
+    align: 'center',
+    ellipsis: false,
+    render: (row) => {
+      const id = normalizeId(row?.id)
+      return h('div', { class: 'action-buttons' }, [
+        h(Button, {
+          size: 'small',
+          type: 'danger',
+          disabled: deleting.value || loading.value || !id,
+          onClick: () => handleDeleteRow(row)
+        }, () => [
+          h(Trash2, { size: 16, style: 'margin-right: 4px' }),
+          t('audit.actions.delete')
+        ])
+      ])
     }
   }
 ])
@@ -297,6 +491,7 @@ const loadLogs = async () => {
     const result = await api.getAudit(params)
     logs.value = result.logs || []
     pagination.value.itemCount = result.total
+    selectedIds.value = []
   } catch (error) {
     message.error(t('audit.loadLogsFailed'))
   } finally {
@@ -414,6 +609,25 @@ onMounted(() => {
 :deep(.audit-table .brutal-table th),
 :deep(.audit-table .brutal-table td) {
   white-space: nowrap;
+}
+
+:deep(.audit-checkbox) {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--nb-primary);
+}
+
+:deep(.action-buttons) {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.audit-delete-confirm {
+  margin: 0;
+  color: var(--nb-ink);
 }
 
 @media (max-width: 720px) {
