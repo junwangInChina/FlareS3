@@ -1,8 +1,10 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../../stores/auth";
 import { useThemeStore } from "../../stores/theme";
+import { toggleLocale } from "../../locales";
 import Modal from "../ui/modal/Modal.vue";
 import FormItem from "../ui/form-item/FormItem.vue";
 import Button from "../ui/button/Button.vue";
@@ -17,17 +19,89 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const themeStore = useThemeStore();
+const { t, tm, locale } = useI18n({ useScope: "global" });
+
+const userMenuVisible = ref(false);
+const userMenuRef = ref(null);
+const userTriggerRef = ref(null);
+
+const closeUserMenu = () => {
+  userMenuVisible.value = false;
+};
+
+const toggleUserMenu = () => {
+  userMenuVisible.value = !userMenuVisible.value;
+};
+
+const handleDocumentMouseDown = (event) => {
+  const target = event.target;
+  if (!target) {
+    return;
+  }
+
+  const menuEl = userMenuRef.value;
+  const triggerEl = userTriggerRef.value;
+
+  if (menuEl?.contains?.(target)) {
+    return;
+  }
+
+  if (triggerEl?.contains?.(target)) {
+    return;
+  }
+
+  closeUserMenu();
+};
+
+const handleDocumentKeyDown = (event) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  closeUserMenu();
+};
+
+watch(userMenuVisible, (visible) => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  if (visible) {
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    document.addEventListener("keydown", handleDocumentKeyDown);
+    return;
+  }
+
+  document.removeEventListener("mousedown", handleDocumentMouseDown);
+  document.removeEventListener("keydown", handleDocumentKeyDown);
+});
+
+watch(
+  () => route.path,
+  () => {
+    closeUserMenu();
+  }
+);
+
+onBeforeUnmount(() => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.removeEventListener("mousedown", handleDocumentMouseDown);
+  document.removeEventListener("keydown", handleDocumentKeyDown);
+});
 
 const menuItems = computed(() => {
   const items = [
-    { key: "/", icon: "folder", label: "文件", path: "/" },
+    { key: "/", icon: "folder", label: t("nav.files"), path: "/" },
   ];
 
   if (authStore.isAdmin) {
     items.push(
-      { key: "/users", icon: "users", label: "用户", path: "/users" },
-      { key: "/audit", icon: "audit", label: "审计", path: "/audit" },
-      { key: "/setup", icon: "settings", label: "R2 配置", path: "/setup" }
+      { key: "/users", icon: "users", label: t("nav.users"), path: "/users" },
+      { key: "/audit", icon: "audit", label: t("nav.audit"), path: "/audit" },
+      { key: "/setup", icon: "settings", label: t("nav.setup"), path: "/setup" }
     );
   }
 
@@ -37,41 +111,59 @@ const menuItems = computed(() => {
 const isActive = (path) => route.path === path;
 
 const navigate = (path) => {
+  closeUserMenu();
   router.push(path);
 };
 
 const toggleCollapse = () => {
+  closeUserMenu();
   emit("update:collapsed", !props.collapsed);
 };
 
 const handleLogout = async () => {
+  closeUserMenu();
   await authStore.logout();
   router.push("/login");
 };
 
-const themeLabel = computed(() => (themeStore.isDark ? "黑夜" : "白天"));
+const themeLabel = computed(() =>
+  themeStore.isDark ? t("common.dark") : t("common.light")
+);
 const themeTitle = computed(() =>
-  themeStore.isDark ? "切换到白天模式" : "切换到黑夜模式"
+  themeStore.isDark ? t("sidebar.switchToLight") : t("sidebar.switchToDark")
 );
 
 const handleToggleTheme = () => {
+  closeUserMenu();
   themeStore.toggle();
 };
 
-const uiThemeMeta = {
-  "motherduck-neobrutalism": {
-    description: "高对比 / 硬阴影 / 粗边框",
-    tags: ["高对比", "硬阴影", "粗边框"],
-  },
-  shadcn: {
-    description: "简洁 / 细边框 / 柔和阴影",
-    tags: ["简洁", "细边框", "柔和阴影"],
-  },
-};
+const userRoleLabel = computed(() => {
+  const role = authStore.user?.role;
+  if (role === "admin") return t("role.admin");
+  if (role === "user") return t("role.user");
+  return role ? String(role) : "";
+});
+
+const uiThemeMeta = computed(() => {
+  const neobrutalismTags = tm("sidebar.uiThemeMeta.neobrutalism.tags");
+  const shadcnTags = tm("sidebar.uiThemeMeta.shadcn.tags");
+
+  return {
+    "motherduck-neobrutalism": {
+      description: t("sidebar.uiThemeMeta.neobrutalism.description"),
+      tags: Array.isArray(neobrutalismTags) ? neobrutalismTags : [],
+    },
+    shadcn: {
+      description: t("sidebar.uiThemeMeta.shadcn.description"),
+      tags: Array.isArray(shadcnTags) ? shadcnTags : [],
+    },
+  };
+});
 
 const uiThemeCards = computed(() =>
   themeStore.availableUiThemes.map((theme) => {
-    const meta = uiThemeMeta[theme.id] ?? {};
+    const meta = uiThemeMeta.value[theme.id] ?? {};
     return {
       ...theme,
       description: meta.description ?? "",
@@ -85,10 +177,10 @@ const uiThemeDisabled = computed(() => uiThemeCards.value.length <= 1);
 const uiThemeTitle = computed(() => {
   const current = themeStore.currentUiTheme;
   if (!current) {
-    return "主题";
+    return t("common.theme");
   }
 
-  return `主题：${current.label}`;
+  return t("common.themeWithValue", { value: current.label });
 });
 
 const uiThemeModalVisible = ref(false);
@@ -103,12 +195,23 @@ watch(uiThemeModalVisible, (visible) => {
 });
 
 const openUiThemeModal = () => {
+  closeUserMenu();
   uiThemeModalVisible.value = true;
 };
 
 const applyUiTheme = () => {
   themeStore.setUiTheme(uiThemeDraft.value);
   uiThemeModalVisible.value = false;
+};
+
+const languageLabel = computed(() =>
+  t("common.languageWithValue", {
+    value: t(`languageName.${locale.value}`),
+  })
+);
+
+const handleToggleLocale = () => {
+  toggleLocale();
 };
 
 const logoText = "FlareS3";
@@ -198,100 +301,149 @@ const logoLetters = computed(() => logoText.split(""));
     </nav>
 
     <div class="sidebar-footer">
-      <div class="user-section">
-        <div class="user-info" :aria-label="authStore.user?.username || 'User'">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path
-              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-            />
-          </svg>
+      <div class="footer-bar" :class="{ collapsed }">
+        <button
+          ref="userTriggerRef"
+          type="button"
+          class="user-trigger"
+          :aria-label="authStore.user?.username || 'User'"
+          aria-haspopup="dialog"
+          :aria-expanded="userMenuVisible"
+          @click="toggleUserMenu"
+        >
+          <span class="user-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              />
+            </svg>
+          </span>
           <span v-show="!collapsed" class="username">{{
             authStore.user?.username || "User"
           }}</span>
-        </div>
-
-        <button
-          class="logout-btn"
-          type="button"
-          @click="handleLogout"
-          aria-label="退出登录"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path
-              d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-            />
-          </svg>
-          <span v-show="!collapsed">退出</span>
         </button>
 
         <button
-          class="logout-btn theme-btn"
+          class="collapse-btn"
           type="button"
-          :aria-label="themeTitle"
-          :aria-pressed="themeStore.isDark"
-          @click="handleToggleTheme"
+          :aria-label="collapsed ? t('common.expand') : t('common.collapse')"
+          @click="toggleCollapse"
         >
           <svg
-            v-if="themeStore.isDark"
             viewBox="0 0 24 24"
-            width="18"
-            height="18"
             fill="currentColor"
+            :class="{ rotated: collapsed }"
           >
-            <path
-              d="M21.64 13.65A9 9 0 0 1 10.35 2.36a.75.75 0 0 0-.93-.93A10.5 10.5 0 1 0 22.57 14.58a.75.75 0 0 0-.93-.93z"
-            />
+            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
           </svg>
-          <svg
-            v-else
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="currentColor"
-          >
-            <path
-              d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm10.45 0l1.79-1.8-1.41-1.41-1.8 1.79 1.42 1.42zM12 4V1h-1.99v3H12zm0 19v-3h-1.99v3H12zM4 13H1v-2h3v2zm19 0h-3v-2h3v2zM6.76 19.16l-1.79 1.8 1.41 1.41 1.8-1.79-1.42-1.42zm10.45 0l1.42 1.42 1.8 1.79 1.41-1.41-1.79-1.8-1.42 1.42zM12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"
-            />
-          </svg>
-          <span v-show="!collapsed">{{ themeLabel }}</span>
-        </button>
-
-        <button
-          class="logout-btn theme-type-btn"
-          type="button"
-          :aria-label="uiThemeTitle"
-          @click="openUiThemeModal"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path
-              d="M12 22c-5.52 0-10-4.48-10-10S6.48 2 12 2c5.52 0 10 4.48 10 10 0 1.1-.9 2-2 2h-1.5c-.83 0-1.5.67-1.5 1.5 0 .41.17.79.44 1.06.27.27.44.65.44 1.06 0 .83-.67 1.5-1.5 1.5H12zm0-18c-4.41 0-8 3.59-8 8s3.59 8 8 8h4c.28 0 .5-.22.5-.5 0-.13-.05-.26-.15-.35-.64-.64-1-1.51-1-2.41 0-1.93 1.57-3.5 3.5-3.5H20c.55 0 1-.45 1-1 0-4.41-3.59-8-9-8zM6.5 11.5c.83 0 1.5-.67 1.5-1.5S7.33 8.5 6.5 8.5 5 9.17 5 10s.67 1.5 1.5 1.5zm3-4c.83 0 1.5-.67 1.5-1.5S10.33 4.5 9.5 4.5 8 5.17 8 6s.67 1.5 1.5 1.5zm5 0c.83 0 1.5-.67 1.5-1.5S15.33 4.5 14.5 4.5 13 5.17 13 6s.67 1.5 1.5 1.5zm3 4c.83 0 1.5-.67 1.5-1.5S18.33 8.5 17.5 8.5 16 9.17 16 10s.67 1.5 1.5 1.5z"
-            />
-          </svg>
-          <span v-show="!collapsed">主题</span>
         </button>
       </div>
-      <button
-        class="collapse-btn"
-        type="button"
-        :aria-label="collapsed ? '展开' : '收起'"
-        @click="toggleCollapse"
+
+      <div
+        v-if="userMenuVisible"
+        ref="userMenuRef"
+        class="user-menu"
+        role="dialog"
+        :aria-label="t('sidebar.userMenu')"
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          :class="{ rotated: collapsed }"
-        >
-          <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-        </svg>
-      </button>
+        <div class="user-menu-header">
+          <div class="user-menu-avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              />
+            </svg>
+          </div>
+          <div class="user-menu-meta">
+            <div class="user-menu-name">
+              {{ authStore.user?.username || "User" }}
+            </div>
+            <div v-if="userRoleLabel" class="user-menu-role">
+              {{ userRoleLabel }}
+            </div>
+          </div>
+        </div>
+
+        <div class="user-menu-actions">
+          <Button type="default" size="small" block @click="openUiThemeModal">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path
+                d="M12 22c-5.52 0-10-4.48-10-10S6.48 2 12 2c5.52 0 10 4.48 10 10 0 1.1-.9 2-2 2h-1.5c-.83 0-1.5.67-1.5 1.5 0 .41.17.79.44 1.06.27.27.44.65.44 1.06 0 .83-.67 1.5-1.5 1.5H12zm0-18c-4.41 0-8 3.59-8 8s3.59 8 8 8h4c.28 0 .5-.22.5-.5 0-.13-.05-.26-.15-.35-.64-.64-1-1.51-1-2.41 0-1.93 1.57-3.5 3.5-3.5H20c.55 0 1-.45 1-1 0-4.41-3.59-8-9-8zM6.5 11.5c.83 0 1.5-.67 1.5-1.5S7.33 8.5 6.5 8.5 5 9.17 5 10s.67 1.5 1.5 1.5zm3-4c.83 0 1.5-.67 1.5-1.5S10.33 4.5 9.5 4.5 8 5.17 8 6s.67 1.5 1.5 1.5zm5 0c.83 0 1.5-.67 1.5-1.5S15.33 4.5 14.5 4.5 13 5.17 13 6s.67 1.5 1.5 1.5zm3 4c.83 0 1.5-.67 1.5-1.5S18.33 8.5 17.5 8.5 16 9.17 16 10s.67 1.5 1.5 1.5z"
+              />
+            </svg>
+            {{ t("common.theme") }}
+          </Button>
+
+          <Button
+            type="default"
+            size="small"
+            block
+            :aria-label="themeTitle"
+            :aria-pressed="themeStore.isDark"
+            @click="handleToggleTheme"
+          >
+            <svg
+              v-if="themeStore.isDark"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="currentColor"
+            >
+              <path
+                d="M21.64 13.65A9 9 0 0 1 10.35 2.36a.75.75 0 0 0-.93-.93A10.5 10.5 0 1 0 22.57 14.58a.75.75 0 0 0-.93-.93z"
+              />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="currentColor"
+            >
+              <path
+                d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm10.45 0l1.79-1.8-1.41-1.41-1.8 1.79 1.42 1.42zM12 4V1h-1.99v3H12zm0 19v-3h-1.99v3H12zM4 13H1v-2h3v2zm19 0h-3v-2h3v2zM6.76 19.16l-1.79 1.8 1.41 1.41 1.8-1.79-1.42-1.42zm10.45 0l1.42 1.42 1.8 1.79 1.41-1.41-1.79-1.8-1.42 1.42zM12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"
+              />
+            </svg>
+            {{ themeLabel }}
+          </Button>
+
+          <Button
+            type="default"
+            size="small"
+            block
+            :aria-label="languageLabel"
+            @click="handleToggleLocale"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path
+                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm7.93 9h-3.18a15.6 15.6 0 0 0-1.1-5.05A8.03 8.03 0 0 1 19.93 11zM12 4c.9 0 2.18 1.72 2.86 5H9.14C9.82 5.72 11.1 4 12 4zM4.07 13h3.18c.24 1.8.74 3.55 1.1 5.05A8.03 8.03 0 0 1 4.07 13zm0-2A8.03 8.03 0 0 1 8.35 5.95c-.36 1.5-.86 3.25-1.1 5.05H4.07zM12 20c-.9 0-2.18-1.72-2.86-5h5.72C14.18 18.28 12.9 20 12 20zm3.65-1.95c.36-1.5.86-3.25 1.1-5.05h3.18a8.03 8.03 0 0 1-4.28 5.05zM16.75 11H7.25a13.6 13.6 0 0 1 0-2h9.5a13.6 13.6 0 0 1 0 2z"
+              />
+            </svg>
+            {{ languageLabel }}
+          </Button>
+
+          <Button type="default" size="small" block @click="handleLogout">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+              />
+            </svg>
+            {{ t("common.logout") }}
+          </Button>
+        </div>
+      </div>
 
       <Modal
         v-model:show="uiThemeModalVisible"
-        title="主题"
+        :title="t('sidebar.uiThemeTitle')"
         width="680px"
       >
-        <FormItem label="选择主题">
-          <div class="ui-theme-grid" role="radiogroup" aria-label="选择主题">
+        <FormItem :label="t('sidebar.uiThemeSelect')">
+          <div
+            class="ui-theme-grid"
+            role="radiogroup"
+            :aria-label="t('sidebar.uiThemeSelect')"
+          >
             <button
               v-for="theme in uiThemeCards"
               :key="theme.id"
@@ -330,7 +482,7 @@ const logoLetters = computed(() => logoText.split(""));
                     v-if="theme.id === themeStore.uiTheme"
                     class="ui-theme-current"
                   >
-                    当前
+                    {{ t("sidebar.current") }}
                   </span>
                 </div>
                 <div v-if="theme.description" class="ui-theme-desc">
@@ -353,10 +505,12 @@ const logoLetters = computed(() => logoText.split(""));
         </FormItem>
 
         <template #footer>
-          <Button type="default" @click="uiThemeModalVisible = false"
-            >取消</Button
-          >
-          <Button type="primary" @click="applyUiTheme">应用</Button>
+          <Button type="default" @click="uiThemeModalVisible = false">{{
+            t("common.cancel")
+          }}</Button>
+          <Button type="primary" @click="applyUiTheme">{{
+            t("common.apply")
+          }}</Button>
         </template>
       </Modal>
     </div>
@@ -571,25 +725,76 @@ const logoLetters = computed(() => logoText.split(""));
 .sidebar-footer {
   border-top: var(--nb-border);
   background: var(--nb-gray-100);
+  padding: var(--nb-space-xs) var(--nb-space-sm);
+  position: relative;
 }
 
-.user-section {
-  padding: var(--nb-space-sm) var(--nb-space-md);
-  /* 为浮动效果预留右侧空间 */
-  padding-right: calc(var(--nb-space-md) + 4px);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--nb-space-sm);
-  border-bottom: var(--nb-border);
+.brutal-sidebar.collapsed .sidebar-footer {
+  padding: var(--nb-space-xs);
 }
 
-.user-info {
+.footer-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: var(--nb-space-xs);
+}
+
+.footer-bar.collapsed {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 8px;
+  border: var(--nb-border-width) solid transparent;
+  border-radius: var(--nb-radius);
+  background: transparent;
+  cursor: pointer;
   color: var(--nb-gray-500);
+  transition: var(--nb-transition-fast);
+  min-width: 0;
+}
+
+.user-trigger:hover {
+  background: var(--nb-surface);
+  border-color: var(--nb-border-color);
+  color: var(--nb-black);
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
+}
+
+.user-trigger:active {
+  transform: translate(0, 0);
+  box-shadow: none;
+}
+
+:root[data-ui-theme="shadcn"] .user-trigger:hover {
+  background: var(--nb-sidebar-accent);
+  border-color: transparent;
+  color: var(--nb-sidebar-accent-foreground);
+  transform: none;
+  box-shadow: none;
+}
+
+.user-trigger:focus-visible {
+  outline: var(--nb-focus-outline-width) solid var(--nb-focus-outline-color);
+  outline-offset: var(--nb-focus-outline-offset);
+}
+
+.user-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: var(--nb-border);
+  border-radius: 999px;
+  background: var(--nb-surface);
 }
 
 .username {
@@ -599,56 +804,61 @@ const logoLetters = computed(() => logoText.split(""));
   white-space: nowrap;
 }
 
-.logout-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px;
-  background: var(--nb-surface);
-  color: var(--nb-black);
+.user-menu {
+  position: absolute;
+  left: var(--nb-space-md);
+  right: var(--nb-space-md);
+  bottom: calc(100% + var(--nb-space-sm));
+  background: var(--popover, var(--nb-surface));
+  color: var(--popover-foreground, var(--nb-black));
   border: var(--nb-border);
   border-radius: var(--nb-radius);
-  cursor: pointer;
-  font-family: var(--nb-font-ui, var(--nb-font-mono));
-  font-weight: var(--nb-ui-font-weight, 700);
-  font-size: 12px;
-  text-transform: var(--nb-ui-text-transform, uppercase);
-  letter-spacing: var(--nb-ui-letter-spacing, 0.02em);
-  transition: var(--nb-transition);
-  box-shadow: none;
+  box-shadow: var(--nb-shadow);
+  padding: var(--nb-space-md);
+  display: grid;
+  gap: var(--nb-space-md);
+  z-index: 200;
 }
 
-.logout-btn:hover {
-  background: var(--nb-gray-100);
-  border-color: var(--nb-border-color);
-  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
-  box-shadow: var(--nb-shadow-sm);
-}
-
-.logout-btn:active {
-  transform: translate(0, 0);
-  box-shadow: none;
+.brutal-sidebar.collapsed .user-menu {
+  left: 12px;
+  right: auto;
+  width: 260px;
+  max-width: calc(100vw - 24px);
 }
 
 .collapse-btn {
-  width: 100%;
-  padding: 10px;
-  background: transparent;
-  border: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--nb-surface);
+  border: var(--nb-border);
   border-radius: var(--nb-radius);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: var(--nb-transition);
+  transition: var(--nb-transition-fast);
   color: var(--nb-gray-500);
 }
 
 .collapse-btn:hover {
-  background: var(--nb-gray-100);
+  background: var(--nb-gray-50);
   color: var(--nb-black);
+  transform: translate(var(--nb-lift-x), var(--nb-lift-y));
+  box-shadow: var(--nb-shadow-sm);
+}
+
+:root[data-ui-theme="shadcn"] .collapse-btn:hover {
+  background: var(--nb-sidebar-accent);
+  color: var(--nb-sidebar-accent-foreground);
+  transform: none;
+  box-shadow: none;
+}
+
+.collapse-btn:active {
+  transform: translate(0, 0);
+  box-shadow: none;
 }
 
 .collapse-btn svg {
@@ -666,18 +876,77 @@ const logoLetters = computed(() => logoText.split(""));
   padding: 12px;
 }
 
-.collapsed .user-section {
-  padding: var(--nb-space-sm);
-  align-items: center;
-}
-
-.collapsed .user-info {
+.footer-bar.collapsed .user-trigger {
   justify-content: center;
 }
 
-.collapsed .logout-btn {
-  width: auto;
-  padding: 8px;
+.footer-bar.collapsed .collapse-btn {
+  width: 100%;
+}
+
+.user-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: left;
+  gap: var(--nb-space-sm);
+}
+
+.user-menu-avatar {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: var(--nb-border);
+  background: var(--nb-surface);
+  color: var(--nb-black);
+}
+
+:root[data-ui-theme="shadcn"] .user-menu-avatar {
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.user-menu-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  justify-items: start;
+}
+
+.user-menu-name {
+  font-family: var(--nb-font-ui, var(--nb-font-mono));
+  font-weight: var(--nb-ui-font-weight-strong, 900);
+  font-size: 14px;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-ui-theme="shadcn"] .user-menu-name {
+  font-family: var(--nb-font-ui);
+  font-weight: var(--nb-font-weight-semibold);
+}
+
+.user-menu-role {
+  font-size: 12px;
+  color: var(--nb-gray-500);
+}
+
+:root[data-ui-theme="shadcn"] .user-menu-role {
+  color: var(--muted-foreground);
+}
+
+.user-menu-actions {
+  display: grid;
+  gap: var(--nb-space-sm);
+}
+
+.user-menu-actions :deep(svg) {
+  flex-shrink: 0;
 }
 .ui-theme-grid {
   display: grid;
@@ -937,18 +1206,24 @@ const logoLetters = computed(() => logoText.split(""));
     padding: 12px;
   }
 
-  .user-section {
+  .sidebar-footer {
     padding: var(--nb-space-sm);
-    align-items: center;
   }
 
-  .logout-btn {
-    width: auto;
-    padding: 8px;
+  .footer-bar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .logout-btn span {
-    display: none;
+  .collapse-btn {
+    width: 100%;
+  }
+
+  .user-menu {
+    left: 12px;
+    right: auto;
+    width: 260px;
+    max-width: calc(100vw - 24px);
   }
 }
 </style>
