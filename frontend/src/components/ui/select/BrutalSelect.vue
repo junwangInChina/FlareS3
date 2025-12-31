@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Check, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 import {
   SelectContent,
   SelectGroup,
@@ -26,6 +27,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n({ useScope: 'global' })
 
 const handleValueChange = (value) => {
   emit('update:modelValue', value === '__empty__' ? '' : value)
@@ -41,6 +43,8 @@ const processedOptions = computed(() => {
 const currentValue = computed(() => {
   return props.modelValue === '' ? '__empty__' : String(props.modelValue)
 })
+
+const resolvedPlaceholder = computed(() => props.placeholder || t('common.pleaseSelect'))
 </script>
 
 <template>
@@ -52,7 +56,7 @@ const currentValue = computed(() => {
       @update:model-value="handleValueChange"
     >
       <SelectTrigger class="brutal-select-trigger">
-        <SelectValue class="select-value" :placeholder="placeholder || '请选择'" />
+        <SelectValue class="select-value" :placeholder="resolvedPlaceholder" />
         <ChevronDown class="select-icon" :size="16" />
       </SelectTrigger>
 
