@@ -3,9 +3,9 @@
     <div class="audit-page">
       <header class="audit-header">
         <div class="audit-title-group">
-          <h1 class="audit-title">审计日志</h1>
+          <h1 class="audit-title">{{ t('audit.title') }}</h1>
           <p class="audit-subtitle">
-            查看系统内的所有操作记录
+            {{ t('audit.subtitle') }}
           </p>
         </div>
 
@@ -41,7 +41,7 @@
               @click="handleSearch"
             >
               <Search :size="16" style="margin-right: 6px" />
-              搜索
+              {{ t('common.search') }}
             </Button>
             <Button
               type="default"
@@ -51,7 +51,7 @@
               @click="handleRefresh"
             >
               <RefreshCw :size="16" style="margin-right: 6px" />
-              刷新
+              {{ t('common.refresh') }}
             </Button>
           </div>
         </div>
@@ -61,24 +61,14 @@
         <Card class="audit-table-card">
           <Table class="audit-table" :columns="columns" :data="logs" :loading="loading" />
 
-          <div v-if="pagination.itemCount > 0" class="pagination">
-            <span>共 {{ pagination.itemCount }} 条</span>
-            <div class="page-btns">
-              <Button
-                size="small"
-                type="ghost"
-                :disabled="pagination.page <= 1"
-                @click="changePage(pagination.page - 1)"
-              >上一页</Button>
-              <span class="page-info">{{ pagination.page }}</span>
-              <Button
-                size="small"
-                type="ghost"
-                :disabled="pagination.page * pagination.pageSize >= pagination.itemCount"
-                @click="changePage(pagination.page + 1)"
-              >下一页</Button>
-            </div>
-          </div>
+          <Pagination
+            v-if="pagination.itemCount > 0"
+            :page="pagination.page"
+            :page-size="pagination.pageSize"
+            :total="pagination.itemCount"
+            @update:page="changePage"
+            @update:page-size="changePageSize"
+          />
         </Card>
       </section>
     </div>
@@ -88,6 +78,7 @@
 <script setup>
 import { computed, ref, h, onMounted } from 'vue'
 import { RefreshCw, Search } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from "../components/ui/card/Card.vue"
@@ -95,11 +86,13 @@ import Button from "../components/ui/button/Button.vue"
 import Select from "../components/ui/select/Select.vue"
 import Table from "../components/ui/table/Table.vue"
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
+import Pagination from "../components/ui/pagination/Pagination.vue"
 import Tag from "../components/ui/tag/Tag.vue"
 import Tooltip from "../components/ui/tooltip/Tooltip.vue"
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
+const { t, locale } = useI18n({ useScope: 'global' })
 const logs = ref([])
 const loading = ref(false)
 const activeAction = ref('')
@@ -137,9 +130,9 @@ const actionOptions = computed(() => {
   }
 
   return [
-    { label: '全部动作', value: '' },
+    { label: t('audit.allActions'), value: '' },
     ...Array.from(actionSet)
-      .sort((a, b) => a.localeCompare(b))
+      .sort((a, b) => a.localeCompare(b, locale.value))
       .map((action) => ({ label: action, value: action })),
   ]
 })
@@ -165,11 +158,11 @@ const actorOptions = computed(() => {
   }
 
   const sorted = Array.from(actorMap.entries()).sort(([_idA, labelA], [_idB, labelB]) =>
-    labelA.localeCompare(labelB, 'zh-CN')
+    labelA.localeCompare(labelB, locale.value)
   )
 
   return [
-    { label: '全部操作者', value: '' },
+    { label: t('audit.allActors'), value: '' },
     ...sorted.map(([value, label]) => ({ label, value })),
   ]
 })
@@ -179,19 +172,21 @@ const toDisplayText = (value) => {
   return String(value)
 }
 
-const columns = [
+const columns = computed(() => [
   {
-    title: '时间',
+    title: t('audit.columns.time'),
     key: 'created_at',
     width: 200,
     align: 'center',
     render: (row) => {
-      const text = row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '-'
+      const text = row.created_at
+        ? new Date(row.created_at).toLocaleString(locale.value)
+        : '-'
       return h('span', text)
     }
   },
   {
-    title: '动作',
+    title: t('audit.columns.action'),
     key: 'action',
     width: 150,
     align: 'center',
@@ -202,7 +197,7 @@ const columns = [
     }
   },
   {
-    title: '操作者',
+    title: t('audit.columns.actor'),
     key: 'actor',
     width: 140,
     align: 'center',
@@ -212,7 +207,7 @@ const columns = [
     }
   },
   {
-    title: 'IP',
+    title: t('audit.columns.ip'),
     key: 'ip',
     width: 120,
     align: 'center',
@@ -222,7 +217,7 @@ const columns = [
     }
   },
   {
-    title: 'User-Agent',
+    title: t('audit.columns.userAgent'),
     key: 'user_agent',
     align: 'center',
     render: (row) => {
@@ -232,7 +227,7 @@ const columns = [
       )
     }
   }
-]
+])
 
 const toIsoStartOfDay = (dateValue) => {
   const local = new Date(`${dateValue}T00:00:00`)
@@ -254,7 +249,7 @@ const loadUsers = async () => {
     const result = await api.getUsers({ page: 1, limit: 100 })
     users.value = (result.users || []).filter((u) => u.status !== 'deleted')
   } catch (error) {
-    message.error('加载用户列表失败')
+    message.error(t('audit.loadUsersFailed'))
   } finally {
     usersLoading.value = false
   }
@@ -303,7 +298,7 @@ const loadLogs = async () => {
     logs.value = result.logs || []
     pagination.value.itemCount = result.total
   } catch (error) {
-    message.error('加载审计日志失败')
+    message.error(t('audit.loadLogsFailed'))
   } finally {
     loading.value = false
     activeAction.value = ''
@@ -325,6 +320,14 @@ const handleRefresh = () => {
 
 const changePage = (page) => {
   pagination.value.page = page
+  loadLogs()
+}
+
+const changePageSize = (pageSize) => {
+  const nextSize = Number(pageSize)
+  if (!Number.isFinite(nextSize) || nextSize <= 0) return
+  pagination.value.pageSize = nextSize
+  pagination.value.page = 1
   loadLogs()
 }
 
@@ -411,42 +414,6 @@ onMounted(() => {
 :deep(.audit-table .brutal-table th),
 :deep(.audit-table .brutal-table td) {
   white-space: nowrap;
-}
-
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--nb-space-md) var(--nb-space-lg);
-  border-top: var(--nb-border);
-}
-
-/* shadcn/ui theme: Modern pagination style */
-:root[data-ui-theme="shadcn"] .pagination {
-  background-color: var(--nb-gray-50);
-}
-
-.page-btns {
-  display: flex;
-  align-items: center;
-  gap: var(--nb-space-sm);
-}
-
-.page-info {
-  font-family: var(--nb-font-ui, var(--nb-font-mono));
-  font-weight: var(--nb-ui-font-weight, 700);
-  padding: 0 var(--nb-space-sm);
-}
-
-/* shadcn/ui theme: Cleaner page info */
-:root[data-ui-theme="shadcn"] .page-info {
-  font-weight: 600;
-  min-width: 32px;
-  text-align: center;
-  padding: 4px 12px;
-  background-color: var(--nb-surface);
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
 }
 
 @media (max-width: 720px) {
