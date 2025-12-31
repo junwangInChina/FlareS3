@@ -1,6 +1,9 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n({ useScope: 'global' })
 
 const props = defineProps({
   modelValue: [String, Number],
@@ -71,7 +74,7 @@ const handleClear = async () => {
         v-if="showClear"
         type="button"
         class="shadcn-input-clear"
-        aria-label="清除输入"
+        :aria-label="t('input.clear')"
         @mousedown.prevent
         @click="handleClear"
       >
