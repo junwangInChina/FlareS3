@@ -4,26 +4,32 @@
       <header class="files-header">
         <div class="files-title-group">
           <div class="files-title-row">
-            <h1 class="files-title">文件列表</h1>
+            <h1 class="files-title">{{ t('files.title') }}</h1>
             <Button
               type="ghost"
               size="small"
               class="files-upload-btn"
-              aria-label="上传文件"
+              :aria-label="t('files.uploadFile')"
               @click="showUploadModal = true"
             >
               <Upload :size="18" />
             </Button>
           </div>
           <p class="files-subtitle">
-            查看和管理所有上传的文件
+            {{ t('files.subtitle') }}
           </p>
         </div>
 
         <div class="files-actions">
           <div class="filter-row">
             <div class="filter-item filename">
-              <Input v-model="filters.filename" placeholder="文件名称" size="small" clearable @keyup.enter="handleSearch" />
+              <Input
+                v-model="filters.filename"
+                :placeholder="t('files.filters.filename')"
+                size="small"
+                clearable
+                @keyup.enter="handleSearch"
+              />
             </div>
 
             <div v-if="authStore.isAdmin" class="filter-item owner">
@@ -51,7 +57,7 @@
               @click="handleSearch"
             >
               <Search :size="16" style="margin-right: 6px" />
-              搜索
+              {{ t('common.search') }}
             </Button>
             <Button
               type="default"
@@ -61,7 +67,7 @@
               @click="handleRefresh"
             >
               <RefreshCw :size="16" style="margin-right: 6px" />
-              刷新
+              {{ t('common.refresh') }}
             </Button>
           </div>
         </div>
@@ -71,66 +77,51 @@
         <Card class="files-table-card">
           <Table class="files-table" :columns="columns" :data="filesStore.files" :loading="tableLoading" />
 
-          <div v-if="filesStore.total > 0" class="pagination">
-            <span>共 {{ filesStore.total }} 条</span>
-            <div class="page-btns">
-              <Button
-                size="small"
-                type="ghost"
-                :disabled="filesStore.loading || pagination.page <= 1"
-                @click="changePage(pagination.page - 1)"
-              >上一页</Button>
-              <span class="page-info">{{ pagination.page }}</span>
-              <Button
-                size="small"
-                type="ghost"
-                :disabled="filesStore.loading || pagination.page * pagination.pageSize >= filesStore.total"
-                @click="changePage(pagination.page + 1)"
-              >下一页</Button>
-            </div>
-          </div>
+          <Pagination
+            v-if="filesStore.total > 0"
+            :page="pagination.page"
+            :page-size="pagination.pageSize"
+            :total="filesStore.total"
+            :disabled="filesStore.loading"
+            @update:page="changePage"
+            @update:page-size="changePageSize"
+          />
         </Card>
       </section>
 
-      <Modal v-model:show="showInfoModal" title="文件信息" width="500px">
+      <Modal v-model:show="showInfoModal" :title="t('files.modals.infoTitle')" width="500px">
         <template v-if="selectedFile">
           <Descriptions
-            :items="[
-              { label: '文件名', value: selectedFile.filename },
-              { label: '文件大小', value: formatBytes(selectedFile.size) },
-              { label: '上传时间', value: new Date(selectedFile.created_at).toLocaleString('zh-CN') },
-              { label: '剩余时间', value: selectedFile.remaining_time },
-              { label: '下载权限', value: selectedFile.require_login ? '需要登录' : '公开' }
-            ]"
+            :items="fileInfoItems"
             :column="1"
           />
 
           <Divider />
 
           <div class="link-group">
-            <label class="link-label">短链接</label>
+            <label class="link-label">{{ t('upload.shortLink') }}</label>
             <div class="link-row">
               <Input :model-value="getShortUrl(selectedFile)" readonly size="small" />
-              <Button type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile), '短链接')">复制</Button>
+              <Button type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile))">{{ t('upload.copy') }}</Button>
             </div>
           </div>
 
           <div class="link-group">
-            <label class="link-label">直链</label>
+            <label class="link-label">{{ t('upload.directLink') }}</label>
             <div class="link-row">
               <Input :model-value="getDownloadUrl(selectedFile)" readonly size="small" />
-              <Button type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile), '直链')">复制</Button>
+              <Button type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile))">{{ t('upload.copy') }}</Button>
             </div>
           </div>
         </template>
 
         <template #footer>
-          <Button type="default" @click="showInfoModal = false">关闭</Button>
-          <Button type="primary" @click="handleDownload(selectedFile)">下载文件</Button>
+          <Button type="default" @click="showInfoModal = false">{{ t('common.close') }}</Button>
+          <Button type="primary" @click="handleDownload(selectedFile)">{{ t('files.downloadFile') }}</Button>
         </template>
       </Modal>
 
-      <Modal v-model:show="showUploadModal" title="上传文件" width="760px">
+      <Modal v-model:show="showUploadModal" :title="t('files.modals.uploadTitle')" width="760px">
         <UploadPanel v-if="showUploadModal" @uploaded="handleUploaded" />
       </Modal>
     </div>
@@ -140,6 +131,7 @@
 <script setup>
 import { ref, h, onMounted, computed } from 'vue'
 import { Info, Trash2, RefreshCw, Search, Upload } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
 import api from '../services/api'
@@ -153,6 +145,7 @@ import Descriptions from '../components/ui/descriptions/Descriptions.vue'
 import Divider from '../components/ui/divider/Divider.vue'
 import Input from '../components/ui/input/Input.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
+import Pagination from '../components/ui/pagination/Pagination.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from "../components/ui/tooltip/Tooltip.vue"
 import UploadPanel from '../components/upload/UploadPanel.vue'
@@ -161,6 +154,7 @@ import { useMessage } from '../composables/useMessage'
 const authStore = useAuthStore()
 const filesStore = useFilesStore()
 const message = useMessage()
+const { t, locale } = useI18n({ useScope: 'global' })
 
 const showInfoModal = ref(false)
 const selectedFile = ref(null)
@@ -177,15 +171,15 @@ const filters = ref({
 const usersLoading = ref(false)
 const users = ref([])
 const ownerOptions = computed(() => [
-  { label: '全部用户', value: '' },
+  { label: t('files.filters.allOwners'), value: '' },
   ...users.value.map((u) => ({ label: u.username, value: u.id }))
 ])
 
-const statusOptions = [
-  { label: '全部状态', value: '' },
-  { label: '有效', value: 'completed' },
-  { label: '失效', value: 'deleted' }
-]
+const statusOptions = computed(() => [
+  { label: t('files.filters.allStatus'), value: '' },
+  { label: t('files.status.valid'), value: 'completed' },
+  { label: t('files.status.invalid'), value: 'deleted' }
+])
 
 const activeAction = ref('')
 const hasLoadedOnce = ref(false)
@@ -193,15 +187,37 @@ const tableLoading = computed(() => filesStore.loading && !hasLoadedOnce.value)
 
 const pagination = ref({ page: 1, pageSize: 20 })
 
+const fileInfoItems = computed(() => {
+  const file = selectedFile.value
+  if (!file) {
+    return []
+  }
+
+  const uploadedAt = file.created_at
+    ? new Date(file.created_at).toLocaleString(locale.value)
+    : '-'
+  const permission = file.require_login
+    ? t('files.permission.requireLogin')
+    : t('files.permission.public')
+
+  return [
+    { label: t('files.info.filename'), value: file.filename },
+    { label: t('files.info.size'), value: formatBytes(file.size) },
+    { label: t('files.info.uploadedAt'), value: uploadedAt },
+    { label: t('files.info.remaining'), value: file.remaining_time },
+    { label: t('files.info.permission'), value: permission },
+  ]
+})
+
 const columns = computed(() => [
   {
-    title: '文件名',
+    title: t('files.columns.filename'),
     key: 'filename',
     align: 'left',
     render: (row) => h(Tooltip, { content: row.filename }, () => row.filename)
   },
   {
-    title: '大小',
+    title: t('files.columns.size'),
     key: 'size',
     width: 100,
     align: 'center',
@@ -212,18 +228,21 @@ const columns = computed(() => [
     }
   },
   {
-    title: '有效期',
+    title: t('files.columns.expires'),
     key: 'expires_in',
     width: 80,
     align: 'center',
     ellipsis: false,
     render: (row) => {
-      const text = row.expires_in === -30 ? '30秒' : row.expires_in + '天'
+      const text =
+        row.expires_in === -30
+          ? t('files.expires.seconds', { value: 30 })
+          : t('files.expires.days', { days: row.expires_in })
       return h('span', text)
     }
   },
   {
-    title: '状态',
+    title: t('files.columns.status'),
     key: 'status',
     width: 80,
     align: 'center',
@@ -233,7 +252,11 @@ const columns = computed(() => [
       const expiresAt = row.expires_at ? new Date(row.expires_at).getTime() : Number.NaN
       const isExpired = !isDeleted && Number.isFinite(expiresAt) && Date.now() > expiresAt
 
-      const statusText = isDeleted ? '失效' : isExpired ? '已过期' : '有效'
+      const statusText = isDeleted
+        ? t('files.status.invalid')
+        : isExpired
+          ? t('files.status.expired')
+          : t('files.status.valid')
       const tagType = isDeleted ? 'danger' : isExpired ? 'warning' : 'success'
       return h(Tag, {
         type: tagType,
@@ -242,7 +265,7 @@ const columns = computed(() => [
     }
   },
   {
-    title: '剩余时间',
+    title: t('files.columns.remaining'),
     key: 'remaining_time',
     width: 160,
     align: 'center',
@@ -252,17 +275,17 @@ const columns = computed(() => [
     }
   },
   {
-    title: '上传时间',
+    title: t('files.columns.uploadedAt'),
     key: 'created_at',
     width: 160,
     align: 'center',
     render: (row) => {
-      const text = new Date(row.created_at).toLocaleString('zh-CN')
+      const text = new Date(row.created_at).toLocaleString(locale.value)
       return h(Tooltip, { content: text }, () => text)
     }
   },
   ...(authStore.isAdmin ? [{
-    title: '归属用户',
+    title: t('files.columns.owner'),
     key: 'owner',
     width: 120,
     align: 'center',
@@ -273,7 +296,7 @@ const columns = computed(() => [
     }
   }] : []),
   {
-    title: '操作', key: 'actions', width: 200, align: 'center', ellipsis: false,
+    title: t('files.columns.actions'), key: 'actions', width: locale.value === 'zh-CN' ? 200 : 240, align: 'center', ellipsis: false,
     render: (row) => {
       const isDeleted = row.upload_status === 'deleted'
       return h('div', { class: 'action-buttons' }, [
@@ -284,7 +307,7 @@ const columns = computed(() => [
           onClick: () => showFileInfo(row)
         }, () => [
           h(Info, { size: 16, style: 'margin-right: 4px' }),
-          '详情'
+          t('common.details')
         ]),
         h(Button, {
           size: 'small',
@@ -293,7 +316,7 @@ const columns = computed(() => [
           onClick: () => handleDelete(row.id)
         }, () => [
           h(Trash2, { size: 16, style: 'margin-right: 4px' }),
-          '删除'
+          t('files.actions.delete')
         ])
       ])
     }
@@ -311,9 +334,9 @@ const formatBytes = (bytes) => {
 const getShortUrl = (file) => window.location.origin + '/s/' + file.short_code
 const getDownloadUrl = (file) => file.download_url || (window.location.origin + `/api/files/${file.id}/download`)
 
-const copyUrl = (url, type) => {
+const copyUrl = (url) => {
   navigator.clipboard.writeText(url)
-  message.success(`${type}已复制到剪贴板`)
+  message.success(t('common.copied'))
 }
 
 const showFileInfo = (row) => {
@@ -389,7 +412,7 @@ const loadUsers = async () => {
     const result = await api.getUsers({ page: 1, limit: 100 })
     users.value = (result.users || []).filter((u) => u.status !== 'deleted')
   } catch (error) {
-    message.error('加载用户列表失败')
+    message.error(t('files.messages.loadUsersFailed'))
   } finally {
     usersLoading.value = false
   }
@@ -400,7 +423,7 @@ const loadFiles = async () => {
     await filesStore.fetchFiles(pagination.value.page, pagination.value.pageSize, buildQueryParams())
     hasLoadedOnce.value = true
   } catch (error) {
-    message.error('加载文件列表失败')
+    message.error(t('files.messages.loadFilesFailed'))
   } finally {
     activeAction.value = ''
   }
@@ -424,17 +447,25 @@ const changePage = (page) => {
   loadFiles()
 }
 
+const changePageSize = (pageSize) => {
+  const nextSize = Number(pageSize)
+  if (!Number.isFinite(nextSize) || nextSize <= 0) return
+  pagination.value.pageSize = nextSize
+  pagination.value.page = 1
+  loadFiles()
+}
+
 const handleDownload = (row) => {
   window.open(getDownloadUrl(row), '_blank')
 }
 
 const handleDelete = async (fileId) => {
-  if (!confirm('确定要删除这个文件吗？')) return
+  if (!confirm(t('files.confirmDelete'))) return
   try {
     await filesStore.deleteFile(fileId)
-    message.success('文件已删除')
+    message.success(t('files.messages.deleteSuccess'))
   } catch (error) {
-    message.error('删除文件失败')
+    message.error(t('files.messages.deleteFailed'))
   }
 }
 
@@ -549,41 +580,6 @@ onMounted(() => {
 :deep(.files-table .shadcn-table th),
 :deep(.files-table .shadcn-table td) {
   white-space: nowrap;
-}
-
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--nb-space-md) var(--nb-space-lg);
-  border-top: var(--nb-border);
-}
-
-/* shadcn/ui theme adjustment */
-:root[data-ui-theme="shadcn"] .pagination {
-  background-color: var(--nb-gray-50);
-}
-
-.page-btns {
-  display: flex;
-  align-items: center;
-  gap: var(--nb-space-sm);
-}
-
-.page-info {
-  font-family: var(--nb-font-ui, var(--nb-font-mono));
-  font-weight: var(--nb-ui-font-weight, 700);
-  padding: 0 var(--nb-space-sm);
-}
-
-:root[data-ui-theme="shadcn"] .page-info {
-  font-weight: 600;
-  min-width: 32px;
-  text-align: center;
-  padding: 4px 12px;
-  background-color: var(--nb-surface);
-  border: var(--nb-border);
-  border-radius: var(--nb-radius-sm);
 }
 
 .link-group {
