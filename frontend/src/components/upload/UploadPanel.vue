@@ -5,26 +5,21 @@
       @file-selected="handleUpload"
       @before-upload="beforeUpload"
     >
-      <p class="upload-hint">支持单个文件上传，最大 5GB</p>
+      <p class="upload-hint">{{ t("upload.hint5gb") }}</p>
     </Upload>
 
     <Divider />
 
     <div class="upload-options">
-      <FormItem label="过期时间">
+      <FormItem :label="t('upload.expiresIn')">
         <Radio
           v-model="expiresIn"
-          :options="[
-            { label: '1天', value: 1 },
-            { label: '3天', value: 3 },
-            { label: '7天', value: 7 },
-            { label: '30天', value: 30 },
-          ]"
+          :options="expiresOptions"
           name="expires"
         />
       </FormItem>
 
-      <FormItem label="R2 配置">
+      <FormItem :label="t('upload.r2Config')">
         <Select
           v-model="selectedR2ConfigId"
           :options="r2ConfigOptions"
@@ -32,11 +27,11 @@
         />
       </FormItem>
 
-      <FormItem label="下载权限">
+      <FormItem :label="t('upload.downloadPermission')">
         <Switch
           v-model="requireLogin"
-          :checked-text="'需要登录'"
-          :unchecked-text="'公开下载'"
+          :checked-text="t('upload.requireLogin')"
+          :unchecked-text="t('upload.publicDownload')"
         />
       </FormItem>
     </div>
@@ -44,7 +39,9 @@
     <Alert v-if="isUploading" type="info" class="upload-status">
       <template #default>
         <div class="upload-info">
-          <strong>上传中: {{ currentFile?.name }}</strong>
+          <strong>{{
+            t("upload.uploading", { filename: currentFile?.name || "" })
+          }}</strong>
           <Progress :percentage="displayProgress" :height="20" />
           <div class="upload-stats">
             <span
@@ -52,7 +49,7 @@
               {{ formatBytes(totalSize) }}</span
             >
             <span>{{ uploadSpeed }}</span>
-            <span>剩余 {{ remainingTime }}</span>
+            <span>{{ t("upload.remaining", { time: remainingTime }) }}</span>
           </div>
         </div>
       </template>
@@ -70,10 +67,12 @@
               <Tag type="success">{{ uploadResult.avgSpeed }}</Tag>
               <Tag type="warning">{{ uploadResult.duration }}</Tag>
             </div>
-            <p class="expire-note">文件将在 {{ expiresIn }} 天后自动删除</p>
+            <p class="expire-note">
+              {{ t("upload.fileExpire", { days: expiresIn }) }}
+            </p>
 
             <div class="link-group">
-              <label class="link-label">短链接</label>
+              <label class="link-label">{{ t("upload.shortLink") }}</label>
               <div class="link-row">
                 <Input
                   :model-value="uploadResult.shortUrl"
@@ -81,13 +80,13 @@
                   size="small"
                 />
                 <Button type="primary" size="small" @click="copyShortUrl"
-                  >复制</Button
+                  >{{ t("upload.copy") }}</Button
                 >
               </div>
             </div>
 
             <div class="link-group">
-              <label class="link-label">直链</label>
+              <label class="link-label">{{ t("upload.directLink") }}</label>
               <div class="link-row">
                 <Input
                   :model-value="uploadResult.downloadUrl"
@@ -95,7 +94,7 @@
                   size="small"
                 />
                 <Button type="default" size="small" @click="copyDownloadUrl"
-                  >复制</Button
+                  >{{ t("upload.copy") }}</Button
                 >
               </div>
             </div>
@@ -110,7 +109,8 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import api from "../../services/api";
 import Upload from "../ui/upload/Upload.vue";
 import Divider from "../ui/divider/Divider.vue";
@@ -128,6 +128,7 @@ import { useMessage } from "../../composables/useMessage";
 const emit = defineEmits(["uploaded"]);
 
 const message = useMessage();
+const { t } = useI18n({ useScope: "global" });
 
 const uploadRef = ref(null);
 const expiresIn = ref(7);
@@ -136,6 +137,18 @@ const requireLogin = ref(true);
 const selectedR2ConfigId = ref("");
 const r2ConfigOptions = ref([]);
 const r2OptionsLoading = ref(false);
+
+const expiresOptions = computed(() =>
+  [
+    { days: 1, value: 1 },
+    { days: 3, value: 3 },
+    { days: 7, value: 7 },
+    { days: 30, value: 30 },
+  ].map((item) => ({
+    label: t("upload.expireDays", { days: item.days }),
+    value: item.value,
+  }))
+);
 
 onMounted(async () => {
   try {
@@ -149,7 +162,7 @@ onMounted(async () => {
     selectedR2ConfigId.value = result.default_config_id || opts[0]?.id || "";
   } catch (error) {
     console.error("加载 R2 配置选项失败:", error);
-    message.error("加载 R2 配置选项失败");
+    message.error(t("upload.loadR2OptionsFailed"));
   } finally {
     r2OptionsLoading.value = false;
   }
@@ -169,8 +182,8 @@ const uploadResult = ref(null);
 const isUploading = ref(false);
 const uploadedSize = ref(0);
 const totalSize = ref(0);
-const uploadSpeed = ref("0 B/s");
-const remainingTime = ref("计算中...");
+const uploadSpeed = ref(t("upload.preparing"));
+const remainingTime = ref(t("upload.calculating"));
 const displayProgress = ref(0);
 let uploadStartTime = 0;
 let animationFrame = null;
@@ -184,15 +197,16 @@ const formatBytes = (bytes) => {
 };
 
 const formatDuration = (seconds) => {
-  if (seconds < 60) return `${seconds.toFixed(1)} 秒`;
+  if (seconds < 60)
+    return t("upload.seconds", { value: Number(seconds).toFixed(1) });
   if (seconds < 3600) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.round(seconds % 60);
-    return `${mins} 分 ${secs} 秒`;
+    return t("upload.minutesSeconds", { minutes: mins, seconds: secs });
   }
   const hours = Math.floor(seconds / 3600);
   const mins = Math.round((seconds % 3600) / 60);
-  return `${hours} 小时 ${mins} 分`;
+  return t("upload.hoursMinutes", { hours, minutes: mins });
 };
 
 const animateProgress = () => {
@@ -234,10 +248,20 @@ const updateUploadStats = (loaded, total) => {
     uploadSpeed.value = formatBytes(avgSpeed) + "/s";
     if (avgSpeed > 0) {
       const remaining = (total - loaded) / avgSpeed;
-      if (remaining < 60) remainingTime.value = Math.round(remaining) + " 秒";
+      if (remaining < 60)
+        remainingTime.value = t("upload.secondsOnly", {
+          value: Math.round(remaining),
+        });
       else if (remaining < 3600)
-        remainingTime.value = Math.round(remaining / 60) + " 分钟";
-      else remainingTime.value = (remaining / 3600).toFixed(1) + " 小时";
+        remainingTime.value = t("upload.minutesOnly", {
+          value: Math.round(remaining / 60),
+        });
+      else
+        remainingTime.value = t("upload.hoursOnly", {
+          value: (remaining / 3600).toFixed(1),
+        });
+    } else {
+      remainingTime.value = t("upload.calculating");
     }
   }
 };
@@ -246,7 +270,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
 
 const beforeUpload = ({ file }) => {
   if (file.file.size > MAX_FILE_SIZE) {
-    message.error("文件大小超过 5GB 限制");
+    message.error(t("upload.fileTooLarge"));
     return false;
   }
   return true;
@@ -260,8 +284,8 @@ const handleUpload = async ({ file }) => {
   isUploading.value = true;
   uploadedSize.value = 0;
   totalSize.value = file.file.size;
-  uploadSpeed.value = "准备中...";
-  remainingTime.value = "计算中...";
+  uploadSpeed.value = t("upload.preparing");
+  remainingTime.value = t("upload.calculating");
   uploadStartTime = Date.now();
   animationFrame = null;
 
@@ -280,7 +304,8 @@ const handleUpload = async ({ file }) => {
     console.error("上传错误:", error);
     uploadResult.value = {
       success: false,
-      message: error.response?.data?.error || error.message || "上传失败",
+      message:
+        error.response?.data?.error || error.message || t("upload.uploadFailed"),
     };
   } finally {
     isUploading.value = false;
@@ -327,7 +352,7 @@ const uploadSmallFile = async (file) => {
     duration: formatDuration(duration),
   };
 
-  message.success("文件上传成功！");
+  message.success(t("upload.uploadSuccess"));
 };
 
 const uploadLargeFile = async (file) => {
@@ -373,7 +398,10 @@ const uploadLargeFile = async (file) => {
         );
 
         let etag = uploadResponse.headers?.etag || "";
-        if (!etag) throw new Error(`分片 ${partNumber} 未返回 ETag`);
+        if (!etag)
+          throw new Error(
+            t("upload.errors.partMissingEtag", { partNumber: partNumber })
+          );
         if (!etag.startsWith('"')) etag = `"${etag}"`;
 
         partProgress[partIndex] = end - start;
@@ -409,7 +437,12 @@ const uploadLargeFile = async (file) => {
     .sort((a, b) => a.part_number - b.part_number);
 
   if (validParts.length !== total_parts) {
-    throw new Error(`分片上传不完整: ${validParts.length}/${total_parts}`);
+    throw new Error(
+      t("upload.errors.incompleteMultipart", {
+        uploaded: validParts.length,
+        total: total_parts,
+      })
+    );
   }
 
   const completeResponse = await api.completeMultipartUpload({
@@ -439,20 +472,20 @@ const uploadLargeFile = async (file) => {
     duration: formatDuration(duration),
   };
 
-  message.success("文件上传成功！");
+  message.success(t("upload.uploadSuccess"));
 };
 
 const copyShortUrl = () => {
   if (uploadResult.value?.shortUrl) {
     navigator.clipboard.writeText(uploadResult.value.shortUrl);
-    message.success("短链接已复制到剪贴板");
+    message.success(t("upload.shortLinkCopied"));
   }
 };
 
 const copyDownloadUrl = () => {
   if (uploadResult.value?.downloadUrl) {
     navigator.clipboard.writeText(uploadResult.value.downloadUrl);
-    message.success("完整链接已复制到剪贴板");
+    message.success(t("upload.directLinkCopied"));
   }
 };
 </script>
