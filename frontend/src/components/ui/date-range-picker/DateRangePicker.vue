@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useThemeStore } from "../../../stores/theme"
 import BrutalDateRangePicker from './BrutalDateRangePicker.vue'
 import ShadcnDateRangePicker from './ShadcnDateRangePicker.vue'
@@ -7,7 +8,7 @@ import ShadcnDateRangePicker from './ShadcnDateRangePicker.vue'
 const props = defineProps({
   startValue: { type: String, default: '' },
   endValue: { type: String, default: '' },
-  placeholder: { type: String, default: '开始日期 - 结束日期' },
+  placeholder: { type: String, default: '' },
   disabled: Boolean,
   readonly: Boolean,
   size: { type: String, default: 'medium' },
@@ -18,17 +19,22 @@ const props = defineProps({
 const emit = defineEmits(['update:startValue', 'update:endValue'])
 
 const themeStore = useThemeStore()
+const { t } = useI18n({ useScope: 'global' })
 const currentComponent = computed(() => {
   return themeStore.uiTheme === 'shadcn' ? ShadcnDateRangePicker : BrutalDateRangePicker
 })
+
+const forwardedProps = computed(() => ({
+  ...props,
+  placeholder: props.placeholder || t('dateRange.placeholder'),
+}))
 </script>
 
 <template>
   <component
     :is="currentComponent"
-    v-bind="props"
+    v-bind="forwardedProps"
     @update:start-value="emit('update:startValue', $event)"
     @update:end-value="emit('update:endValue', $event)"
   />
 </template>
-
