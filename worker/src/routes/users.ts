@@ -104,6 +104,15 @@ export async function createUser(request: Request, env: Env): Promise<Response> 
 export async function updateUser(request: Request, env: Env, userId: string): Promise<Response> {
   try {
     const body = await parseJson<{ status?: 'active' | 'disabled' | 'deleted'; role?: 'admin' | 'user'; quota_bytes?: number }>(request)
+    if (body.status === 'disabled' || body.status === 'deleted') {
+      const target = await env.DB.prepare('SELECT role FROM users WHERE id = ? LIMIT 1')
+        .bind(userId)
+        .first()
+      const targetRole = target ? String((target as { role?: unknown }).role ?? '') : ''
+      if (targetRole === 'admin') {
+        return jsonResponse({ error: '管理员用户不允许禁用或删除' }, 400)
+      }
+    }
     const updates: string[] = []
     const params: unknown[] = []
     if (body.status) {
@@ -131,9 +140,17 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
     await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run()
 
     const actor = getUser(request)
+    const auditAction =
+      body.status === 'disabled'
+        ? 'USER_DISABLE'
+        : body.status === 'active'
+          ? 'USER_ENABLE'
+          : body.status === 'deleted'
+            ? 'USER_DELETE'
+            : 'USER_UPDATE'
     await logAudit(env.DB, {
       actorUserId: actor?.id,
-      action: 'USER_UPDATE',
+      action: auditAction,
       targetType: 'user',
       targetId: userId,
       ip: getClientIp(request),
@@ -174,6 +191,17 @@ export async function resetPassword(request: Request, env: Env, userId: string):
 }
 
 export async function deleteUser(request: Request, env: Env, userId: string): Promise<Response> {
+  const target = await env.DB.prepare('SELECT role FROM users WHERE id = ? LIMIT 1')
+    .bind(userId)
+    .first()
+  if (!target) {
+    return jsonResponse({ error: '用户不存在' }, 404)
+  }
+  const targetRole = String((target as { role?: unknown }).role ?? '')
+  if (targetRole === 'admin') {
+    return jsonResponse({ error: '管理员用户不允许删除' }, 400)
+  }
+
   const now = new Date().toISOString()
   await env.DB.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')
     .bind('deleted', now, userId)
