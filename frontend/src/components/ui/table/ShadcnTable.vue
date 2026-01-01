@@ -26,7 +26,12 @@ defineProps({
               textAlign: col.align || 'left'
             }"
           >
-            {{ col.title }}
+            <template v-if="col.titleRender">
+              <component :is="col.titleRender()" />
+            </template>
+            <template v-else>
+              {{ col.title }}
+            </template>
           </th>
         </tr>
       </thead>
