@@ -106,6 +106,7 @@ import { computed, ref, h, onMounted } from 'vue'
 import { RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
+import { useThemeStore } from '../stores/theme'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from "../components/ui/card/Card.vue"
 import Button from "../components/ui/button/Button.vue"
@@ -120,6 +121,7 @@ import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
+const themeStore = useThemeStore()
 const logs = ref([])
 const loading = ref(false)
 const activeAction = ref('')
@@ -143,7 +145,9 @@ const knownActions = [
   'R2_CONFIG_UPDATE',
   'UPLOAD_PRESIGN',
   'USER_CREATE',
+  'USER_DISABLE',
   'USER_DELETE',
+  'USER_ENABLE',
   'USER_RESET_PASSWORD',
   'USER_UPDATE',
 ]
@@ -361,8 +365,9 @@ const columns = computed(() => [
   {
     title: t('audit.columns.action'),
     key: 'action',
-    width: 150,
+    width: themeStore.uiTheme === 'shadcn' ? 200 : 150,
     align: 'center',
+    ellipsis: false,
     render: (row) => {
       const text = toDisplayText(row.action)
       if (text === '-') return text
