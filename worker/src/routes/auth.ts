@@ -29,6 +29,8 @@ async function hashToken(token: string): Promise<string> {
 
 export async function login(request: Request, env: Env): Promise<Response> {
   try {
+    const ip = getClientIp(request)
+    const userAgent = request.headers.get('User-Agent') || undefined
     const body = await parseJson<{ username: string; password: string }>(request)
     if (!body.username || !body.password) {
       return jsonResponse({ error: '用户名或密码不能为空' }, 400)
@@ -38,16 +40,38 @@ export async function login(request: Request, env: Env): Promise<Response> {
     )
       .bind(body.username)
       .first()
-    if (!user || user.status !== 'active' || !verifyPassword(body.password, String(user.password_hash))) {
-      await recordFailedAttempt(env, getClientIp(request))
-      await logAudit(env.DB, {
-        action: 'LOGIN_FAILED',
-        targetType: 'user',
-        targetId: user ? String(user.id) : undefined,
-        ip: getClientIp(request),
-        userAgent: request.headers.get('User-Agent') || undefined
-      })
-      return jsonResponse({ error: '用户名或密码错误' }, 401)
+
+    const trackLoginFailure = async (targetId?: string) => {
+      await Promise.allSettled([
+        recordFailedAttempt(env, ip),
+        logAudit(env.DB, {
+          action: 'LOGIN_FAILED',
+          targetType: 'user',
+          targetId,
+          ip,
+          userAgent
+        })
+      ])
+    }
+
+    if (!user) {
+      await trackLoginFailure()
+      return jsonResponse({ error: '账号不存在', code: 'USER_NOT_FOUND' }, 401)
+    }
+
+    if (user.status === 'disabled') {
+      await trackLoginFailure(String(user.id))
+      return jsonResponse({ error: '账号被禁用', code: 'USER_DISABLED' }, 403)
+    }
+
+    if (user.status !== 'active') {
+      await trackLoginFailure(String(user.id))
+      return jsonResponse({ error: '账号不存在', code: 'USER_NOT_FOUND' }, 401)
+    }
+
+    if (!verifyPassword(body.password, String(user.password_hash))) {
+      await trackLoginFailure(String(user.id))
+      return jsonResponse({ error: '密码错误', code: 'PASSWORD_INCORRECT' }, 401)
     }
     const sessionToken = crypto.randomUUID() + crypto.randomUUID()
     const tokenHash = await hashToken(sessionToken)
@@ -71,14 +95,16 @@ export async function login(request: Request, env: Env): Promise<Response> {
     await env.DB.prepare('UPDATE users SET last_login_at = ? WHERE id = ?')
       .bind(now.toISOString(), user.id)
       .run()
-    await logAudit(env.DB, {
-      actorUserId: String(user.id),
-      action: 'LOGIN_SUCCESS',
-      targetType: 'user',
-      targetId: String(user.id),
-      ip: getClientIp(request),
-      userAgent: request.headers.get('User-Agent') || undefined
-    })
+    await Promise.allSettled([
+      logAudit(env.DB, {
+        actorUserId: String(user.id),
+        action: 'LOGIN_SUCCESS',
+        targetType: 'user',
+        targetId: String(user.id),
+        ip,
+        userAgent
+      })
+    ])
     return new Response(JSON.stringify({
       success: true,
       user: { id: user.id, username: user.username, role: user.role, status: user.status }
@@ -89,6 +115,7 @@ export async function login(request: Request, env: Env): Promise<Response> {
       }
     })
   } catch (error) {
+    console.error('[auth.login] failed', error)
     return jsonResponse({ error: '登录失败' }, 500)
   }
 }
