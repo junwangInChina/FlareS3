@@ -5,6 +5,7 @@ import Toast from '../components/ui/toast/Toast.vue'
 let toastInstance = null
 let toastContainer = null
 let toastRef = null
+let toastVNode = null
 
 const createToastInstance = (appContext) => {
   if (toastInstance) return toastInstance
@@ -14,10 +15,15 @@ const createToastInstance = (appContext) => {
   document.body.appendChild(toastContainer)
 
   toastRef = ref(null)
-  const vnode = h(Toast, { ref: toastRef })
-  vnode.appContext = appContext
-  render(vnode, toastContainer)
-  toastInstance = toastRef.value || null
+  toastVNode = h(Toast, { ref: toastRef })
+  toastVNode.appContext = appContext
+  render(toastVNode, toastContainer)
+
+  toastInstance =
+    toastRef.value ||
+    toastVNode.component?.exposed ||
+    toastVNode.component?.proxy ||
+    null
 
   return toastInstance
 }
@@ -31,14 +37,26 @@ export const useMessage = () => {
       if (!appContext) return null
       createToastInstance(appContext)
     }
-    return toastInstance
+    return toastRef?.value || toastInstance
+  }
+
+  const invoke = (method, message, duration) => {
+    const target = getInstance()
+    if (target?.[method]) {
+      target[method](message, duration)
+      return
+    }
+    Promise.resolve().then(() => {
+      const retry = getInstance()
+      retry?.[method]?.(message, duration)
+    })
   }
 
   return {
-    success: (message, duration) => getInstance()?.success?.(message, duration),
-    error: (message, duration) => getInstance()?.error?.(message, duration),
-    warning: (message, duration) => getInstance()?.warning?.(message, duration),
-    info: (message, duration) => getInstance()?.info?.(message, duration)
+    success: (message, duration) => invoke('success', message, duration),
+    error: (message, duration) => invoke('error', message, duration),
+    warning: (message, duration) => invoke('warning', message, duration),
+    info: (message, duration) => invoke('info', message, duration)
   }
 }
 
