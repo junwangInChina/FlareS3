@@ -38,7 +38,7 @@ import {
 import { listFiles, downloadFile, deleteFile } from "./routes/files";
 import { shortlink } from "./routes/shortlink";
 import { getStats } from "./routes/stats";
-import { listAudit } from "./routes/audit";
+import { listAudit, deleteAudit, batchDeleteAudit } from "./routes/audit";
 import { cleanupExpired } from "./jobs/cleanupExpired";
 import { cleanupDeleteQueue } from "./jobs/cleanupDeleteQueue";
 
@@ -189,6 +189,16 @@ router.get("/api/audit", (request, env: Env) => {
   const auth = requireAdmin(request);
   if (auth) return auth;
   return listAudit(request, env);
+});
+router.delete("/api/audit/:id", (request, env: Env) => {
+  const auth = requireAdmin(request);
+  if (auth) return auth;
+  return deleteAudit(request, env, (request as any).params.id);
+});
+router.post("/api/audit/batch-delete", (request, env: Env) => {
+  const auth = requireAdmin(request);
+  if (auth) return auth;
+  return batchDeleteAudit(request, env);
 });
 
 router.get("/s/:code", (request, env: Env) =>
