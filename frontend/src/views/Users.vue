@@ -50,7 +50,7 @@
             </Button>
           </div>
 
-          <Button type="primary" size="small" :disabled="loading" @click="showCreateModal = true">
+          <Button v-if="authStore.isAdmin" type="primary" size="small" :disabled="loading" @click="showCreateModal = true">
             <Plus :size="16" style="margin-right: 6px" />
             {{ t('users.createUser') }}
           </Button>
@@ -72,18 +72,15 @@
         </Card>
       </section>
 
-      <Modal v-model:show="showCreateModal" :title="t('users.createModalTitle')" width="480px">
+      <Modal v-if="authStore.isAdmin" v-model:show="showCreateModal" :title="t('users.createModalTitle')" width="480px">
         <FormItem :label="t('users.form.username')">
           <Input v-model="createForm.username" :placeholder="t('users.form.usernamePlaceholder')" />
         </FormItem>
         <FormItem :label="t('users.form.password')">
           <Input v-model="createForm.password" type="password" :placeholder="t('users.form.passwordPlaceholder')" />
         </FormItem>
-        <FormItem :label="t('users.form.role')">
-          <Select v-model="createForm.role" :options="roleOptions" />
-        </FormItem>
         <FormItem :label="t('users.form.quota')">
-          <Input v-model="createForm.quota_bytes" :placeholder="t('users.form.quotaPlaceholder')" />
+          <Input v-model="createForm.quota_gb" type="number" :placeholder="t('users.form.quotaPlaceholder')" />
         </FormItem>
 
         <template #footer>
@@ -102,6 +99,38 @@
           <Button type="primary" :loading="resetting" @click="handleResetPassword">{{ t('common.submit') }}</Button>
         </template>
       </Modal>
+
+      <Modal
+        :show="showDisableModal"
+        :title="t('users.modals.disableTitle')"
+        width="420px"
+        @update:show="handleDisableModalUpdate"
+      >
+        <p class="users-confirm-text">
+          {{ disableConfirmText }}
+        </p>
+
+        <template #footer>
+          <Button type="default" :disabled="disabling" @click="handleDisableCancel">{{ t('common.cancel') }}</Button>
+          <Button type="danger" :loading="disabling" @click="handleDisableConfirm">{{ t('users.actions.disable') }}</Button>
+        </template>
+      </Modal>
+
+      <Modal
+        :show="showDeleteModal"
+        :title="t('users.modals.deleteTitle')"
+        width="420px"
+        @update:show="handleDeleteModalUpdate"
+      >
+        <p class="users-confirm-text">
+          {{ deleteConfirmText }}
+        </p>
+
+        <template #footer>
+          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">{{ t('common.cancel') }}</Button>
+          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">{{ t('users.actions.delete') }}</Button>
+        </template>
+      </Modal>
     </div>
   </AppLayout>
 </template>
@@ -111,6 +140,7 @@ import { computed, ref, h, onMounted } from 'vue'
 import { KeyRound, Trash2, UserCheck, UserX, Plus, Search, RefreshCw } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
+import { useAuthStore } from '../stores/auth'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from "../components/ui/card/Card.vue"
 import Button from "../components/ui/button/Button.vue"
@@ -126,6 +156,7 @@ import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
+const authStore = useAuthStore()
 const users = ref([])
 const loading = ref(false)
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
@@ -147,18 +178,22 @@ const userOptions = computed(() => [
     .map((u) => ({ label: u.username, value: u.username }))
 ])
 
-const roleOptions = computed(() => [
-  { label: t('role.admin'), value: 'admin' },
-  { label: t('role.user'), value: 'user' }
-])
-
 const showCreateModal = ref(false)
-const createForm = ref({ username: '', password: '', role: 'user', quota_bytes: '10737418240' })
+const defaultCreateForm = () => ({ username: '', password: '', quota_gb: '10' })
+const createForm = ref(defaultCreateForm())
 const creating = ref(false)
 
 const showResetModal = ref(false)
 const resetForm = ref({ userId: '', password: '' })
 const resetting = ref(false)
+
+const showDisableModal = ref(false)
+const disabling = ref(false)
+const pendingDisableUser = ref(null)
+
+const showDeleteModal = ref(false)
+const deleting = ref(false)
+const pendingDeleteUser = ref(null)
 
 const formatBytes = (bytes) => {
   const unit = 1024
@@ -235,11 +270,16 @@ const columns = computed(() => [
   {
     title: t('users.columns.actions'),
     key: 'actions',
-    width: locale.value === 'zh-CN' ? 330 : 420,
+    width: locale.value === 'zh-CN' ? 330 : 380,
     align: 'center',
     ellipsis: false,
     render: (row) => h('div', { class: 'action-buttons' }, [
-      h(Button, { size: 'small', type: 'default', onClick: () => toggleStatus(row) }, () => [
+      h(Button, {
+        size: 'small',
+        type: 'default',
+        disabled: row.role === 'admin' && row.status === 'active',
+        onClick: () => toggleStatus(row)
+      }, () => [
         row.status === 'active'
           ? h(UserX, { size: 16, style: 'margin-right: 4px' })
           : h(UserCheck, { size: 16, style: 'margin-right: 4px' }),
@@ -249,7 +289,12 @@ const columns = computed(() => [
         h(KeyRound, { size: 16, style: 'margin-right: 4px' }),
         t('users.actions.resetPassword')
       ]),
-      h(Button, { size: 'small', type: 'danger', onClick: () => handleDelete(row) }, () => [
+      h(Button, {
+        size: 'small',
+        type: 'danger',
+        disabled: row.role === 'admin',
+        onClick: () => handleDelete(row)
+      }, () => [
         h(Trash2, { size: 16, style: 'margin-right: 4px' }),
         t('users.actions.delete')
       ])
@@ -370,9 +415,27 @@ const changePageSize = (pageSize) => {
   loadUsers()
 }
 
+const parseQuotaGb = (value) => {
+  const numeric = Number(String(value ?? '').trim())
+  return Number.isFinite(numeric) ? numeric : Number.NaN
+}
+
+const disableConfirmText = computed(() => t('users.confirmDisable'))
+const deleteConfirmText = computed(() => t('users.confirmDelete'))
+
 const handleCreate = async () => {
   if (!createForm.value.username || !createForm.value.password) {
     message.error(t('users.messages.fillUsernamePassword'))
+    return
+  }
+  const quotaGb = parseQuotaGb(createForm.value.quota_gb)
+  if (!Number.isFinite(quotaGb) || quotaGb <= 0) {
+    message.error(t('users.messages.quotaInvalid'))
+    return
+  }
+  const quotaBytes = Math.round(quotaGb * 1024 * 1024 * 1024)
+  if (!Number.isSafeInteger(quotaBytes) || quotaBytes <= 0) {
+    message.error(t('users.messages.quotaInvalid'))
     return
   }
   try {
@@ -381,12 +444,12 @@ const handleCreate = async () => {
     const result = await api.createUser({
       username: createForm.value.username,
       password: createForm.value.password,
-      role: createForm.value.role,
-      quota_bytes: Number(createForm.value.quota_bytes)
+      role: 'user',
+      quota_bytes: quotaBytes
     })
     message.success(t('users.messages.createSuccess'))
     showCreateModal.value = false
-    createForm.value = { username: '', password: '', role: 'user', quota_bytes: '10737418240' }
+    createForm.value = defaultCreateForm()
     if (createdUsername) {
       const createdUserId = result?.user_id ? String(result.user_id) : ''
       const exists = userOptionsUsers.value.some((u) => String(u.id) === createdUserId || u.username === createdUsername)
@@ -408,13 +471,22 @@ const handleCreate = async () => {
 }
 
 const toggleStatus = async (row) => {
+  if (row?.role === 'admin' && row?.status === 'active') {
+    message.error(t('users.messages.adminCannotDisable'))
+    return
+  }
+  if (row?.status === 'active') {
+    openDisableModal(row)
+    return
+  }
+  const userId = String(row?.id ?? '').trim()
+  if (!userId) return
   try {
-    const status = row.status === 'active' ? 'disabled' : 'active'
-    await api.updateUser(row.id, { status })
+    await api.updateUser(userId, { status: 'active' })
     message.success(t('users.messages.statusUpdated'))
     loadUsers()
   } catch (error) {
-    message.error(t('users.messages.statusUpdateFailed'))
+    message.error(error.response?.data?.error || t('users.messages.statusUpdateFailed'))
   }
 }
 
@@ -440,17 +512,102 @@ const handleResetPassword = async () => {
   }
 }
 
-const handleDelete = async (row) => {
-  if (!confirm(t('users.confirmDelete'))) return
+const openDisableModal = (row) => {
+  const id = String(row?.id ?? '').trim()
+  if (!id) return
+  pendingDisableUser.value = { id }
+  showDisableModal.value = true
+}
+
+const closeDisableModal = () => {
+  showDisableModal.value = false
+  pendingDisableUser.value = null
+}
+
+const handleDisableModalUpdate = (nextValue) => {
+  if (disabling.value) return
+  if (!nextValue) {
+    closeDisableModal()
+    return
+  }
+  showDisableModal.value = true
+}
+
+const handleDisableCancel = () => {
+  if (disabling.value) return
+  closeDisableModal()
+}
+
+const handleDisableConfirm = async () => {
+  if (disabling.value) return
+  const userId = pendingDisableUser.value?.id
+  if (!userId) return
+
+  disabling.value = true
   try {
-    await api.deleteUser(row.id)
+    await api.updateUser(userId, { status: 'disabled' })
+    message.success(t('users.messages.statusUpdated'))
+    closeDisableModal()
+    loadUsers()
+  } catch (error) {
+    message.error(error.response?.data?.error || t('users.messages.statusUpdateFailed'))
+  } finally {
+    disabling.value = false
+  }
+}
+
+const openDeleteModal = (row) => {
+  const id = String(row?.id ?? '').trim()
+  if (!id) return
+  pendingDeleteUser.value = { id }
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  pendingDeleteUser.value = null
+}
+
+const handleDeleteModalUpdate = (nextValue) => {
+  if (deleting.value) return
+  if (!nextValue) {
+    closeDeleteModal()
+    return
+  }
+  showDeleteModal.value = true
+}
+
+const handleDeleteCancel = () => {
+  if (deleting.value) return
+  closeDeleteModal()
+}
+
+const handleDeleteConfirm = async () => {
+  if (deleting.value) return
+  const userId = pendingDeleteUser.value?.id
+  if (!userId) return
+
+  deleting.value = true
+  try {
+    await api.deleteUser(userId)
     message.success(t('users.messages.userDeleted'))
-    userOptionsUsers.value = userOptionsUsers.value.filter((u) => String(u.id) !== String(row.id))
+    closeDeleteModal()
+    userOptionsUsers.value = userOptionsUsers.value.filter((u) => String(u.id) !== String(userId))
     if (users.value.length <= 1 && pagination.value.page > 1) pagination.value.page -= 1
     loadUsers()
   } catch (error) {
     message.error(t('users.messages.deleteFailed'))
+  } finally {
+    deleting.value = false
   }
+}
+
+const handleDelete = (row) => {
+  if (row?.role === 'admin') {
+    message.error(t('users.messages.adminCannotDelete'))
+    return
+  }
+  openDeleteModal(row)
 }
 
 onMounted(() => {
@@ -550,6 +707,11 @@ onMounted(() => {
 
 :root[data-ui-theme="shadcn"] :deep(.action-buttons) {
   gap: 8px;
+}
+
+.users-confirm-text {
+  margin: 0;
+  color: var(--nb-ink);
 }
 
 @media (max-width: 720px) {
