@@ -136,6 +136,12 @@ export default {
   getAudit(params = {}) {
     return api.get("/audit", { params });
   },
+  deleteAuditLog(auditId) {
+    return api.delete(`/audit/${auditId}`);
+  },
+  batchDeleteAuditLogs(ids = []) {
+    return api.post("/audit/batch-delete", { ids });
+  },
 
   // 直接上传到 R2
   uploadToR2(url, file, onProgress) {
