@@ -246,11 +246,11 @@
             />
           </FormItem>
 
-          <FormItem :label="t('setup.labels.quotaBytes')">
+          <FormItem :label="t('setup.labels.quotaGb')">
             <Input
-              v-model="formValue.quota_bytes"
+              v-model="formValue.quota_gb"
               type="number"
-              :placeholder="t('setup.placeholders.quotaBytes')"
+              :placeholder="t('setup.placeholders.quotaGb')"
             />
           </FormItem>
 
@@ -384,7 +384,7 @@ const formValue = ref({
   name: "",
   endpoint: "",
   bucket_name: "",
-  quota_bytes: "10737418240",
+  quota_gb: "10",
   access_key_id: "",
   secret_access_key: "",
 });
@@ -394,7 +394,7 @@ const resetForm = () => {
     name: "",
     endpoint: "",
     bucket_name: "",
-    quota_bytes: "10737418240",
+    quota_gb: "10",
     access_key_id: "",
     secret_access_key: "",
   };
@@ -507,11 +507,19 @@ const openEdit = (row) => {
     name: row.name || "",
     endpoint: row.endpoint || "",
     bucket_name: row.bucket_name || "",
-    quota_bytes: row.totalSpace ? String(row.totalSpace) : "10737418240",
+    quota_gb: row.totalSpace ? formatQuotaGb(row.totalSpace) : "10",
     access_key_id: "",
     secret_access_key: "",
   };
   modalVisible.value = true;
+};
+
+const formatQuotaGb = (bytesValue) => {
+  const bytes = Number(bytesValue);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "10";
+  const gb = bytes / (1024 * 1024 * 1024);
+  const rounded = Math.round(gb * 100) / 100;
+  return String(rounded);
 };
 
 const handleSubmit = async () => {
@@ -519,14 +527,19 @@ const handleSubmit = async () => {
     !formValue.value.name ||
     !formValue.value.endpoint ||
     !formValue.value.bucket_name ||
-    !formValue.value.quota_bytes
+    !formValue.value.quota_gb
   ) {
     message.error(t("setup.validation.required"));
     return;
   }
 
-  const quotaBytes = Number(formValue.value.quota_bytes);
-  if (!Number.isFinite(quotaBytes) || quotaBytes <= 0) {
+  const quotaGb = Number(String(formValue.value.quota_gb ?? "").trim());
+  if (!Number.isFinite(quotaGb) || quotaGb <= 0) {
+    message.error(t("setup.validation.quotaInvalid"));
+    return;
+  }
+  const quotaBytes = Math.round(quotaGb * 1024 * 1024 * 1024);
+  if (!Number.isSafeInteger(quotaBytes) || quotaBytes <= 0) {
     message.error(t("setup.validation.quotaInvalid"));
     return;
   }
