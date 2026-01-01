@@ -36,10 +36,6 @@
         >
           {{ t('auth.login') }}
         </Button>
-
-        <Alert v-if="errorMessage" type="error" class="error-alert">
-          {{ errorMessage }}
-        </Alert>
       </form>
 
       <p class="footer-text">{{ t('auth.adminTip') }}</p>
@@ -56,15 +52,16 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
+import { useMessage } from '../composables/useMessage'
 import Input from '../components/ui/input/Input.vue'
 import Button from '../components/ui/button/Button.vue'
-import Alert from '../components/ui/alert/Alert.vue'
 import FormItem from '../components/ui/form-item/FormItem.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n({ useScope: 'global' })
+const message = useMessage()
 
 const formValue = ref({
   username: '',
@@ -72,17 +69,21 @@ const formValue = ref({
 })
 
 const loading = ref(false)
-const errorMessage = ref('')
+
+const loginErrorKeyByCode = {
+  USER_NOT_FOUND: 'auth.errors.userNotFound',
+  PASSWORD_INCORRECT: 'auth.errors.passwordIncorrect',
+  USER_DISABLED: 'auth.errors.userDisabled',
+}
 
 const handleSubmit = async () => {
   if (!formValue.value.username || !formValue.value.password) {
-    errorMessage.value = t('auth.usernamePasswordRequired')
+    message.error(t('auth.usernamePasswordRequired'))
     return
   }
 
   try {
     loading.value = true
-    errorMessage.value = ''
 
     const result = await authStore.login(formValue.value.username, formValue.value.password)
     if (result.success) {
@@ -90,10 +91,11 @@ const handleSubmit = async () => {
       const target = next.startsWith('/') ? next : '/'
       router.push(target)
     } else {
-      errorMessage.value = result.message || t('auth.loginFailed')
+      const key = result.code ? loginErrorKeyByCode[result.code] : ''
+      message.error(key ? t(key) : result.message || t('auth.loginFailed'))
     }
   } catch (error) {
-    errorMessage.value = error.response?.data?.error || t('auth.loginFailed')
+    message.error(error.response?.data?.error || t('auth.loginFailed'))
   } finally {
     loading.value = false
   }
@@ -159,10 +161,6 @@ const handleSubmit = async () => {
 
 .login-form {
   margin-top: var(--nb-space-xl);
-}
-
-.error-alert {
-  margin-top: var(--nb-space-md);
 }
 
 .footer-text {
