@@ -20,9 +20,13 @@ export const useAuthStore = defineStore('auth', {
           this.user = response.user
           return { success: true }
         }
-        return { success: false, message: response.message }
+        return { success: false, message: response.message, code: response.code }
       } catch (error) {
-        return { success: false, message: error.response?.data?.error || '' }
+        return {
+          success: false,
+          message: error.response?.data?.error || '',
+          code: error.response?.data?.code
+        }
       }
     },
 
