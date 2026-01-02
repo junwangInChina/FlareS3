@@ -1,0 +1,101 @@
+export default {
+  setup: {
+    title: "存储管理",
+    help: "使用提示",
+    subtitle:
+      "管理多套 Cloudflare R2 配置，你可以在这里管理多套 Cloudflare R2 配置，并设置默认配置。 上传文件时可选择使用哪套配置。",
+    actions: {
+      addConfig: "添加新配置",
+      refreshList: "刷新列表",
+    },
+    state: {
+      loading: "加载中...",
+      emptyTitle: "暂无配置",
+      emptyContent: "还没有任何 R2 配置，点击“添加新配置”开始创建。",
+      defaultTag: "默认",
+    },
+    labels: {
+      bucket: "存储桶",
+      totalSpace: "总容量",
+      usedSpace: "已用容量",
+      usagePercent: "使用进度",
+      configId: "配置 ID",
+      name: "名称",
+      endpoint: "R2 端点 URL",
+      bucketName: "Bucket Name",
+      quotaGb: "总容量 (GB)",
+      accessKeyId: "Access Key ID",
+      accessKeyIdOptional: "Access Key ID（留空不更新）",
+      secretAccessKey: "Secret Access Key",
+      secretAccessKeyOptional: "Secret Access Key（留空不更新）",
+    },
+    placeholders: {
+      name: "例如：生产环境",
+      endpoint: "https://<account_id>.r2.cloudflarestorage.com",
+      bucketName: "存储桶名称",
+      quotaGb: "例如 10",
+      accessKeyId: "R2 访问密钥 ID",
+      secretAccessKey: "R2 访问密钥",
+    },
+    hint: {
+      title: "提示",
+      endpointFormatPrefix: "R2 端点 URL 格式为",
+      endpointFormat: "R2 端点 URL 格式为 {url}",
+      tokenCreatePrefix: "访问密钥请在 Cloudflare Dashboard 的",
+      tokenCreateSuffix: "中创建（需要 Object Read/Write）。",
+      tokenCreate:
+        "访问密钥请在 Cloudflare Dashboard 的 {path} 中创建（需要 Object Read/Write）。",
+    },
+    modal: {
+      createTitle: "新增 R2 配置",
+      editTitle: "编辑 R2 配置",
+      save: "保存",
+    },
+    aria: {
+      testConnection: "测试连接",
+      setDefault: "设为默认",
+      edit: "编辑",
+      notEditable: "该配置不可修改",
+      delete: "删除",
+    },
+    validation: {
+      required: "请填写名称、端点、Bucket 和总容量",
+      quotaInvalid: "总容量必须为大于 0 的数字（GB）",
+      createNeedKeys: "新增配置需要填写 Access Key 和 Secret Key",
+    },
+    messages: {
+      loadFailed: "加载 R2 配置失败",
+      defaultUpdated: "默认配置已更新",
+      setDefaultFailed: "设置默认配置失败",
+      testSuccess: "连接测试成功",
+      testFailed: "连接测试失败",
+      createSuccess: "配置创建成功",
+      updateSuccess: "配置已更新",
+      saveFailed: "保存失败",
+      deleteConfirm: "确定删除该配置？（删除前请确保没有关联文件）",
+      deleteSuccess: "配置已删除",
+      deleteFailed: "删除配置失败",
+    },
+    usageTips: {
+      usage: {
+        title: "用量说明",
+        content:
+          "显示的存储用量基于本地数据库统计，可能与 R2 实际用量存在差异。",
+      },
+      storage: {
+        title: "存储空间",
+        content:
+          "当前使用 Cloudflare R2 免费层，总容量 10GB。超出后可能产生费用。",
+      },
+      expiry: {
+        title: "文件过期",
+        content:
+          "文件会根据设置的过期时间自动删除，请及时下载重要文件。",
+      },
+      bandwidth: {
+        title: "流量说明",
+        content: "R2 不收取出站流量费用，下载文件完全免费。",
+      },
+    },
+  },
+};
