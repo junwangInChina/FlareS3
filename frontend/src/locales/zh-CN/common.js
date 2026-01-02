@@ -1,0 +1,41 @@
+export default {
+  app: {
+    name: "FlareS3",
+  },
+  common: {
+    theme: "主题",
+    themeWithValue: "主题：{value}",
+    language: "",
+    languageWithValue: "{value}",
+    dark: "黑夜",
+    light: "白天",
+    logout: "退出登录",
+    cancel: "取消",
+    apply: "应用",
+    close: "关闭",
+    refresh: "刷新",
+    search: "搜索",
+    create: "创建",
+    submit: "提交",
+    details: "详情",
+    copied: "已复制到剪贴板",
+    pleaseSelect: "请选择",
+    expand: "展开",
+    collapse: "收起",
+  },
+  languageName: {
+    "zh-CN": "中文",
+    "en-US": "English",
+  },
+  nav: {
+    files: "文件列表",
+    users: "用户列表",
+    audit: "审计日志",
+    setup: "存储管理",
+  },
+  role: {
+    admin: "管理员",
+    user: "普通用户",
+  },
+};
+
