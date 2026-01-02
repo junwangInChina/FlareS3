@@ -1,0 +1,41 @@
+export default {
+  app: {
+    name: "FlareS3",
+  },
+  common: {
+    theme: "Theme",
+    themeWithValue: "Theme: {value}",
+    language: "",
+    languageWithValue: "{value}",
+    dark: "Dark",
+    light: "Light",
+    logout: "Log out",
+    cancel: "Cancel",
+    apply: "Apply",
+    close: "Close",
+    refresh: "Refresh",
+    search: "Search",
+    create: "Create",
+    submit: "Submit",
+    details: "Details",
+    copied: "Copied to clipboard",
+    pleaseSelect: "Please select",
+    expand: "Expand",
+    collapse: "Collapse",
+  },
+  languageName: {
+    "zh-CN": "中文",
+    "en-US": "English",
+  },
+  nav: {
+    files: "Files",
+    users: "Users",
+    audit: "Audit Logs",
+    setup: "Storage",
+  },
+  role: {
+    admin: "Admin",
+    user: "User",
+  },
+};
+
