@@ -1,6 +1,6 @@
 <script setup>
 defineProps({
-  maxWidth: { type: String, default: '1200px' }
+  maxWidth: { type: String, default: '1200px' },
 })
 </script>
 
