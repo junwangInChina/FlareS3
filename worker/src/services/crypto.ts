@@ -25,7 +25,7 @@ export function validateBase64KeyLength(
         valid: false,
         reason: 'invalid_length',
         expectedByteLength,
-        byteLength: raw.length
+        byteLength: raw.length,
       }
     }
     return { valid: true, byteLength: raw.length }
@@ -55,7 +55,7 @@ async function importKey(base64Key: string): Promise<CryptoKey> {
   const raw = base64ToBytes(base64Key)
   return crypto.subtle.importKey('raw', raw as unknown as BufferSource, 'AES-GCM', false, [
     'encrypt',
-    'decrypt'
+    'decrypt',
   ])
 }
 
