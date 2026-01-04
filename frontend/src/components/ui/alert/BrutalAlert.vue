@@ -3,10 +3,10 @@ defineProps({
   type: {
     type: String,
     default: 'info',
-    validator: (v) => ['info', 'success', 'warning', 'error'].includes(v)
+    validator: (v) => ['info', 'success', 'warning', 'error'].includes(v),
   },
   title: String,
-  closable: Boolean
+  closable: Boolean,
 })
 
 const emit = defineEmits(['close'])
