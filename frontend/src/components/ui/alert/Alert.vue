@@ -8,10 +8,10 @@ const props = defineProps({
   type: {
     type: String,
     default: 'info',
-    validator: (v) => ['info', 'success', 'warning', 'error'].includes(v)
+    validator: (v) => ['info', 'success', 'warning', 'error'].includes(v),
   },
   title: String,
-  closable: Boolean
+  closable: Boolean,
 })
 
 const emit = defineEmits(['close'])
@@ -23,11 +23,7 @@ const currentComponent = computed(() => {
 </script>
 
 <template>
-  <component
-    :is="currentComponent"
-    v-bind="props"
-    @close="emit('close')"
-  >
+  <component :is="currentComponent" v-bind="props" @close="emit('close')">
     <slot />
   </component>
 </template>
