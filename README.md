@@ -4,7 +4,7 @@
 
 ## 架构
 
-- 前端：Vue 3 + Naive UI（Pages）
+- 前端：Vue 3 + Vite（Pages）
 - 后端：Cloudflare Workers（同域 `/api` 与 `/s`）
 - 数据库：D1
 - 存储：R2（S3 兼容）
@@ -42,7 +42,7 @@ npx wrangler d1 execute flares3-r2 --local --file=src/db/schema.sql
 ### 2) 配置环境变量
 
 - 复制 `worker/.dev.vars.example` 为 `worker/.dev.vars`
-- 设置以下必需变量：
+- 设置以下必需变量（默认使用环境变量配置 R2）：
   - `BOOTSTRAP_ADMIN_USER`
   - `BOOTSTRAP_ADMIN_PASS`
   - `R2_ENDPOINT`
@@ -50,6 +50,8 @@ npx wrangler d1 execute flares3-r2 --local --file=src/db/schema.sql
   - `R2_SECRET_ACCESS_KEY`
   - `R2_BUCKET`
   - `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变）
+
+> 如需通过 UI 向导配置 R2：不要设置 `R2_ENDPOINT/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY/R2_BUCKET`，仅保留 `R2_MASTER_KEY`，并在 `/setup` 完成配置。
 
 ### 3) 启动服务（分别启动）
 
@@ -64,80 +66,36 @@ npm run dev
 > 如需并发启动，可在根目录执行：`npm run dev`（依赖已在子目录安装）。
 > 首次请求若用户表为空，会用 `BOOTSTRAP_ADMIN_USER/PASS` 自动创建管理员。
 
+## 质量检查（可选）
+
+在根目录执行（不需要在根目录安装依赖；会调用子目录脚本）：
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run format:check
+```
+
 ## 部署到 Cloudflare
 
 ### 手动部署
 
-1. 绑定 D1 与 R2
+1. 创建/绑定 D1 与 R2（并在 `worker/wrangler.toml` 填写实际 `database_id`）
 2. 设置 Secrets（见 `worker/.dev.vars.example`）
 3. 部署 Worker（`wrangler deploy`）
 4. Pages 绑定路由：`/api/*`、`/s/*`
 
-### 一键部署（脚本）
+### 自动化部署（可选）
 
-```bash
-cd "~/flares3"
-chmod +x "scripts/deploy_cf.sh"
-./scripts/deploy_cf.sh
-```
-
-脚本会执行：
-
-1. 创建 D1
-2. 应用数据库结构
-3. 设置 Worker Secrets
-4. 部署 Worker
-5. 构建前端
-6. 部署 Pages
-7. 确认 CORS 配置（直传依赖）
-
-### 脚本输入（环境变量）
-
-必需（始终）：
-
-- `BOOTSTRAP_ADMIN_USER`
-- `BOOTSTRAP_ADMIN_PASS`
-- `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变）
-
-使用环境变量配置 R2（默认）：
-
-- `R2_ENDPOINT`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `R2_BUCKET`
-
-使用 UI 向导配置 R2：
-
-- 设置 `USE_DB_CONFIG=1`，并跳过 `R2_*` 变量
-
-可选：
-
-- `D1_NAME`（默认：`flares3`）
-- `D1_DATABASE_ID`（跳过 D1 创建）
-- `PAGES_PROJECT_NAME`（默认：`flares3`）
-- `R2_CORS_CONFIRMED=1`（跳过 CORS 确认）
-
-示例（无交互）：
-
-```bash
-export BOOTSTRAP_ADMIN_USER="admin"
-export BOOTSTRAP_ADMIN_PASS="change_me"
-export R2_MASTER_KEY="base64-32-bytes" # 生成一次并保存，修改会导致已保存配置无法解密
-export R2_ENDPOINT="https://<account_id>.r2.cloudflarestorage.com"
-export R2_ACCESS_KEY_ID="xxxx"
-export R2_SECRET_ACCESS_KEY="yyyy"
-export R2_BUCKET="flares3"
-export PAGES_PROJECT_NAME="flares3"
-
-./scripts/deploy_cf.sh
-```
+仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖并执行 `typecheck/build`。未包含自动部署脚本/工作流；如需 CI/CD，建议在 GitHub Actions 调用 `wrangler deploy` 并构建/发布 Pages。
 
 ### 部署后操作
 
 - 在 Cloudflare Dashboard 绑定 Worker 路由：
   - `/api/*` -> Worker
   - `/s/*` -> Worker
-- 打开 Pages URL 并用 bootstrap 管理员登录；若 `USE_DB_CONFIG=1`，在 `/setup` 完成 R2 配置
+- 打开 Pages URL 并用 bootstrap 管理员登录；如未配置 `R2_*`，在 `/setup` 完成 R2 配置
 
 ### R2 CORS（必须）
 
@@ -162,22 +120,6 @@ export PAGES_PROJECT_NAME="flares3"
   }
 ]
 ```
-
-## CI 部署
-
-非交互式脚本：`scripts/deploy_cf_ci.sh`（需预置所有环境变量）。
-若不想交互式确认 CORS，请设置 `R2_CORS_CONFIRMED=1`。
-
-```bash
-cd "~/sflares3"
-chmod +x "scripts/deploy_cf_ci.sh"
-./scripts/deploy_cf_ci.sh
-```
-
-### 备注
-
-- 脚本依赖 `wrangler` 与 `npm` 在 PATH。
-- 若已创建 D1，可设置 `D1_DATABASE_ID` 跳过 `wrangler d1 create`。
 
 ## 说明
 
