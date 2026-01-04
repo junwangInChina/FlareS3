@@ -4,7 +4,7 @@
 /* ============================================
    TOKENS (LIGHT)
    ============================================ */
-:root[data-ui-theme="shadcn"] {
+:root[data-ui-theme='shadcn'] {
   color-scheme: light;
 
   /* ---- Official shadcn/ui semantic tokens (neutral) ---- */
@@ -118,11 +118,13 @@
   --color-expense: var(--destructive);
 
   /* Typography */
-  --nb-font-sans: "Geist Sans", "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI",
-    "Helvetica Neue", Arial, sans-serif;
-  --nb-font-serif: "Georgia", serif;
-  --nb-font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
+  --nb-font-sans:
+    'Geist Sans', 'Inter', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue',
+    Arial, sans-serif;
+  --nb-font-serif: 'Georgia', serif;
+  --nb-font-mono:
+    'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
   --nb-font-ui: var(--nb-font-sans);
 
   --nb-font-size-10: 10px;
@@ -229,7 +231,7 @@
 /* ============================================
    TOKENS (DARK)
    ============================================ */
-:root[data-ui-theme="shadcn"][data-theme="dark"] {
+:root[data-ui-theme='shadcn'][data-theme='dark'] {
   color-scheme: dark;
 
   --background: oklch(0.145 0 0);
@@ -293,11 +295,11 @@
 /* ============================================
    BASE STYLES (shadcn theme only)
    ============================================ */
-:root[data-ui-theme="shadcn"] * {
+:root[data-ui-theme='shadcn'] * {
   border-color: var(--border);
 }
 
-:root[data-ui-theme="shadcn"] body {
+:root[data-ui-theme='shadcn'] body {
   font-family: var(--nb-font-sans);
   font-size: var(--nb-font-size-base);
   line-height: 1.5;
@@ -307,12 +309,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-:root[data-ui-theme="shadcn"] h1,
-:root[data-ui-theme="shadcn"] h2,
-:root[data-ui-theme="shadcn"] h3,
-:root[data-ui-theme="shadcn"] h4,
-:root[data-ui-theme="shadcn"] h5,
-:root[data-ui-theme="shadcn"] h6 {
+:root[data-ui-theme='shadcn'] h1,
+:root[data-ui-theme='shadcn'] h2,
+:root[data-ui-theme='shadcn'] h3,
+:root[data-ui-theme='shadcn'] h4,
+:root[data-ui-theme='shadcn'] h5,
+:root[data-ui-theme='shadcn'] h6 {
   font-family: var(--nb-heading-font-family);
   font-weight: var(--nb-heading-font-weight);
   text-transform: var(--nb-heading-text-transform);
@@ -322,36 +324,36 @@
 }
 
 /* Scrollbar */
-:root[data-ui-theme="shadcn"] ::-webkit-scrollbar {
+:root[data-ui-theme='shadcn'] ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-:root[data-ui-theme="shadcn"] ::-webkit-scrollbar-track {
+:root[data-ui-theme='shadcn'] ::-webkit-scrollbar-track {
   background: var(--nb-scrollbar-track-bg);
 }
-:root[data-ui-theme="shadcn"] ::-webkit-scrollbar-thumb {
+:root[data-ui-theme='shadcn'] ::-webkit-scrollbar-thumb {
   background: var(--nb-scrollbar-thumb-bg);
   border-radius: var(--nb-scrollbar-thumb-radius);
 }
-:root[data-ui-theme="shadcn"] ::-webkit-scrollbar-thumb:hover {
+:root[data-ui-theme='shadcn'] ::-webkit-scrollbar-thumb:hover {
   background: var(--nb-scrollbar-thumb-hover-bg);
 }
 
-:root[data-ui-theme="shadcn"] .hide-scrollbar {
+:root[data-ui-theme='shadcn'] .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-:root[data-ui-theme="shadcn"] .hide-scrollbar::-webkit-scrollbar {
+:root[data-ui-theme='shadcn'] .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-:root[data-ui-theme="shadcn"] ::selection {
+:root[data-ui-theme='shadcn'] ::selection {
   background-color: var(--nb-selection-bg);
   color: var(--nb-selection-color);
 }
 
 /* Utilities */
-:root[data-ui-theme="shadcn"] .animate-spin {
+:root[data-ui-theme='shadcn'] .animate-spin {
   animation: spinner 1s linear infinite;
 }
 

@@ -1,109 +1,109 @@
 /* shadcn/ui Font Declarations - Local Geist Fonts & Inter */
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
 
 /* Inter - Alternative UI Font (Classic shadcn look) */
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("/fonts/inter-300.woff2") format("woff2");
+  src: url('/fonts/inter-300.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/inter-400.woff2") format("woff2");
+  src: url('/fonts/inter-400.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/inter-600.woff2") format("woff2");
+  src: url('/fonts/inter-600.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/inter-700.woff2") format("woff2");
+  src: url('/fonts/inter-700.woff2') format('woff2');
 }
 
 /* Geist Sans - Primary UI Font */
 @font-face {
-  font-family: "Geist Sans";
+  font-family: 'Geist Sans';
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("/fonts/geist-sans-300.woff2") format("woff2");
+  src: url('/fonts/geist-sans-300.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Geist Sans";
+  font-family: 'Geist Sans';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/geist-sans-400.woff2") format("woff2");
+  src: url('/fonts/geist-sans-400.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Geist Sans";
+  font-family: 'Geist Sans';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/geist-sans-500.woff2") format("woff2");
+  src: url('/fonts/geist-sans-500.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Geist Sans";
+  font-family: 'Geist Sans';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/geist-sans-600.woff2") format("woff2");
+  src: url('/fonts/geist-sans-600.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Geist Sans";
+  font-family: 'Geist Sans';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/geist-sans-700.woff2") format("woff2");
+  src: url('/fonts/geist-sans-700.woff2') format('woff2');
 }
 
 /* Geist Mono - Monospace Font */
 @font-face {
-  font-family: "Geist Mono";
+  font-family: 'Geist Mono';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/geist-mono-400.woff2") format("woff2");
+  src: url('/fonts/geist-mono-400.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Geist Mono";
+  font-family: 'Geist Mono';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/geist-mono-500.woff2") format("woff2");
+  src: url('/fonts/geist-mono-500.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Geist Mono";
+  font-family: 'Geist Mono';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/geist-mono-600.woff2") format("woff2");
+  src: url('/fonts/geist-mono-600.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Geist Mono";
+  font-family: 'Geist Mono';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/geist-mono-700.woff2") format("woff2");
+  src: url('/fonts/geist-mono-700.woff2') format('woff2');
 }
