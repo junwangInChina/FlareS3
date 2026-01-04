@@ -3,10 +3,10 @@ defineProps({
   type: {
     type: String,
     default: 'info',
-    validator: (v) => ['info', 'success', 'warning', 'error'].includes(v)
+    validator: (v) => ['info', 'success', 'warning', 'error'].includes(v),
   },
   title: String,
-  closable: Boolean
+  closable: Boolean,
 })
 
 const emit = defineEmits(['close'])
@@ -89,7 +89,11 @@ const emit = defineEmits(['close'])
   border-radius: var(--nb-radius-sm);
   color: var(--muted-foreground);
   opacity: 0.7;
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .close-btn:hover {
