@@ -1,34 +1,34 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
-import BrutalSidebar from "./BrutalSidebar.vue";
+import { onMounted, ref, watch } from 'vue'
+import BrutalSidebar from './BrutalSidebar.vue'
 
 defineProps({
-  maxWidth: { type: String, default: "100%" },
-});
+  maxWidth: { type: String, default: '100%' },
+})
 
-const sidebarCollapsed = ref(false);
-const sidebarCollapsedKey = "flares3:sidebar-collapsed";
+const sidebarCollapsed = ref(false)
+const sidebarCollapsedKey = 'flares3:sidebar-collapsed'
 
 onMounted(() => {
-  if (typeof window === "undefined") {
-    return;
+  if (typeof window === 'undefined') {
+    return
   }
 
-  const stored = window.localStorage.getItem(sidebarCollapsedKey);
+  const stored = window.localStorage.getItem(sidebarCollapsedKey)
   if (stored === null) {
-    return;
+    return
   }
 
-  sidebarCollapsed.value = stored === "true";
-});
+  sidebarCollapsed.value = stored === 'true'
+})
 
 watch(sidebarCollapsed, (value) => {
-  if (typeof window === "undefined") {
-    return;
+  if (typeof window === 'undefined') {
+    return
   }
 
-  window.localStorage.setItem(sidebarCollapsedKey, String(value));
-});
+  window.localStorage.setItem(sidebarCollapsedKey, String(value))
+})
 </script>
 
 <template>
@@ -57,7 +57,7 @@ watch(sidebarCollapsed, (value) => {
 }
 
 /* shadcn/ui theme: Compact spacing */
-:root[data-ui-theme="shadcn"] .main-content {
+:root[data-ui-theme='shadcn'] .main-content {
   padding: var(--nb-space-lg);
 }
 
@@ -70,7 +70,7 @@ watch(sidebarCollapsed, (value) => {
 }
 
 /* shadcn/ui theme: Compact gap between cards */
-:root[data-ui-theme="shadcn"] .content-container {
+:root[data-ui-theme='shadcn'] .content-container {
   display: flex;
   flex-direction: column;
   gap: var(--nb-space-md);
@@ -82,7 +82,7 @@ watch(sidebarCollapsed, (value) => {
   }
 
   /* shadcn/ui theme: Reduce padding on mobile */
-  :root[data-ui-theme="shadcn"] .main-content {
+  :root[data-ui-theme='shadcn'] .main-content {
     padding: var(--nb-space-md);
   }
 }
