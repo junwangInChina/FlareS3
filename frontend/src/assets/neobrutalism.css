@@ -4,7 +4,7 @@
 /* Import local fonts */
 @import './fonts.css';
 
-:root[data-ui-theme="motherduck-neobrutalism"],
+:root[data-ui-theme='motherduck-neobrutalism'],
 :root:not([data-ui-theme]) {
   /* Base */
   --nb-ink: #383838; /* Charcoal (constant) */
@@ -46,8 +46,12 @@
   --nb-overlay-bg: rgba(244, 239, 234, 0.85);
 
   /* Typography */
-  --nb-font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
-  --nb-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --nb-font-sans:
+    'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial,
+    'Noto Sans', 'Liberation Sans', sans-serif;
+  --nb-font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   --nb-font-ui: var(--nb-font-mono);
   --nb-font-size-xs: 12px;
   --nb-font-size-sm: 14px;
@@ -121,8 +125,8 @@
 }
 
 /* Dark Mode Support */
-:root[data-ui-theme="motherduck-neobrutalism"][data-theme="dark"],
-:root:not([data-ui-theme])[data-theme="dark"] {
+:root[data-ui-theme='motherduck-neobrutalism'][data-theme='dark'],
+:root:not([data-ui-theme])[data-theme='dark'] {
   --nb-black: #f4efea;
   --nb-surface: #171717;
   --nb-bg: #0f0f10;
@@ -142,7 +146,9 @@
 }
 
 /* Reset & Base Styles */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -159,7 +165,12 @@ body {
 }
 
 /* Typography */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
   font-weight: var(--nb-heading-font-weight, 900);
   text-transform: var(--nb-heading-text-transform, uppercase);
@@ -167,10 +178,18 @@ h1, h2, h3, h4, h5, h6 {
   line-height: var(--nb-heading-line-height, 1.2);
 }
 
-h1 { font-size: clamp(30px, 5vw, 80px); }
-h2 { font-size: clamp(24px, 3.2vw, 40px); }
-h3 { font-size: clamp(24px, 2.6vw, 32px); }
-h4 { font-size: 18px; }
+h1 {
+  font-size: clamp(30px, 5vw, 80px);
+}
+h2 {
+  font-size: clamp(24px, 3.2vw, 40px);
+}
+h3 {
+  font-size: clamp(24px, 2.6vw, 32px);
+}
+h4 {
+  font-size: 18px;
+}
 
 a {
   color: var(--nb-link-color, var(--nb-duck-blue));
@@ -232,30 +251,72 @@ a:hover {
   }
 }
 
-.nb-flex { display: flex; }
-.nb-flex-col { flex-direction: column; }
-.nb-items-center { align-items: center; }
-.nb-justify-center { justify-content: center; }
-.nb-justify-between { justify-content: space-between; }
-.nb-gap-sm { gap: var(--nb-space-sm); }
-.nb-gap-md { gap: var(--nb-space-md); }
-.nb-gap-lg { gap: var(--nb-space-lg); }
+.nb-flex {
+  display: flex;
+}
+.nb-flex-col {
+  flex-direction: column;
+}
+.nb-items-center {
+  align-items: center;
+}
+.nb-justify-center {
+  justify-content: center;
+}
+.nb-justify-between {
+  justify-content: space-between;
+}
+.nb-gap-sm {
+  gap: var(--nb-space-sm);
+}
+.nb-gap-md {
+  gap: var(--nb-space-md);
+}
+.nb-gap-lg {
+  gap: var(--nb-space-lg);
+}
 
-.nb-text-center { text-align: center; }
-.nb-text-right { text-align: right; }
-.nb-font-bold { font-weight: 700; }
-.nb-font-mono { font-family: var(--nb-font-mono); }
-.nb-uppercase { text-transform: uppercase; }
+.nb-text-center {
+  text-align: center;
+}
+.nb-text-right {
+  text-align: right;
+}
+.nb-font-bold {
+  font-weight: 700;
+}
+.nb-font-mono {
+  font-family: var(--nb-font-mono);
+}
+.nb-uppercase {
+  text-transform: uppercase;
+}
 
-.nb-mb-sm { margin-bottom: var(--nb-space-sm); }
-.nb-mb-md { margin-bottom: var(--nb-space-md); }
-.nb-mb-lg { margin-bottom: var(--nb-space-lg); }
-.nb-mt-md { margin-top: var(--nb-space-md); }
-.nb-mt-lg { margin-top: var(--nb-space-lg); }
+.nb-mb-sm {
+  margin-bottom: var(--nb-space-sm);
+}
+.nb-mb-md {
+  margin-bottom: var(--nb-space-md);
+}
+.nb-mb-lg {
+  margin-bottom: var(--nb-space-lg);
+}
+.nb-mt-md {
+  margin-top: var(--nb-space-md);
+}
+.nb-mt-lg {
+  margin-top: var(--nb-space-lg);
+}
 
-.nb-p-sm { padding: var(--nb-space-sm); }
-.nb-p-md { padding: var(--nb-space-md); }
-.nb-p-lg { padding: var(--nb-space-lg); }
+.nb-p-sm {
+  padding: var(--nb-space-sm);
+}
+.nb-p-md {
+  padding: var(--nb-space-md);
+}
+.nb-p-lg {
+  padding: var(--nb-space-lg);
+}
 
 /* Focus States */
 *:focus-visible {
@@ -266,15 +327,31 @@ a:hover {
 
 /* Animations */
 @keyframes nb-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 @keyframes nb-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
-.nb-shake { animation: nb-shake 0.3s ease; }
-.nb-bounce { animation: nb-bounce 0.3s ease; }
+.nb-shake {
+  animation: nb-shake 0.3s ease;
+}
+.nb-bounce {
+  animation: nb-bounce 0.3s ease;
+}
