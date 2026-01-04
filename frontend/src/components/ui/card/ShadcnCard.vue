@@ -2,7 +2,7 @@
 defineProps({
   title: String,
   headerBg: { type: String, default: 'transparent' },
-  headerColor: String
+  headerColor: String,
 })
 </script>
 
