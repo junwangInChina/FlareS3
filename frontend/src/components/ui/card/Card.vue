@@ -1,13 +1,13 @@
 <script setup>
 import { computed } from 'vue'
-import { useThemeStore } from "../../../stores/theme"
+import { useThemeStore } from '../../../stores/theme'
 import BrutalCard from './BrutalCard.vue'
 import ShadcnCard from './ShadcnCard.vue'
 
 const props = defineProps({
   title: String,
   headerBg: { type: String },
-  headerColor: String
+  headerColor: String,
 })
 
 const themeStore = useThemeStore()
