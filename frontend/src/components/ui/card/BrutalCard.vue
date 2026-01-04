@@ -2,7 +2,7 @@
 defineProps({
   title: String,
   headerBg: { type: String, default: 'var(--nb-accent)' },
-  headerColor: String
+  headerColor: String,
 })
 </script>
 
@@ -38,7 +38,7 @@ defineProps({
   overflow: hidden;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-card,
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-card,
 :root:not([data-ui-theme]) .brutal-card {
   overflow: visible;
 }
