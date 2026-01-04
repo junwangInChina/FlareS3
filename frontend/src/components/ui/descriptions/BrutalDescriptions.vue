@@ -2,7 +2,7 @@
 defineProps({
   title: String,
   items: { type: Array, default: () => [] }, // [{ label, value }]
-  column: { type: Number, default: 2 }
+  column: { type: Number, default: 2 },
 })
 </script>
 

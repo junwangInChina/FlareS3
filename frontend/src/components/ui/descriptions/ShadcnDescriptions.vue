@@ -1,7 +1,7 @@
 <script setup>
 defineProps({
   items: { type: Array, default: () => [] },
-  column: { type: Number, default: 2 }
+  column: { type: Number, default: 2 },
 })
 </script>
 
@@ -20,9 +20,15 @@ defineProps({
   gap: 16px;
 }
 
-.columns-1 { grid-template-columns: 1fr; }
-.columns-2 { grid-template-columns: repeat(2, 1fr); }
-.columns-3 { grid-template-columns: repeat(3, 1fr); }
+.columns-1 {
+  grid-template-columns: 1fr;
+}
+.columns-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.columns-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
 
 .desc-item {
   display: flex;

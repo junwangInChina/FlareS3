@@ -6,7 +6,7 @@ import ShadcnDescriptions from './ShadcnDescriptions.vue'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
-  column: { type: Number, default: 2 }
+  column: { type: Number, default: 2 },
 })
 
 const themeStore = useThemeStore()
