@@ -71,7 +71,9 @@ const displayText = computed(() => {
 })
 
 const reserveClearSpace = computed(() => props.clearable)
-const showClear = computed(() => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly)
+const showClear = computed(
+  () => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly
+)
 
 const handleClear = () => {
   emit('update:startValue', '')
@@ -299,7 +301,7 @@ const formatMonthTitle = (monthValue) => {
 </style>
 
 <style>
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-popover {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-popover {
   width: max-content;
   padding: 12px;
   background: var(--nb-surface);
@@ -310,19 +312,19 @@ const formatMonthTitle = (monthValue) => {
   z-index: 1100;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-calendar {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-calendar {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-calendar-nav {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-calendar-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-nav-btn {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-nav-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -336,20 +338,20 @@ const formatMonthTitle = (monthValue) => {
   box-shadow: var(--nb-shadow-sm);
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-nav-btn:hover {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-nav-btn:hover {
   transform: translate(var(--nb-lift-x), var(--nb-lift-y));
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-months {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-months {
   display: grid;
   gap: 16px;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-months.two-months {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-months.two-months {
   grid-template-columns: 1fr 1fr;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-month-title {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-month-title {
   text-align: center;
   font-size: 14px;
   font-weight: var(--nb-ui-font-weight, 700);
@@ -357,13 +359,13 @@ const formatMonthTitle = (monthValue) => {
   font-variant-numeric: tabular-nums;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-grid {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-grid {
   width: 100%;
   border-collapse: collapse;
   border-spacing: 0;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-weekday {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-weekday {
   width: 40px;
   height: 32px;
   font-size: 12px;
@@ -372,11 +374,11 @@ const formatMonthTitle = (monthValue) => {
   text-align: center;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-cell {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-cell {
   padding: 0;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -392,33 +394,33 @@ const formatMonthTitle = (monthValue) => {
   user-select: none;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day:hover {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day:hover {
   background: var(--nb-primary);
   color: var(--nb-ink);
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-outside-view],
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-outside-visible-view] {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-outside-view],
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-outside-visible-view] {
   color: var(--nb-gray-400);
   opacity: 0.75;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-disabled],
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-unavailable] {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-disabled],
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-unavailable] {
   pointer-events: none;
   opacity: 0.4;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-today] {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-today] {
   box-shadow: inset 0 0 0 2px var(--nb-deep-blue);
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-selected] {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-selected] {
   background: var(--nb-gray-200);
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-selection-start],
-:root[data-ui-theme="motherduck-neobrutalism"] .date-range-day[data-selection-end] {
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-selection-start],
+:root[data-ui-theme='motherduck-neobrutalism'] .date-range-day[data-selection-end] {
   background: var(--nb-primary);
   color: var(--nb-ink);
 }

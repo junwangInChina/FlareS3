@@ -71,7 +71,9 @@ const displayText = computed(() => {
 })
 
 const reserveClearSpace = computed(() => props.clearable)
-const showClear = computed(() => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly)
+const showClear = computed(
+  () => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly
+)
 
 const handleClear = () => {
   emit('update:startValue', '')
@@ -218,7 +220,10 @@ const formatMonthTitle = (monthValue) => {
   color: var(--foreground);
   cursor: pointer;
   outline: none;
-  transition: box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .date-range-picker.has-clear .date-range-trigger {
@@ -297,7 +302,7 @@ const formatMonthTitle = (monthValue) => {
 </style>
 
 <style>
-:root[data-ui-theme="shadcn"] .date-range-popover {
+:root[data-ui-theme='shadcn'] .date-range-popover {
   width: max-content;
   padding: 12px;
   background: var(--popover);
@@ -308,19 +313,19 @@ const formatMonthTitle = (monthValue) => {
   z-index: 1100;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-calendar {
+:root[data-ui-theme='shadcn'] .date-range-calendar {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-calendar-nav {
+:root[data-ui-theme='shadcn'] .date-range-calendar-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-nav-btn {
+:root[data-ui-theme='shadcn'] .date-range-nav-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -331,28 +336,31 @@ const formatMonthTitle = (monthValue) => {
   background: transparent;
   color: var(--foreground);
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-nav-btn:hover {
+:root[data-ui-theme='shadcn'] .date-range-nav-btn:hover {
   background: var(--accent);
   color: var(--accent-foreground);
 }
 
-:root[data-ui-theme="shadcn"] .date-range-nav-btn:focus-visible {
+:root[data-ui-theme='shadcn'] .date-range-nav-btn:focus-visible {
   box-shadow: var(--nb-focus-ring);
 }
 
-:root[data-ui-theme="shadcn"] .date-range-months {
+:root[data-ui-theme='shadcn'] .date-range-months {
   display: grid;
   gap: 16px;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-months.two-months {
+:root[data-ui-theme='shadcn'] .date-range-months.two-months {
   grid-template-columns: 1fr 1fr;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-month-title {
+:root[data-ui-theme='shadcn'] .date-range-month-title {
   text-align: center;
   font-size: 0.875rem;
   font-weight: var(--nb-font-weight-medium);
@@ -360,13 +368,13 @@ const formatMonthTitle = (monthValue) => {
   font-variant-numeric: tabular-nums;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-grid {
+:root[data-ui-theme='shadcn'] .date-range-grid {
   width: 100%;
   border-collapse: collapse;
   border-spacing: 0;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-weekday {
+:root[data-ui-theme='shadcn'] .date-range-weekday {
   width: 36px;
   height: 32px;
   font-size: 0.75rem;
@@ -375,11 +383,11 @@ const formatMonthTitle = (monthValue) => {
   text-align: center;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-cell {
+:root[data-ui-theme='shadcn'] .date-range-cell {
   padding: 0;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day {
+:root[data-ui-theme='shadcn'] .date-range-day {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -391,76 +399,79 @@ const formatMonthTitle = (monthValue) => {
   cursor: pointer;
   outline: none;
   user-select: none;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day:hover {
+:root[data-ui-theme='shadcn'] .date-range-day:hover {
   background: var(--accent);
   color: var(--accent-foreground);
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-outside-view],
-:root[data-ui-theme="shadcn"] .date-range-day[data-outside-visible-view] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-outside-view],
+:root[data-ui-theme='shadcn'] .date-range-day[data-outside-visible-view] {
   color: var(--muted-foreground);
   opacity: 0.5;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-disabled],
-:root[data-ui-theme="shadcn"] .date-range-day[data-unavailable] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-disabled],
+:root[data-ui-theme='shadcn'] .date-range-day[data-unavailable] {
   pointer-events: none;
   opacity: 0.4;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-today] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-today] {
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day:focus-visible {
+:root[data-ui-theme='shadcn'] .date-range-day:focus-visible {
   box-shadow: var(--nb-focus-ring);
 }
 
 /* Selected range */
-:root[data-ui-theme="shadcn"] .date-range-day[data-selected] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-selected] {
   background: var(--accent);
   color: var(--accent-foreground);
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-selected]:not([data-selection-start]):not([data-selection-end]) {
+:root[data-ui-theme='shadcn']
+  .date-range-day[data-selected]:not([data-selection-start]):not([data-selection-end]) {
   border-radius: 0;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-selection-start],
-:root[data-ui-theme="shadcn"] .date-range-day[data-selection-end] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-selection-start],
+:root[data-ui-theme='shadcn'] .date-range-day[data-selection-end] {
   background: var(--primary);
   color: var(--primary-foreground);
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-selection-start] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-selection-start] {
   border-top-left-radius: var(--nb-radius-sm);
   border-bottom-left-radius: var(--nb-radius-sm);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-selection-end] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-selection-end] {
   border-top-right-radius: var(--nb-radius-sm);
   border-bottom-right-radius: var(--nb-radius-sm);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-selection-start][data-selection-end] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-selection-start][data-selection-end] {
   border-radius: var(--nb-radius-sm);
 }
 
 /* Hover-highlighted range (during selection) */
-:root[data-ui-theme="shadcn"] .date-range-day[data-highlighted] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-highlighted] {
   background: var(--muted);
   color: var(--muted-foreground);
 }
 
-:root[data-ui-theme="shadcn"] .date-range-day[data-highlighted-start],
-:root[data-ui-theme="shadcn"] .date-range-day[data-highlighted-end] {
+:root[data-ui-theme='shadcn'] .date-range-day[data-highlighted-start],
+:root[data-ui-theme='shadcn'] .date-range-day[data-highlighted-end] {
   background: var(--accent);
   color: var(--accent-foreground);
 }

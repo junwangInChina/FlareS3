@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useThemeStore } from "../../../stores/theme"
+import { useThemeStore } from '../../../stores/theme'
 import BrutalDateRangePicker from './BrutalDateRangePicker.vue'
 import ShadcnDateRangePicker from './ShadcnDateRangePicker.vue'
 
