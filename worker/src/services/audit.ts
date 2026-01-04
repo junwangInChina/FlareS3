@@ -11,10 +11,11 @@ export type AuditEntry = {
 export async function logAudit(db: D1Database, entry: AuditEntry): Promise<void> {
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
-  await db.prepare(
-    `INSERT INTO audit_logs (id, actor_user_id, action, target_type, target_id, ip, user_agent, metadata, created_at)
+  await db
+    .prepare(
+      `INSERT INTO audit_logs (id, actor_user_id, action, target_type, target_id, ip, user_agent, metadata, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  )
+    )
     .bind(
       id,
       entry.actorUserId || null,
