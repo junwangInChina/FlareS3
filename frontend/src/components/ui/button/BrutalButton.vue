@@ -3,16 +3,16 @@ defineProps({
   type: {
     type: String,
     default: 'primary',
-    validator: (v) => ['primary', 'secondary', 'danger', 'ghost', 'default'].includes(v)
+    validator: (v) => ['primary', 'secondary', 'danger', 'ghost', 'default'].includes(v),
   },
   size: {
     type: String,
     default: 'medium',
-    validator: (v) => ['small', 'medium', 'large'].includes(v)
+    validator: (v) => ['small', 'medium', 'large'].includes(v),
   },
   block: Boolean,
   disabled: Boolean,
-  loading: Boolean
+  loading: Boolean,
 })
 
 defineEmits(['click'])
@@ -143,6 +143,8 @@ defineEmits(['click'])
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
