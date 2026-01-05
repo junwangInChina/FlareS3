@@ -14,7 +14,7 @@ const currentComponent = computed(() => {
 const innerRef = ref(null)
 
 defineExpose({
-  clear: () => innerRef.value?.clear?.()
+  clear: () => innerRef.value?.clear?.(),
 })
 </script>
 
