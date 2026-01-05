@@ -5,7 +5,7 @@ const props = defineProps({
   modelValue: [String, Number],
   options: { type: Array, default: () => [] },
   name: String,
-  disabled: Boolean
+  disabled: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -18,12 +18,7 @@ const emit = defineEmits(['update:modelValue'])
     class="shadcn-radio-group"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <label
-      v-for="opt in options"
-      :key="opt.value"
-      class="radio-label"
-      :class="{ disabled }"
-    >
+    <label v-for="opt in options" :key="opt.value" class="radio-label" :class="{ disabled }">
       <RadioGroupItem :value="String(opt.value)" class="radio-item">
         <div class="radio-indicator"></div>
       </RadioGroupItem>
@@ -57,7 +52,9 @@ const emit = defineEmits(['update:modelValue'])
   position: relative;
   background: var(--background);
   color: var(--primary);
-  transition: box-shadow 0.15s ease, opacity 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
   cursor: pointer;
 }
 
@@ -77,7 +74,7 @@ const emit = defineEmits(['update:modelValue'])
   transition: transform 0.15s ease;
 }
 
-.radio-item[data-state="checked"] .radio-indicator {
+.radio-item[data-state='checked'] .radio-indicator {
   transform: translate(-50%, -50%) scale(1);
 }
 

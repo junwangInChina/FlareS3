@@ -3,7 +3,7 @@ defineProps({
   modelValue: [String, Number],
   options: { type: Array, default: () => [] }, // [{ label, value }]
   name: String,
-  disabled: Boolean
+  disabled: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -11,12 +11,7 @@ const emit = defineEmits(['update:modelValue'])
 
 <template>
   <div class="brutal-radio-group">
-    <label
-      v-for="opt in options"
-      :key="opt.value"
-      class="radio-label"
-      :class="{ disabled }"
-    >
+    <label v-for="opt in options" :key="opt.value" class="radio-label" :class="{ disabled }">
       <input
         type="radio"
         :name="name"
@@ -64,7 +59,7 @@ const emit = defineEmits(['update:modelValue'])
 }
 
 .radio-label input:checked ~ .radio-custom::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 4px;
   left: 4px;
