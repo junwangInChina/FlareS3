@@ -23,7 +23,7 @@ const props = defineProps({
   label: String,
   placeholder: String,
   disabled: Boolean,
-  size: { type: String, default: 'medium' }
+  size: { type: String, default: 'medium' },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -36,9 +36,9 @@ const handleValueChange = (value) => {
 
 // 过滤并转换选项，将空字符串替换为特殊值
 const processedOptions = computed(() => {
-  return props.options.map(opt => ({
+  return props.options.map((opt) => ({
     ...opt,
-    value: opt.value === '' ? '__empty__' : opt.value
+    value: opt.value === '' ? '__empty__' : opt.value,
   }))
 })
 
@@ -53,7 +53,11 @@ const resolvedPlaceholder = computed(() => props.placeholder || t('common.please
 <template>
   <div class="shadcn-select-wrapper" :class="[`size-${size}`]">
     <label v-if="label" class="select-label">{{ label }}</label>
-    <SelectRoot :model-value="currentValue" :disabled="disabled" @update:model-value="handleValueChange">
+    <SelectRoot
+      :model-value="currentValue"
+      :disabled="disabled"
+      @update:model-value="handleValueChange"
+    >
       <SelectTrigger class="shadcn-select-trigger">
         <SelectValue class="select-value" :placeholder="resolvedPlaceholder" />
         <ChevronDown class="select-icon" :size="16" />
@@ -120,7 +124,10 @@ const resolvedPlaceholder = computed(() => props.placeholder || t('common.please
   color: var(--foreground);
   cursor: pointer;
   outline: none;
-  transition: box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .size-small .shadcn-select-trigger {
@@ -222,7 +229,7 @@ const resolvedPlaceholder = computed(() => props.placeholder || t('common.please
   color: var(--accent-foreground);
 }
 
-.shadcn-select-item[data-state="checked"] {
+.shadcn-select-item[data-state='checked'] {
   font-weight: var(--nb-font-weight-medium);
 }
 

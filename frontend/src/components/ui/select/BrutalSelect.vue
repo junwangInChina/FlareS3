@@ -182,7 +182,7 @@ const resolvedPlaceholder = computed(() => props.placeholder || t('common.please
 </style>
 
 <style>
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-content {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-content {
   min-width: var(--radix-select-trigger-width);
   max-height: 320px;
   overflow: hidden;
@@ -194,13 +194,13 @@ const resolvedPlaceholder = computed(() => props.placeholder || t('common.please
   z-index: 1100;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-viewport {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-viewport {
   max-height: 320px;
   overflow-y: auto;
   padding: 6px;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-scroll-btn {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-scroll-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,11 +210,11 @@ const resolvedPlaceholder = computed(() => props.placeholder || t('common.please
   background: var(--nb-bg);
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-scroll-icon {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-scroll-icon {
   opacity: 0.8;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-item {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-item {
   display: flex;
   align-items: center;
   position: relative;
@@ -230,18 +230,18 @@ const resolvedPlaceholder = computed(() => props.placeholder || t('common.please
   transition: var(--nb-transition-fast);
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-item:hover,
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-item[data-highlighted] {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-item:hover,
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-item[data-highlighted] {
   background: var(--nb-primary);
   color: var(--nb-ink);
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-item[data-disabled] {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-item[data-disabled] {
   pointer-events: none;
   opacity: 0.5;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-select-item-indicator {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-select-item-indicator {
   position: absolute;
   left: 10px;
   top: 50%;

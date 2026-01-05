@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { useThemeStore } from "../../../stores/theme"
+import { useThemeStore } from '../../../stores/theme'
 import BrutalSelect from './BrutalSelect.vue'
 import ShadcnSelect from './ShadcnSelect.vue'
 
@@ -10,7 +10,7 @@ const props = defineProps({
   label: String,
   placeholder: String,
   disabled: Boolean,
-  size: { type: String, default: 'medium' }
+  size: { type: String, default: 'medium' },
 })
 
 const emit = defineEmits(['update:modelValue'])
