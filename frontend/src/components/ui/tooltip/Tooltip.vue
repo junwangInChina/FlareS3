@@ -34,11 +34,7 @@ const mergedProps = computed(() => ({ ...attrs, ...componentProps.value }))
 
 <template>
   <slot v-if="tooltipDisabled" />
-  <component
-    v-else
-    :is="currentComponent"
-    v-bind="mergedProps"
-  >
+  <component v-else :is="currentComponent" v-bind="mergedProps">
     <slot />
   </component>
 </template>

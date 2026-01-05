@@ -1,6 +1,13 @@
 <script setup>
 import { Comment, Text, computed, useSlots } from 'vue'
-import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'radix-vue'
+import {
+  TooltipArrow,
+  TooltipContent,
+  TooltipPortal,
+  TooltipProvider,
+  TooltipRoot,
+  TooltipTrigger,
+} from 'radix-vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -61,7 +68,7 @@ const useDirectTrigger = computed(() => {
 </style>
 
 <style>
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-tooltip-content {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-tooltip-content {
   padding: 6px 12px;
   background-color: var(--nb-black);
   color: var(--nb-white);
@@ -74,13 +81,13 @@ const useDirectTrigger = computed(() => {
   user-select: none;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"] .brutal-tooltip-arrow {
+:root[data-ui-theme='motherduck-neobrutalism'] .brutal-tooltip-arrow {
   fill: var(--nb-black);
   stroke: var(--nb-black);
   stroke-width: 1px;
 }
 
-:root[data-ui-theme="motherduck-neobrutalism"][data-theme="dark"] .brutal-tooltip-content {
+:root[data-ui-theme='motherduck-neobrutalism'][data-theme='dark'] .brutal-tooltip-content {
   background-color: var(--nb-black);
   color: var(--nb-bg);
 }
