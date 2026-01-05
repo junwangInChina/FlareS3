@@ -6,7 +6,7 @@ const { t } = useI18n({ useScope: 'global' })
 defineProps({
   columns: { type: Array, default: () => [] },
   data: { type: Array, default: () => [] },
-  loading: Boolean
+  loading: Boolean,
 })
 </script>
 
@@ -23,7 +23,7 @@ defineProps({
             :key="col.key"
             :style="{
               width: col.width ? `${col.width}px` : 'auto',
-              textAlign: col.align || 'left'
+              textAlign: col.align || 'left',
             }"
           >
             <template v-if="col.titleRender">
@@ -94,7 +94,9 @@ defineProps({
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .brutal-table {

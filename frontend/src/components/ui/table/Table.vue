@@ -7,7 +7,7 @@ import ShadcnTable from './ShadcnTable.vue'
 const props = defineProps({
   columns: { type: Array, default: () => [] },
   data: { type: Array, default: () => [] },
-  loading: Boolean
+  loading: Boolean,
 })
 
 const themeStore = useThemeStore()
