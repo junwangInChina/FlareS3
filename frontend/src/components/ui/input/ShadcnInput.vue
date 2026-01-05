@@ -33,7 +33,9 @@ const hasValue = computed(() => {
   return String(props.modelValue) !== ''
 })
 
-const showClear = computed(() => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly)
+const showClear = computed(
+  () => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly
+)
 
 const handleClear = async () => {
   emit('update:modelValue', '')
@@ -114,7 +116,10 @@ const handleClear = async () => {
   background: var(--background);
   color: var(--foreground);
   outline: none;
-  transition: box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .size-small input.shadcn-input {
@@ -182,7 +187,9 @@ textarea.shadcn-input {
   border-radius: var(--nb-radius-sm);
   color: var(--muted-foreground);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .shadcn-input-clear:hover {
@@ -195,25 +202,25 @@ textarea.shadcn-input {
 }
 
 /* Normalize native date/time inputs to match shadcn/ui look */
-input[type="date"].shadcn-input,
-input[type="time"].shadcn-input,
-input[type="datetime-local"].shadcn-input {
+input[type='date'].shadcn-input,
+input[type='time'].shadcn-input,
+input[type='datetime-local'].shadcn-input {
   -webkit-appearance: none;
   appearance: none;
   padding-right: 40px;
 }
 
-input[type="date"].shadcn-input::-webkit-calendar-picker-indicator,
-input[type="time"].shadcn-input::-webkit-calendar-picker-indicator,
-input[type="datetime-local"].shadcn-input::-webkit-calendar-picker-indicator {
+input[type='date'].shadcn-input::-webkit-calendar-picker-indicator,
+input[type='time'].shadcn-input::-webkit-calendar-picker-indicator,
+input[type='datetime-local'].shadcn-input::-webkit-calendar-picker-indicator {
   opacity: 0.65;
   cursor: pointer;
   margin-right: 8px;
 }
 
-input[type="date"].shadcn-input:disabled::-webkit-calendar-picker-indicator,
-input[type="time"].shadcn-input:disabled::-webkit-calendar-picker-indicator,
-input[type="datetime-local"].shadcn-input:disabled::-webkit-calendar-picker-indicator {
+input[type='date'].shadcn-input:disabled::-webkit-calendar-picker-indicator,
+input[type='time'].shadcn-input:disabled::-webkit-calendar-picker-indicator,
+input[type='datetime-local'].shadcn-input:disabled::-webkit-calendar-picker-indicator {
   cursor: not-allowed;
 }
 </style>

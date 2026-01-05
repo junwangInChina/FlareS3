@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { useThemeStore } from "../../../stores/theme"
+import { useThemeStore } from '../../../stores/theme'
 import BrutalInput from './BrutalInput.vue'
 import ShadcnInput from './ShadcnInput.vue'
 

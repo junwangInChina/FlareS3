@@ -33,7 +33,9 @@ const hasValue = computed(() => {
   return String(props.modelValue) !== ''
 })
 
-const showClear = computed(() => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly)
+const showClear = computed(
+  () => reserveClearSpace.value && hasValue.value && !props.disabled && !props.readonly
+)
 
 const handleClear = async () => {
   emit('update:modelValue', '')
