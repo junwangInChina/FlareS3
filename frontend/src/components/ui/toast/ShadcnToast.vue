@@ -15,7 +15,7 @@ const add = (message, type = 'info', duration = 3000) => {
 }
 
 const remove = (id) => {
-  const index = toasts.value.findIndex(t => t.id === id)
+  const index = toasts.value.findIndex((t) => t.id === id)
   if (index > -1) {
     toasts.value.splice(index, 1)
   }
@@ -28,10 +28,14 @@ const info = (message, duration) => add(message, 'info', duration)
 
 const getIcon = (type) => {
   switch (type) {
-    case 'success': return CheckCircle
-    case 'error': return XCircle
-    case 'warning': return AlertTriangle
-    default: return Info
+    case 'success':
+      return CheckCircle
+    case 'error':
+      return XCircle
+    case 'warning':
+      return AlertTriangle
+    default:
+      return Info
   }
 }
 

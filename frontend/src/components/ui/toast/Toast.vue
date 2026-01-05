@@ -17,7 +17,7 @@ defineExpose({
   success: (message, duration) => innerRef.value?.success?.(message, duration),
   error: (message, duration) => innerRef.value?.error?.(message, duration),
   warning: (message, duration) => innerRef.value?.warning?.(message, duration),
-  info: (message, duration) => innerRef.value?.info?.(message, duration)
+  info: (message, duration) => innerRef.value?.info?.(message, duration),
 })
 </script>
 
