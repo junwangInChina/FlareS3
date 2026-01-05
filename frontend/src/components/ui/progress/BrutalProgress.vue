@@ -4,7 +4,7 @@ defineProps({
   type: { type: String, default: 'line' }, // line or circle
   showIndicator: { type: Boolean, default: true },
   color: String,
-  height: { type: Number, default: 24 }
+  height: { type: Number, default: 24 },
 })
 </script>
 
@@ -15,7 +15,7 @@ defineProps({
         class="progress-bar"
         :style="{
           width: `${Math.min(percentage, 100)}%`,
-          backgroundColor: color || 'var(--nb-duck-blue)'
+          backgroundColor: color || 'var(--nb-duck-blue)',
         }"
       ></div>
       <span v-if="showIndicator" class="progress-text">{{ Math.round(percentage) }}%</span>

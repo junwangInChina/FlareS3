@@ -9,7 +9,7 @@ const props = defineProps({
   type: { type: String, default: 'line' },
   showIndicator: { type: Boolean, default: true },
   color: String,
-  height: { type: Number, default: 24 }
+  height: { type: Number, default: 24 },
 })
 
 const themeStore = useThemeStore()
