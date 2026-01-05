@@ -20,10 +20,7 @@ const createToastInstance = (appContext) => {
   render(toastVNode, toastContainer)
 
   toastInstance =
-    toastRef.value ||
-    toastVNode.component?.exposed ||
-    toastVNode.component?.proxy ||
-    null
+    toastRef.value || toastVNode.component?.exposed || toastVNode.component?.proxy || null
 
   return toastInstance
 }
@@ -56,7 +53,7 @@ export const useMessage = () => {
     success: (message, duration) => invoke('success', message, duration),
     error: (message, duration) => invoke('error', message, duration),
     warning: (message, duration) => invoke('warning', message, duration),
-    info: (message, duration) => invoke('info', message, duration)
+    info: (message, duration) => invoke('info', message, duration),
   }
 }
 
