@@ -6,7 +6,7 @@ const props = defineProps({
   label: String,
   checkedText: String,
   uncheckedText: String,
-  disabled: Boolean
+  disabled: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -56,7 +56,7 @@ const emit = defineEmits(['update:modelValue'])
 <!-- Align with shadcn/ui Switch (default + neutral):
      https://ui.shadcn.com/docs/components/switch -->
 <style>
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-root {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -71,30 +71,33 @@ const emit = defineEmits(['update:modelValue'])
   border-radius: 9999px;
   border: 2px solid transparent;
   background-color: var(--input);
-  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   outline: none;
   appearance: none;
 }
 
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[data-state="checked"] {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-root[data-state='checked'] {
   background-color: var(--primary);
 }
 
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[data-state="unchecked"] {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-root[data-state='unchecked'] {
   background-color: var(--input);
 }
 
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root:focus-visible {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-root:focus-visible {
   box-shadow: var(--nb-focus-ring);
 }
 
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[disabled],
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-root[data-disabled] {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-root[disabled],
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-root[data-disabled] {
   cursor: not-allowed;
   opacity: 0.5;
 }
 
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-thumb {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-thumb {
   pointer-events: none;
   display: block;
   width: 20px;
@@ -106,11 +109,11 @@ const emit = defineEmits(['update:modelValue'])
   transform: translateX(0);
 }
 
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-thumb[data-state="checked"] {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-thumb[data-state='checked'] {
   transform: translateX(20px);
 }
 
-:root[data-ui-theme="shadcn"] .shadcn-switch .switch-thumb[data-state="unchecked"] {
+:root[data-ui-theme='shadcn'] .shadcn-switch .switch-thumb[data-state='unchecked'] {
   transform: translateX(0);
 }
 </style>

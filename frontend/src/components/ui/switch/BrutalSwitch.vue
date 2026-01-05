@@ -1,10 +1,10 @@
 <script setup>
-defineProps({
+const props = defineProps({
   modelValue: Boolean,
   label: String,
   checkedText: String,
   uncheckedText: String,
-  disabled: Boolean
+  disabled: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue'])

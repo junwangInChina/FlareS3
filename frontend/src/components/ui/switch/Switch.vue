@@ -9,7 +9,7 @@ const props = defineProps({
   label: String,
   checkedText: String,
   uncheckedText: String,
-  disabled: Boolean
+  disabled: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue'])
