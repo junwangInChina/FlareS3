@@ -8,13 +8,13 @@ const props = defineProps({
   type: {
     type: String,
     default: 'default',
-    validator: (v) => ['default', 'primary', 'success', 'warning', 'danger', 'info'].includes(v)
+    validator: (v) => ['default', 'primary', 'success', 'warning', 'danger', 'info'].includes(v),
   },
   size: {
     type: String,
     default: 'medium',
-    validator: (v) => ['small', 'medium'].includes(v)
-  }
+    validator: (v) => ['small', 'medium'].includes(v),
+  },
 })
 
 const themeStore = useThemeStore()

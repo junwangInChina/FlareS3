@@ -3,13 +3,13 @@ defineProps({
   type: {
     type: String,
     default: 'default',
-    validator: (v) => ['default', 'primary', 'success', 'warning', 'danger', 'info'].includes(v)
+    validator: (v) => ['default', 'primary', 'success', 'warning', 'danger', 'info'].includes(v),
   },
   size: {
     type: String,
     default: 'medium',
-    validator: (v) => ['small', 'medium'].includes(v)
-  }
+    validator: (v) => ['small', 'medium'].includes(v),
+  },
 })
 </script>
 
@@ -29,7 +29,10 @@ defineProps({
   border-radius: 9999px;
   white-space: nowrap;
   line-height: 1;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .size-small {
