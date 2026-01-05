@@ -25,7 +25,7 @@ const pageItems = computed(() =>
     page: props.page,
     totalPages: totalPages.value,
     siblingCount: props.siblingCount,
-  }),
+  })
 )
 
 const canGoPrev = computed(() => !props.disabled && props.page > 1)

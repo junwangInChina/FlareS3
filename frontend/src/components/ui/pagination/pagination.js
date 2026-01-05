@@ -64,4 +64,3 @@ export const getPaginationItems = ({ page, totalPages, siblingCount = 1 }) => {
 
   return items
 }
-

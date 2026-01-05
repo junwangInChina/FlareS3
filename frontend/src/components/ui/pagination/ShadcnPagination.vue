@@ -25,7 +25,7 @@ const pageItems = computed(() =>
     page: props.page,
     totalPages: totalPages.value,
     siblingCount: props.siblingCount,
-  }),
+  })
 )
 
 const canGoPrev = computed(() => !props.disabled && props.page > 1)
@@ -177,7 +177,11 @@ const changePageSize = (value) => {
   background: transparent;
   color: var(--foreground);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   outline: none;
   font-size: 0.875rem;
   font-weight: var(--nb-font-weight-medium);
