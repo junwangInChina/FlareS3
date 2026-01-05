@@ -5,7 +5,7 @@ import BrutalFormItem from './BrutalFormItem.vue'
 import ShadcnFormItem from './ShadcnFormItem.vue'
 
 const props = defineProps({
-  label: String
+  label: String,
 })
 
 const themeStore = useThemeStore()
