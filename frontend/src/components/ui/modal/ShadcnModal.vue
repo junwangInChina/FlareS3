@@ -1,10 +1,17 @@
 <script setup>
-import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'radix-vue'
+import {
+  DialogClose,
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from 'radix-vue'
 
 const props = defineProps({
   show: Boolean,
   title: String,
-  width: { type: String, default: '500px' }
+  width: { type: String, default: '500px' },
 })
 
 const emit = defineEmits(['update:show', 'close'])
@@ -96,7 +103,11 @@ const handleOpenChange = (open) => {
   align-items: center;
   justify-content: center;
   border-radius: var(--nb-radius-sm);
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
   opacity: 0.7;
 }
 

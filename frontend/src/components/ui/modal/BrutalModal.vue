@@ -2,7 +2,7 @@
 defineProps({
   show: Boolean,
   title: String,
-  width: { type: String, default: '500px' }
+  width: { type: String, default: '500px' },
 })
 
 const emit = defineEmits(['update:show', 'close'])
