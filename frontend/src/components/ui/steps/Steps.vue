@@ -7,7 +7,7 @@ import ShadcnSteps from './ShadcnSteps.vue'
 const props = defineProps({
   current: { type: Number, default: 1 },
   steps: { type: Array, default: () => [] },
-  status: { type: String, default: 'process' }
+  status: { type: String, default: 'process' },
 })
 
 const themeStore = useThemeStore()

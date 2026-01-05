@@ -2,7 +2,7 @@
 defineProps({
   current: { type: Number, default: 1 },
   steps: { type: Array, default: () => [] },
-  status: { type: String, default: 'process' }
+  status: { type: String, default: 'process' },
 })
 </script>
 
@@ -16,7 +16,7 @@ defineProps({
         completed: index + 1 < current,
         active: index + 1 === current,
         pending: index + 1 > current,
-        error: index + 1 === current && status === 'error'
+        error: index + 1 === current && status === 'error',
       }"
     >
       <div class="step-indicator">
@@ -62,7 +62,10 @@ defineProps({
   z-index: 1;
   border-radius: 9999px;
   color: var(--muted-foreground);
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .step-number {
