@@ -51,7 +51,7 @@ export async function listAudit(request: Request, env: Env): Promise<Response> {
     total,
     page,
     limit,
-    logs: rows.results || []
+    logs: rows.results || [],
   })
 }
 
@@ -68,9 +68,7 @@ export async function deleteAudit(request: Request, env: Env, auditId: string): 
     return jsonResponse({ error: '记录不存在' }, 404)
   }
 
-  await env.DB.prepare('DELETE FROM audit_logs WHERE id = ?')
-    .bind(auditId)
-    .run()
+  await env.DB.prepare('DELETE FROM audit_logs WHERE id = ?').bind(auditId).run()
 
   return jsonResponse({ success: true })
 }
@@ -84,13 +82,7 @@ export async function batchDeleteAudit(request: Request, env: Env): Promise<Resp
   }
 
   const rawIds = Array.isArray(body.ids) ? body.ids : []
-  const ids = Array.from(
-    new Set(
-      rawIds
-        .map((value) => String(value ?? '').trim())
-        .filter(Boolean)
-    )
-  )
+  const ids = Array.from(new Set(rawIds.map((value) => String(value ?? '').trim()).filter(Boolean)))
 
   if (!ids.length) {
     return jsonResponse({ error: 'ids 不能为空' }, 400)
