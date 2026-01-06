@@ -25,5 +25,7 @@ export function getTotalStorage(env: Env): number {
 }
 
 export function hasEnvR2Config(env: Env): boolean {
-  return Boolean(env.R2_ENDPOINT && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET)
+  return Boolean(
+    env.R2_ENDPOINT && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET
+  )
 }
