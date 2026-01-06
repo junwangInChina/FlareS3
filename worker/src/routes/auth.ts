@@ -24,7 +24,9 @@ async function hashToken(token: string): Promise<string> {
   const data = new TextEncoder().encode(token)
   const digest = await crypto.subtle.digest('SHA-256', data)
   const bytes = new Uint8Array(digest)
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 export async function login(request: Request, env: Env): Promise<Response> {
@@ -49,8 +51,8 @@ export async function login(request: Request, env: Env): Promise<Response> {
           targetType: 'user',
           targetId,
           ip,
-          userAgent
-        })
+          userAgent,
+        }),
       ])
     }
 
@@ -102,18 +104,21 @@ export async function login(request: Request, env: Env): Promise<Response> {
         targetType: 'user',
         targetId: String(user.id),
         ip,
-        userAgent
-      })
+        userAgent,
+      }),
     ])
-    return new Response(JSON.stringify({
-      success: true,
-      user: { id: user.id, username: user.username, role: user.role, status: user.status }
-    }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': buildSessionCookie(request, sessionToken, SESSION_TTL_SECONDS)
+    return new Response(
+      JSON.stringify({
+        success: true,
+        user: { id: user.id, username: user.username, role: user.role, status: user.status },
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': buildSessionCookie(request, sessionToken, SESSION_TTL_SECONDS),
+        },
       }
-    })
+    )
   } catch (error) {
     console.error('[auth.login] failed', error)
     return jsonResponse({ error: '登录失败' }, 500)
@@ -123,7 +128,10 @@ export async function login(request: Request, env: Env): Promise<Response> {
 export async function logout(request: Request, env: Env): Promise<Response> {
   const token = request.headers.get('Authorization')?.replace('Bearer ', '').trim()
   const cookieHeader = request.headers.get('Cookie') || ''
-  const cookieToken = cookieHeader.split(';').map(part => part.trim()).find(part => part.startsWith(`${getSessionCookieName()}=`))
+  const cookieToken = cookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${getSessionCookieName()}=`))
   const sessionToken = token || (cookieToken ? cookieToken.split('=')[1] : '')
   if (sessionToken) {
     const tokenHash = await hashToken(sessionToken)
@@ -134,13 +142,15 @@ export async function logout(request: Request, env: Env): Promise<Response> {
   return new Response(JSON.stringify({ success: true }), {
     headers: {
       'Content-Type': 'application/json',
-      'Set-Cookie': buildSessionCookie(request, '', 0)
-    }
+      'Set-Cookie': buildSessionCookie(request, '', 0),
+    },
   })
 }
 
 export async function status(request: Request): Promise<Response> {
-  const req = request as Request & { user?: { id: string; username: string; role: string; status: string } }
+  const req = request as Request & {
+    user?: { id: string; username: string; role: string; status: string }
+  }
   if (!req.user) {
     return jsonResponse({ authenticated: false }, 401)
   }
@@ -150,7 +160,7 @@ export async function status(request: Request): Promise<Response> {
       id: req.user.id,
       username: req.user.username,
       role: req.user.role,
-      status: req.user.status
-    }
+      status: req.user.status,
+    },
   })
 }
