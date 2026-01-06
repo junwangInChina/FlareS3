@@ -49,6 +49,6 @@ export async function getStats(request: Request, env: Env): Promise<Response> {
     usagePercent,
     fileCount,
     expiringToday: Number(expiringToday || 0),
-    expiringThisWeek: Number(expiringThisWeek || 0)
+    expiringThisWeek: Number(expiringThisWeek || 0),
   })
 }
