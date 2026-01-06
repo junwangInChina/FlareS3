@@ -12,7 +12,12 @@
         <div class="users-actions">
           <div class="filter-row">
             <div class="filter-item username">
-              <Select v-model="filters.q" :options="userOptions" size="small" :disabled="userOptionsLoading" />
+              <Select
+                v-model="filters.q"
+                :options="userOptions"
+                size="small"
+                :disabled="userOptionsLoading"
+              />
             </div>
 
             <div class="filter-item status">
@@ -50,7 +55,13 @@
             </Button>
           </div>
 
-          <Button v-if="authStore.isAdmin" type="primary" size="small" :disabled="loading" @click="showCreateModal = true">
+          <Button
+            v-if="authStore.isAdmin"
+            type="primary"
+            size="small"
+            :disabled="loading"
+            @click="showCreateModal = true"
+          >
             <Plus :size="16" style="margin-right: 6px" />
             {{ t('users.createUser') }}
           </Button>
@@ -72,31 +83,52 @@
         </Card>
       </section>
 
-      <Modal v-if="authStore.isAdmin" v-model:show="showCreateModal" :title="t('users.createModalTitle')" width="480px">
+      <Modal
+        v-if="authStore.isAdmin"
+        v-model:show="showCreateModal"
+        :title="t('users.createModalTitle')"
+        width="480px"
+      >
         <FormItem :label="t('users.form.username')">
           <Input v-model="createForm.username" :placeholder="t('users.form.usernamePlaceholder')" />
         </FormItem>
         <FormItem :label="t('users.form.password')">
-          <Input v-model="createForm.password" type="password" :placeholder="t('users.form.passwordPlaceholder')" />
+          <Input
+            v-model="createForm.password"
+            type="password"
+            :placeholder="t('users.form.passwordPlaceholder')"
+          />
         </FormItem>
         <FormItem :label="t('users.form.quota')">
-          <Input v-model="createForm.quota_gb" type="number" :placeholder="t('users.form.quotaPlaceholder')" />
+          <Input
+            v-model="createForm.quota_gb"
+            type="number"
+            :placeholder="t('users.form.quotaPlaceholder')"
+          />
         </FormItem>
 
         <template #footer>
           <Button type="default" @click="showCreateModal = false">{{ t('common.cancel') }}</Button>
-          <Button type="primary" :loading="creating" @click="handleCreate">{{ t('common.create') }}</Button>
+          <Button type="primary" :loading="creating" @click="handleCreate">{{
+            t('common.create')
+          }}</Button>
         </template>
       </Modal>
 
       <Modal v-model:show="showResetModal" :title="t('users.resetModalTitle')" width="420px">
         <FormItem :label="t('users.form.newPassword')">
-          <Input v-model="resetForm.password" type="password" :placeholder="t('users.form.newPasswordPlaceholder')" />
+          <Input
+            v-model="resetForm.password"
+            type="password"
+            :placeholder="t('users.form.newPasswordPlaceholder')"
+          />
         </FormItem>
 
         <template #footer>
           <Button type="default" @click="showResetModal = false">{{ t('common.cancel') }}</Button>
-          <Button type="primary" :loading="resetting" @click="handleResetPassword">{{ t('common.submit') }}</Button>
+          <Button type="primary" :loading="resetting" @click="handleResetPassword">{{
+            t('common.submit')
+          }}</Button>
         </template>
       </Modal>
 
@@ -111,8 +143,12 @@
         </p>
 
         <template #footer>
-          <Button type="default" :disabled="disabling" @click="handleDisableCancel">{{ t('common.cancel') }}</Button>
-          <Button type="danger" :loading="disabling" @click="handleDisableConfirm">{{ t('users.actions.disable') }}</Button>
+          <Button type="default" :disabled="disabling" @click="handleDisableCancel">{{
+            t('common.cancel')
+          }}</Button>
+          <Button type="danger" :loading="disabling" @click="handleDisableConfirm">{{
+            t('users.actions.disable')
+          }}</Button>
         </template>
       </Modal>
 
@@ -127,8 +163,12 @@
         </p>
 
         <template #footer>
-          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">{{ t('common.cancel') }}</Button>
-          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">{{ t('users.actions.delete') }}</Button>
+          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">{{
+            t('common.cancel')
+          }}</Button>
+          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">{{
+            t('users.actions.delete')
+          }}</Button>
         </template>
       </Modal>
     </div>
@@ -142,16 +182,16 @@ import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import AppLayout from '../components/layout/AppLayout.vue'
-import Card from "../components/ui/card/Card.vue"
-import Button from "../components/ui/button/Button.vue"
-import Table from "../components/ui/table/Table.vue"
-import Modal from "../components/ui/modal/Modal.vue"
-import FormItem from "../components/ui/form-item/FormItem.vue"
-import Input from "../components/ui/input/Input.vue"
-import Select from "../components/ui/select/Select.vue"
+import Card from '../components/ui/card/Card.vue'
+import Button from '../components/ui/button/Button.vue'
+import Table from '../components/ui/table/Table.vue'
+import Modal from '../components/ui/modal/Modal.vue'
+import FormItem from '../components/ui/form-item/FormItem.vue'
+import Input from '../components/ui/input/Input.vue'
+import Select from '../components/ui/select/Select.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
-import Pagination from "../components/ui/pagination/Pagination.vue"
-import Tag from "../components/ui/tag/Tag.vue"
+import Pagination from '../components/ui/pagination/Pagination.vue'
+import Tag from '../components/ui/tag/Tag.vue'
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
@@ -175,7 +215,7 @@ const userOptions = computed(() => [
   { label: t('users.filters.allUsers'), value: '' },
   ...userOptionsUsers.value
     .filter((u) => u?.username)
-    .map((u) => ({ label: u.username, value: u.username }))
+    .map((u) => ({ label: u.username, value: u.username })),
 ])
 
 const showCreateModal = ref(false)
@@ -198,8 +238,12 @@ const pendingDeleteUser = ref(null)
 const formatBytes = (bytes) => {
   const unit = 1024
   if (bytes < unit) return `${bytes} B`
-  let div = unit, exp = 0
-  while (bytes / div >= unit && exp < 4) { div *= unit; exp++ }
+  let div = unit,
+    exp = 0
+  while (bytes / div >= unit && exp < 4) {
+    div *= unit
+    exp++
+  }
   return `${(bytes / div).toFixed(2)} ${['KB', 'MB', 'GB', 'TB', 'PB'][exp]}`
 }
 
@@ -234,7 +278,7 @@ const columns = computed(() => [
     key: 'username',
     align: 'left',
     ellipsis: false,
-    render: (row) => h('span', toDisplayText(row.username))
+    render: (row) => h('span', toDisplayText(row.username)),
   },
   {
     title: t('users.columns.role'),
@@ -242,7 +286,7 @@ const columns = computed(() => [
     width: 100,
     align: 'center',
     ellipsis: false,
-    render: (row) => h('span', toRoleLabel(row.role))
+    render: (row) => h('span', toRoleLabel(row.role)),
   },
   {
     title: t('users.columns.status'),
@@ -252,9 +296,10 @@ const columns = computed(() => [
     ellipsis: false,
     render: (row) => {
       const text = toStatusLabel(row.status)
-      const type = row.status === 'active' ? 'success' : row.status === 'disabled' ? 'warning' : 'danger'
+      const type =
+        row.status === 'active' ? 'success' : row.status === 'disabled' ? 'warning' : 'danger'
       return h(Tag, { type, size: 'small' }, () => text)
-    }
+    },
   },
   {
     title: t('users.columns.quota'),
@@ -265,7 +310,7 @@ const columns = computed(() => [
     render: (row) => {
       const text = formatBytes(row.quota_bytes || 0)
       return h('span', text)
-    }
+    },
   },
   {
     title: t('users.columns.actions'),
@@ -273,33 +318,39 @@ const columns = computed(() => [
     width: locale.value === 'zh-CN' ? 330 : 380,
     align: 'center',
     ellipsis: false,
-    render: (row) => h('div', { class: 'action-buttons' }, [
-      h(Button, {
-        size: 'small',
-        type: 'default',
-        disabled: row.role === 'admin' && row.status === 'active',
-        onClick: () => toggleStatus(row)
-      }, () => [
-        row.status === 'active'
-          ? h(UserX, { size: 16, style: 'margin-right: 4px' })
-          : h(UserCheck, { size: 16, style: 'margin-right: 4px' }),
-        row.status === 'active' ? t('users.actions.disable') : t('users.actions.enable')
+    render: (row) =>
+      h('div', { class: 'action-buttons' }, [
+        h(
+          Button,
+          {
+            size: 'small',
+            type: 'default',
+            disabled: row.role === 'admin' && row.status === 'active',
+            onClick: () => toggleStatus(row),
+          },
+          () => [
+            row.status === 'active'
+              ? h(UserX, { size: 16, style: 'margin-right: 4px' })
+              : h(UserCheck, { size: 16, style: 'margin-right: 4px' }),
+            row.status === 'active' ? t('users.actions.disable') : t('users.actions.enable'),
+          ]
+        ),
+        h(Button, { size: 'small', type: 'default', onClick: () => openReset(row) }, () => [
+          h(KeyRound, { size: 16, style: 'margin-right: 4px' }),
+          t('users.actions.resetPassword'),
+        ]),
+        h(
+          Button,
+          {
+            size: 'small',
+            type: 'danger',
+            disabled: row.role === 'admin',
+            onClick: () => handleDelete(row),
+          },
+          () => [h(Trash2, { size: 16, style: 'margin-right: 4px' }), t('users.actions.delete')]
+        ),
       ]),
-      h(Button, { size: 'small', type: 'default', onClick: () => openReset(row) }, () => [
-        h(KeyRound, { size: 16, style: 'margin-right: 4px' }),
-        t('users.actions.resetPassword')
-      ]),
-      h(Button, {
-        size: 'small',
-        type: 'danger',
-        disabled: row.role === 'admin',
-        onClick: () => handleDelete(row)
-      }, () => [
-        h(Trash2, { size: 16, style: 'margin-right: 4px' }),
-        t('users.actions.delete')
-      ])
-    ])
-  }
+  },
 ])
 
 const toIsoStartOfDay = (dateValue) => {
@@ -445,14 +496,16 @@ const handleCreate = async () => {
       username: createForm.value.username,
       password: createForm.value.password,
       role: 'user',
-      quota_bytes: quotaBytes
+      quota_bytes: quotaBytes,
     })
     message.success(t('users.messages.createSuccess'))
     showCreateModal.value = false
     createForm.value = defaultCreateForm()
     if (createdUsername) {
       const createdUserId = result?.user_id ? String(result.user_id) : ''
-      const exists = userOptionsUsers.value.some((u) => String(u.id) === createdUserId || u.username === createdUsername)
+      const exists = userOptionsUsers.value.some(
+        (u) => String(u.id) === createdUserId || u.username === createdUsername
+      )
       if (!exists) {
         userOptionsUsers.value.unshift({
           id: createdUserId,
@@ -705,7 +758,7 @@ onMounted(() => {
   align-items: center;
 }
 
-:root[data-ui-theme="shadcn"] :deep(.action-buttons) {
+:root[data-ui-theme='shadcn'] :deep(.action-buttons) {
   gap: 8px;
 }
 
