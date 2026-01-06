@@ -93,8 +93,12 @@
         </p>
 
         <template #footer>
-          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">{{ t('common.cancel') }}</Button>
-          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">{{ t('audit.actions.delete') }}</Button>
+          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">{{
+            t('common.cancel')
+          }}</Button>
+          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">{{
+            t('audit.actions.delete')
+          }}</Button>
         </template>
       </Modal>
     </div>
@@ -108,15 +112,15 @@ import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useThemeStore } from '../stores/theme'
 import AppLayout from '../components/layout/AppLayout.vue'
-import Card from "../components/ui/card/Card.vue"
-import Button from "../components/ui/button/Button.vue"
-import Select from "../components/ui/select/Select.vue"
-import Table from "../components/ui/table/Table.vue"
+import Card from '../components/ui/card/Card.vue'
+import Button from '../components/ui/button/Button.vue'
+import Select from '../components/ui/select/Select.vue'
+import Table from '../components/ui/table/Table.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
-import Pagination from "../components/ui/pagination/Pagination.vue"
-import Tag from "../components/ui/tag/Tag.vue"
-import Tooltip from "../components/ui/tooltip/Tooltip.vue"
-import Modal from "../components/ui/modal/Modal.vue"
+import Pagination from '../components/ui/pagination/Pagination.vue'
+import Tag from '../components/ui/tag/Tag.vue'
+import Tooltip from '../components/ui/tooltip/Tooltip.vue'
+import Modal from '../components/ui/modal/Modal.vue'
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
@@ -209,12 +213,10 @@ const toDisplayText = (value) => {
 }
 
 const normalizeId = (value) => String(value ?? '').trim()
-const pageRowIds = computed(() =>
-  logs.value
-    .map((row) => normalizeId(row?.id))
-    .filter(Boolean)
+const pageRowIds = computed(() => logs.value.map((row) => normalizeId(row?.id)).filter(Boolean))
+const selectedIdSet = computed(
+  () => new Set(selectedIds.value.map((id) => normalizeId(id)).filter(Boolean))
 )
-const selectedIdSet = computed(() => new Set(selectedIds.value.map((id) => normalizeId(id)).filter(Boolean)))
 const allRowsSelected = computed(() => {
   const ids = pageRowIds.value
   if (!ids.length) return false
@@ -331,14 +333,15 @@ const columns = computed(() => [
     width: 48,
     align: 'center',
     ellipsis: false,
-    titleRender: () => h('input', {
-      class: 'audit-checkbox',
-      type: 'checkbox',
-      disabled: loading.value || pageRowIds.value.length === 0,
-      checked: allRowsSelected.value,
-      indeterminate: selectAllIndeterminate.value,
-      onChange: (event) => toggleSelectAll(Boolean(event?.target?.checked))
-    }),
+    titleRender: () =>
+      h('input', {
+        class: 'audit-checkbox',
+        type: 'checkbox',
+        disabled: loading.value || pageRowIds.value.length === 0,
+        checked: allRowsSelected.value,
+        indeterminate: selectAllIndeterminate.value,
+        onChange: (event) => toggleSelectAll(Boolean(event?.target?.checked)),
+      }),
     render: (row) => {
       const id = normalizeId(row?.id)
       return h('input', {
@@ -346,9 +349,9 @@ const columns = computed(() => [
         type: 'checkbox',
         disabled: loading.value || !id,
         checked: selectedIdSet.value.has(id),
-        onChange: (event) => toggleRowSelection(id, Boolean(event?.target?.checked))
+        onChange: (event) => toggleRowSelection(id, Boolean(event?.target?.checked)),
       })
-    }
+    },
   },
   {
     title: t('audit.columns.time'),
@@ -356,11 +359,9 @@ const columns = computed(() => [
     width: 200,
     align: 'center',
     render: (row) => {
-      const text = row.created_at
-        ? new Date(row.created_at).toLocaleString(locale.value)
-        : '-'
+      const text = row.created_at ? new Date(row.created_at).toLocaleString(locale.value) : '-'
       return h('span', text)
-    }
+    },
   },
   {
     title: t('audit.columns.action'),
@@ -372,7 +373,7 @@ const columns = computed(() => [
       const text = toDisplayText(row.action)
       if (text === '-') return text
       return h(Tag, { type: 'info', size: 'small' }, () => text)
-    }
+    },
   },
   {
     title: t('audit.columns.actor'),
@@ -382,7 +383,7 @@ const columns = computed(() => [
     render: (row) => {
       const text = toDisplayText(row.actor_username || row.actor_user_id)
       return h('span', text)
-    }
+    },
   },
   {
     title: t('audit.columns.ip'),
@@ -392,7 +393,7 @@ const columns = computed(() => [
     render: (row) => {
       const text = toDisplayText(row.ip)
       return h('span', text)
-    }
+    },
   },
   {
     title: t('audit.columns.userAgent'),
@@ -403,7 +404,7 @@ const columns = computed(() => [
       return h(Tooltip, { content: text }, () =>
         h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, text)
       )
-    }
+    },
   },
   {
     title: t('audit.columns.actions'),
@@ -414,18 +415,19 @@ const columns = computed(() => [
     render: (row) => {
       const id = normalizeId(row?.id)
       return h('div', { class: 'action-buttons' }, [
-        h(Button, {
-          size: 'small',
-          type: 'danger',
-          disabled: deleting.value || loading.value || !id,
-          onClick: () => handleDeleteRow(row)
-        }, () => [
-          h(Trash2, { size: 16, style: 'margin-right: 4px' }),
-          t('audit.actions.delete')
-        ])
+        h(
+          Button,
+          {
+            size: 'small',
+            type: 'danger',
+            disabled: deleting.value || loading.value || !id,
+            onClick: () => handleDeleteRow(row),
+          },
+          () => [h(Trash2, { size: 16, style: 'margin-right: 4px' }), t('audit.actions.delete')]
+        ),
       ])
-    }
-  }
+    },
+  },
 ])
 
 const toIsoStartOfDay = (dateValue) => {
