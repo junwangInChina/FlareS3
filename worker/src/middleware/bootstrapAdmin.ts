@@ -4,16 +4,19 @@ import { hashPassword } from '../services/password'
 import { logAudit } from '../services/audit'
 import { getClientIp } from './rateLimit'
 
-export async function bootstrapAdmin(request: Request, env: Env): Promise<Response | void> {
+export async function bootstrapAdmin(request: Request, env: Env): Promise<Response | undefined> {
   const result = await env.DB.prepare('SELECT COUNT(*) AS count FROM users').first('count')
   const count = Number(result || 0)
   if (count > 0) {
     return
   }
   if (!env.BOOTSTRAP_ADMIN_USER || !env.BOOTSTRAP_ADMIN_PASS) {
-    return new Response(JSON.stringify({
-      error: '管理员未初始化，请设置 BOOTSTRAP_ADMIN_USER/BOOTSTRAP_ADMIN_PASS'
-    }), { status: 500 })
+    return new Response(
+      JSON.stringify({
+        error: '管理员未初始化，请设置 BOOTSTRAP_ADMIN_USER/BOOTSTRAP_ADMIN_PASS',
+      }),
+      { status: 500 }
+    )
   }
   const now = new Date().toISOString()
   const userId = crypto.randomUUID()
@@ -31,6 +34,6 @@ export async function bootstrapAdmin(request: Request, env: Env): Promise<Respon
     targetType: 'user',
     targetId: userId,
     ip: getClientIp(request),
-    userAgent: request.headers.get('User-Agent') || undefined
+    userAgent: request.headers.get('User-Agent') || undefined,
   })
 }
