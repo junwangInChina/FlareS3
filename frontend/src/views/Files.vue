@@ -33,7 +33,12 @@
             </div>
 
             <div v-if="authStore.isAdmin" class="filter-item owner">
-              <Select v-model="filters.owner_id" :options="ownerOptions" size="small" :disabled="usersLoading" />
+              <Select
+                v-model="filters.owner_id"
+                :options="ownerOptions"
+                size="small"
+                :disabled="usersLoading"
+              />
             </div>
 
             <div class="filter-item status">
@@ -75,7 +80,12 @@
 
       <section class="files-content">
         <Card class="files-table-card">
-          <Table class="files-table" :columns="columns" :data="filesStore.files" :loading="tableLoading" />
+          <Table
+            class="files-table"
+            :columns="columns"
+            :data="filesStore.files"
+            :loading="tableLoading"
+          />
 
           <Pagination
             v-if="filesStore.total > 0"
@@ -91,10 +101,7 @@
 
       <Modal v-model:show="showInfoModal" :title="t('files.modals.infoTitle')" width="500px">
         <template v-if="selectedFile">
-          <Descriptions
-            :items="fileInfoItems"
-            :column="1"
-          />
+          <Descriptions :items="fileInfoItems" :column="1" />
 
           <Divider />
 
@@ -102,7 +109,9 @@
             <label class="link-label">{{ t('upload.shortLink') }}</label>
             <div class="link-row">
               <Input :model-value="getShortUrl(selectedFile)" readonly size="small" />
-              <Button type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile))">{{ t('upload.copy') }}</Button>
+              <Button type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile))">{{
+                t('upload.copy')
+              }}</Button>
             </div>
           </div>
 
@@ -110,14 +119,18 @@
             <label class="link-label">{{ t('upload.directLink') }}</label>
             <div class="link-row">
               <Input :model-value="getDownloadUrl(selectedFile)" readonly size="small" />
-              <Button type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile))">{{ t('upload.copy') }}</Button>
+              <Button type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile))">{{
+                t('upload.copy')
+              }}</Button>
             </div>
           </div>
         </template>
 
         <template #footer>
           <Button type="default" @click="showInfoModal = false">{{ t('common.close') }}</Button>
-          <Button type="primary" @click="handleDownload(selectedFile)">{{ t('files.downloadFile') }}</Button>
+          <Button type="primary" @click="handleDownload(selectedFile)">{{
+            t('files.downloadFile')
+          }}</Button>
         </template>
       </Modal>
 
@@ -147,7 +160,7 @@ import Input from '../components/ui/input/Input.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
 import Tag from '../components/ui/tag/Tag.vue'
-import Tooltip from "../components/ui/tooltip/Tooltip.vue"
+import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import UploadPanel from '../components/upload/UploadPanel.vue'
 import { useMessage } from '../composables/useMessage'
 
@@ -165,20 +178,20 @@ const filters = ref({
   owner_id: '',
   upload_status: '',
   created_from_date: '',
-  created_to_date: ''
+  created_to_date: '',
 })
 
 const usersLoading = ref(false)
 const users = ref([])
 const ownerOptions = computed(() => [
   { label: t('files.filters.allOwners'), value: '' },
-  ...users.value.map((u) => ({ label: u.username, value: u.id }))
+  ...users.value.map((u) => ({ label: u.username, value: u.id })),
 ])
 
 const statusOptions = computed(() => [
   { label: t('files.filters.allStatus'), value: '' },
   { label: t('files.status.valid'), value: 'completed' },
-  { label: t('files.status.invalid'), value: 'deleted' }
+  { label: t('files.status.invalid'), value: 'deleted' },
 ])
 
 const activeAction = ref('')
@@ -193,9 +206,7 @@ const fileInfoItems = computed(() => {
     return []
   }
 
-  const uploadedAt = file.created_at
-    ? new Date(file.created_at).toLocaleString(locale.value)
-    : '-'
+  const uploadedAt = file.created_at ? new Date(file.created_at).toLocaleString(locale.value) : '-'
   const permission = file.require_login
     ? t('files.permission.requireLogin')
     : t('files.permission.public')
@@ -214,7 +225,7 @@ const columns = computed(() => [
     title: t('files.columns.filename'),
     key: 'filename',
     align: 'left',
-    render: (row) => h(Tooltip, { content: row.filename }, () => row.filename)
+    render: (row) => h(Tooltip, { content: row.filename }, () => row.filename),
   },
   {
     title: t('files.columns.size'),
@@ -225,7 +236,7 @@ const columns = computed(() => [
     render: (row) => {
       const sizeText = formatBytes(row.size)
       return h('span', sizeText)
-    }
+    },
   },
   {
     title: t('files.columns.expires'),
@@ -239,7 +250,7 @@ const columns = computed(() => [
           ? t('files.expires.seconds', { value: 30 })
           : t('files.expires.days', { days: row.expires_in })
       return h('span', text)
-    }
+    },
   },
   {
     title: t('files.columns.status'),
@@ -258,11 +269,15 @@ const columns = computed(() => [
           ? t('files.status.expired')
           : t('files.status.valid')
       const tagType = isDeleted ? 'danger' : isExpired ? 'warning' : 'success'
-      return h(Tag, {
-        type: tagType,
-        size: 'small'
-      }, () => statusText)
-    }
+      return h(
+        Tag,
+        {
+          type: tagType,
+          size: 'small',
+        },
+        () => statusText
+      )
+    },
   },
   {
     title: t('files.columns.remaining'),
@@ -272,7 +287,7 @@ const columns = computed(() => [
     render: (row) => {
       const text = row.upload_status === 'deleted' ? '-' : row.remaining_time
       return h(Tooltip, { content: text }, () => text)
-    }
+    },
   },
   {
     title: t('files.columns.uploadedAt'),
@@ -282,45 +297,55 @@ const columns = computed(() => [
     render: (row) => {
       const text = new Date(row.created_at).toLocaleString(locale.value)
       return h(Tooltip, { content: text }, () => text)
-    }
+    },
   },
-  ...(authStore.isAdmin ? [{
-    title: t('files.columns.owner'),
-    key: 'owner',
-    width: 120,
+  ...(authStore.isAdmin
+    ? [
+        {
+          title: t('files.columns.owner'),
+          key: 'owner',
+          width: 120,
+          align: 'center',
+          ellipsis: false,
+          render: (row) => {
+            const text = row.owner_username || row.owner_id
+            return h('span', text)
+          },
+        },
+      ]
+    : []),
+  {
+    title: t('files.columns.actions'),
+    key: 'actions',
+    width: locale.value === 'zh-CN' ? 200 : 240,
     align: 'center',
     ellipsis: false,
     render: (row) => {
-      const text = row.owner_username || row.owner_id
-      return h('span', text)
-    }
-  }] : []),
-  {
-    title: t('files.columns.actions'), key: 'actions', width: locale.value === 'zh-CN' ? 200 : 240, align: 'center', ellipsis: false,
-    render: (row) => {
       const isDeleted = row.upload_status === 'deleted'
       return h('div', { class: 'action-buttons' }, [
-        h(Button, {
-          size: 'small',
-          type: 'default',
-          disabled: isDeleted,
-          onClick: () => showFileInfo(row)
-        }, () => [
-          h(Info, { size: 16, style: 'margin-right: 4px' }),
-          t('common.details')
-        ]),
-        h(Button, {
-          size: 'small',
-          type: 'danger',
-          disabled: isDeleted,
-          onClick: () => handleDelete(row.id)
-        }, () => [
-          h(Trash2, { size: 16, style: 'margin-right: 4px' }),
-          t('files.actions.delete')
-        ])
+        h(
+          Button,
+          {
+            size: 'small',
+            type: 'default',
+            disabled: isDeleted,
+            onClick: () => showFileInfo(row),
+          },
+          () => [h(Info, { size: 16, style: 'margin-right: 4px' }), t('common.details')]
+        ),
+        h(
+          Button,
+          {
+            size: 'small',
+            type: 'danger',
+            disabled: isDeleted,
+            onClick: () => handleDelete(row.id),
+          },
+          () => [h(Trash2, { size: 16, style: 'margin-right: 4px' }), t('files.actions.delete')]
+        ),
       ])
-    }
-  }
+    },
+  },
 ])
 
 const formatBytes = (bytes) => {
@@ -328,11 +353,12 @@ const formatBytes = (bytes) => {
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
 }
 
 const getShortUrl = (file) => window.location.origin + '/s/' + file.short_code
-const getDownloadUrl = (file) => file.download_url || (window.location.origin + `/api/files/${file.id}/download`)
+const getDownloadUrl = (file) =>
+  file.download_url || window.location.origin + `/api/files/${file.id}/download`
 
 const copyUrl = (url) => {
   navigator.clipboard.writeText(url)
@@ -420,7 +446,11 @@ const loadUsers = async () => {
 
 const loadFiles = async () => {
   try {
-    await filesStore.fetchFiles(pagination.value.page, pagination.value.pageSize, buildQueryParams())
+    await filesStore.fetchFiles(
+      pagination.value.page,
+      pagination.value.pageSize,
+      buildQueryParams()
+    )
     hasLoadedOnce.value = true
   } catch (error) {
     message.error(t('files.messages.loadFilesFailed'))
