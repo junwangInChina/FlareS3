@@ -4,11 +4,11 @@ import api from '../services/api'
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     isAuthenticated: false,
-    user: null
+    user: null,
   }),
 
   getters: {
-    isAdmin: state => state.user?.role === 'admin'
+    isAdmin: (state) => state.user?.role === 'admin',
   },
 
   actions: {
@@ -25,7 +25,7 @@ export const useAuthStore = defineStore('auth', {
         return {
           success: false,
           message: error.response?.data?.error || '',
-          code: error.response?.data?.code
+          code: error.response?.data?.code,
         }
       }
     },
@@ -54,6 +54,6 @@ export const useAuthStore = defineStore('auth', {
     logoutLocal() {
       this.isAuthenticated = false
       this.user = null
-    }
-  }
+    },
+  },
 })
