@@ -57,17 +57,24 @@ export async function listUsers(request: Request, env: Env): Promise<Response> {
     total,
     page,
     limit,
-    users: rows.results || []
+    users: rows.results || [],
   })
 }
 
 export async function createUser(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await parseJson<{ username: string; password: string; role?: 'admin' | 'user'; quota_bytes?: number }>(request)
+    const body = await parseJson<{
+      username: string
+      password: string
+      role?: 'admin' | 'user'
+      quota_bytes?: number
+    }>(request)
     if (!body.username || !body.password) {
       return jsonResponse({ error: '用户名或密码不能为空' }, 400)
     }
-    const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(body.username).first()
+    const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?')
+      .bind(body.username)
+      .first()
     if (existing) {
       return jsonResponse({ error: '用户名已存在' }, 409)
     }
@@ -92,7 +99,7 @@ export async function createUser(request: Request, env: Env): Promise<Response> 
       targetType: 'user',
       targetId: id,
       ip: getClientIp(request),
-      userAgent: request.headers.get('User-Agent') || undefined
+      userAgent: request.headers.get('User-Agent') || undefined,
     })
 
     return jsonResponse({ success: true, user_id: id })
@@ -103,7 +110,11 @@ export async function createUser(request: Request, env: Env): Promise<Response> 
 
 export async function updateUser(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const body = await parseJson<{ status?: 'active' | 'disabled' | 'deleted'; role?: 'admin' | 'user'; quota_bytes?: number }>(request)
+    const body = await parseJson<{
+      status?: 'active' | 'disabled' | 'deleted'
+      role?: 'admin' | 'user'
+      quota_bytes?: number
+    }>(request)
     if (body.status === 'disabled' || body.status === 'deleted') {
       const target = await env.DB.prepare('SELECT role FROM users WHERE id = ? LIMIT 1')
         .bind(userId)
@@ -137,7 +148,9 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
     updates.push('updated_at = ?')
     params.push(new Date().toISOString())
     params.push(userId)
-    await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run()
+    await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`)
+      .bind(...params)
+      .run()
 
     const actor = getUser(request)
     const auditAction =
@@ -155,7 +168,7 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
       targetId: userId,
       ip: getClientIp(request),
       userAgent: request.headers.get('User-Agent') || undefined,
-      metadata: body
+      metadata: body,
     })
 
     return jsonResponse({ success: true })
@@ -181,7 +194,7 @@ export async function resetPassword(request: Request, env: Env, userId: string):
       targetType: 'user',
       targetId: userId,
       ip: getClientIp(request),
-      userAgent: request.headers.get('User-Agent') || undefined
+      userAgent: request.headers.get('User-Agent') || undefined,
     })
 
     return jsonResponse({ success: true })
@@ -237,7 +250,7 @@ export async function deleteUser(request: Request, env: Env, userId: string): Pr
     targetId: userId,
     ip: getClientIp(request),
     userAgent: request.headers.get('User-Agent') || undefined,
-    metadata: { queuedFiles: files.results?.length || 0 }
+    metadata: { queuedFiles: files.results?.length || 0 },
   })
 
   return jsonResponse({ success: true, queued: true })
