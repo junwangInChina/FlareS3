@@ -8,7 +8,7 @@ export const useFilesStore = defineStore('files', {
     page: 1,
     limit: 20,
     loading: false,
-    filters: {}
+    filters: {},
   }),
 
   actions: {
@@ -27,12 +27,8 @@ export const useFilesStore = defineStore('files', {
     },
 
     async deleteFile(fileId) {
-      try {
-        await api.deleteFile(fileId)
-        await this.fetchFiles(this.page, this.limit, this.filters)
-      } catch (error) {
-        throw error
-      }
-    }
-  }
+      await api.deleteFile(fileId)
+      await this.fetchFiles(this.page, this.limit, this.filters)
+    },
+  },
 })
