@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS files (
   upload_status TEXT NOT NULL CHECK(upload_status IN ('pending','uploading','completed','deleted')),
   short_code TEXT UNIQUE,
   require_login INTEGER NOT NULL DEFAULT 1,
+  multipart_upload_id TEXT,
   deleted_at DATETIME
 );
 
