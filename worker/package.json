@@ -4,7 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --port 18787",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.560.0",
@@ -14,7 +18,12 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
     "@types/bcryptjs": "^2.4.6",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.5",
     "typescript": "^5.5.4",
     "wrangler": "^3.88.0"
   }
