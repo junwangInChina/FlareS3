@@ -13,8 +13,8 @@ export async function status(request: Request, env: Env): Promise<Response> {
       config_source: 'env',
       config: {
         endpoint: env.R2_ENDPOINT,
-        bucket_name: env.R2_BUCKET
-      }
+        bucket_name: env.R2_BUCKET,
+      },
     })
   }
   const endpoint = await env.DB.prepare('SELECT value FROM system_config WHERE key = ?')
@@ -31,8 +31,8 @@ export async function status(request: Request, env: Env): Promise<Response> {
     config_source: 'db',
     config: {
       endpoint,
-      bucket_name: bucketName
-    }
+      bucket_name: bucketName,
+    },
   })
 }
 
@@ -49,11 +49,17 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
     if (keyCheck.reason === 'invalid_base64') {
       return jsonResponse({ error: 'R2_MASTER_KEY 无效：不是合法的 base64 字符串' }, 500)
     }
-    const suffix = keyCheck.reason === 'invalid_length' ? `（当前解码为 ${keyCheck.byteLength} 字节）` : ''
+    const suffix =
+      keyCheck.reason === 'invalid_length' ? `（当前解码为 ${keyCheck.byteLength} 字节）` : ''
     return jsonResponse({ error: `R2_MASTER_KEY 无效：需要 32 字节 base64${suffix}` }, 500)
   }
   try {
-    const body = await parseJson<{ endpoint: string; access_key_id: string; secret_access_key: string; bucket_name: string }>(request)
+    const body = await parseJson<{
+      endpoint: string
+      access_key_id: string
+      secret_access_key: string
+      bucket_name: string
+    }>(request)
     if (!body.endpoint || !body.access_key_id || !body.secret_access_key || !body.bucket_name) {
       return jsonResponse({ error: '所有字段都是必填的' }, 400)
     }
@@ -64,7 +70,7 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
       ['r2_endpoint', body.endpoint],
       ['r2_bucket_name', body.bucket_name],
       ['r2_access_key_id_enc', accessEnc],
-      ['r2_secret_access_key_enc', secretEnc]
+      ['r2_secret_access_key_enc', secretEnc],
     ]
     for (const [key, value] of statements) {
       await env.DB.prepare(
@@ -81,7 +87,7 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
       targetType: 'system_config',
       targetId: 'r2_config',
       ip: getClientIp(request),
-      userAgent: request.headers.get('User-Agent') || undefined
+      userAgent: request.headers.get('User-Agent') || undefined,
     })
 
     return jsonResponse({ success: true })
@@ -92,7 +98,12 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
 
 export async function testConfig(request: Request): Promise<Response> {
   try {
-    const body = await parseJson<{ endpoint: string; access_key_id: string; secret_access_key: string; bucket_name: string }>(request)
+    const body = await parseJson<{
+      endpoint: string
+      access_key_id: string
+      secret_access_key: string
+      bucket_name: string
+    }>(request)
     if (!body.endpoint || !body.access_key_id || !body.secret_access_key || !body.bucket_name) {
       return jsonResponse({ error: '所有字段都是必填的' }, 400)
     }
@@ -100,7 +111,7 @@ export async function testConfig(request: Request): Promise<Response> {
       endpoint: body.endpoint,
       accessKeyId: body.access_key_id,
       secretAccessKey: body.secret_access_key,
-      bucketName: body.bucket_name
+      bucketName: body.bucket_name,
     }
     createS3Client(config)
     await testConnection(config)
@@ -110,7 +121,7 @@ export async function testConfig(request: Request): Promise<Response> {
     const parts = [
       summary.code,
       typeof summary.httpStatusCode === 'number' ? `HTTP ${summary.httpStatusCode}` : null,
-      summary.message
+      summary.message,
     ].filter(Boolean)
     let message = parts.length ? `连接测试失败（${parts.join(' / ')}）` : '连接测试失败'
     if (summary.httpStatusCode === 403 || summary.code === 'AccessDenied') {
