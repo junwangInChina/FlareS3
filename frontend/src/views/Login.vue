@@ -27,13 +27,7 @@
           />
         </FormItem>
 
-        <Button
-          type="primary"
-          size="large"
-          block
-          :loading="loading"
-          @click="handleSubmit"
-        >
+        <Button type="primary" size="large" block :loading="loading" @click="handleSubmit">
           {{ t('auth.login') }}
         </Button>
       </form>
@@ -65,7 +59,7 @@ const message = useMessage()
 
 const formValue = ref({
   username: '',
-  password: ''
+  password: '',
 })
 
 const loading = ref(false)
