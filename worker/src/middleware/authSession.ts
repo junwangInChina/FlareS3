@@ -13,7 +13,7 @@ export type AuthUser = {
 function parseCookies(request: Request): Record<string, string> {
   const header = request.headers.get('Cookie') || ''
   const cookies: Record<string, string> = {}
-  header.split(';').forEach(part => {
+  header.split(';').forEach((part) => {
     const [name, ...rest] = part.trim().split('=')
     if (!name) return
     cookies[name] = rest.join('=')
@@ -25,14 +25,19 @@ async function hashToken(token: string): Promise<string> {
   const data = new TextEncoder().encode(token)
   const digest = await crypto.subtle.digest('SHA-256', data)
   const bytes = new Uint8Array(digest)
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 export function getSessionCookieName(): string {
   return COOKIE_NAME
 }
 
-export async function authSessionMiddleware(request: Request, env: Env): Promise<Response | void> {
+export async function authSessionMiddleware(
+  request: Request,
+  env: Env
+): Promise<Response | undefined> {
   const cookies = parseCookies(request)
   const header = request.headers.get('Authorization')
   let token = cookies[COOKIE_NAME]
@@ -69,7 +74,7 @@ export async function authSessionMiddleware(request: Request, env: Env): Promise
     username: String(user.username),
     role: user.role as 'admin' | 'user',
     status: user.status as 'active' | 'disabled' | 'deleted',
-    quota_bytes: Number(user.quota_bytes)
+    quota_bytes: Number(user.quota_bytes),
   }
   req.sessionId = String(session.id)
 }
