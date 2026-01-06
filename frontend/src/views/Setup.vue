@@ -4,7 +4,7 @@
       <header class="setup-header">
         <div class="setup-title-group">
           <div class="setup-title-row">
-            <h1 class="setup-title">{{ t("setup.title") }}</h1>
+            <h1 class="setup-title">{{ t('setup.title') }}</h1>
             <Button
               type="ghost"
               size="small"
@@ -16,36 +16,27 @@
             </Button>
           </div>
           <p class="setup-subtitle">
-            {{ t("setup.subtitle") }}
+            {{ t('setup.subtitle') }}
           </p>
         </div>
 
         <div class="setup-actions">
           <Button type="primary" size="large" @click="openCreate">
             <Plus :size="18" style="margin-right: 6px" />
-            {{ t("setup.actions.addConfig") }}
+            {{ t('setup.actions.addConfig') }}
           </Button>
-          <Button
-            type="default"
-            size="large"
-            :loading="loading"
-            @click="refresh"
-          >
+          <Button type="default" size="large" :loading="loading" @click="refresh">
             <RefreshCw :size="18" style="margin-right: 6px" />
-            {{ t("setup.actions.refreshList") }}
+            {{ t('setup.actions.refreshList') }}
           </Button>
         </div>
       </header>
 
       <section class="config-list">
-        <div v-if="loading" class="config-state">{{ t("setup.state.loading") }}</div>
+        <div v-if="loading" class="config-state">{{ t('setup.state.loading') }}</div>
 
-        <Alert
-          v-else-if="configs.length === 0"
-          type="info"
-          :title="t('setup.state.emptyTitle')"
-        >
-          {{ t("setup.state.emptyContent") }}
+        <Alert v-else-if="configs.length === 0" type="info" :title="t('setup.state.emptyTitle')">
+          {{ t('setup.state.emptyContent') }}
         </Alert>
 
         <div v-else class="config-cards">
@@ -63,9 +54,7 @@
                 </span>
 
                 <div class="config-card-title">
-                  <span class="config-card-name">{{
-                    toDisplayText(row.name)
-                  }}</span>
+                  <span class="config-card-name">{{ toDisplayText(row.name) }}</span>
                 </div>
               </div>
             </template>
@@ -77,12 +66,8 @@
                   {{ formatSource(row.source) }}
                 </Tag>
 
-                <Tag
-                  v-if="row.id === r2Options.default_config_id"
-                  type="success"
-                  size="small"
-                >
-                  {{ t("setup.state.defaultTag") }}
+                <Tag v-if="row.id === r2Options.default_config_id" type="success" size="small">
+                  {{ t('setup.state.defaultTag') }}
                 </Tag>
               </div>
             </template>
@@ -90,7 +75,7 @@
             <div class="config-detail">
               <div class="kv-group">
                 <div class="kv-row">
-                  <div class="kv-label">{{ t("setup.labels.bucket") }}</div>
+                  <div class="kv-label">{{ t('setup.labels.bucket') }}</div>
                   <div class="kv-value">
                     <span class="text-ellipsis">
                       {{ toDisplayText(row.bucket_name) }}
@@ -106,25 +91,19 @@
                 </div>
               </div>
 
-              <div
-                v-if="row.totalSpaceFormatted && row.usedSpaceFormatted"
-                class="usage-panel"
-              >
+              <div v-if="row.totalSpaceFormatted && row.usedSpaceFormatted" class="usage-panel">
                 <div class="usage-metrics">
                   <div class="usage-metric">
-                    <div class="usage-label">{{ t("setup.labels.totalSpace") }}</div>
+                    <div class="usage-label">{{ t('setup.labels.totalSpace') }}</div>
                     <div class="usage-value">{{ row.totalSpaceFormatted }}</div>
                   </div>
                   <div class="usage-metric">
-                    <div class="usage-label">{{ t("setup.labels.usedSpace") }}</div>
+                    <div class="usage-label">{{ t('setup.labels.usedSpace') }}</div>
                     <div class="usage-value">{{ row.usedSpaceFormatted }}</div>
                   </div>
                   <div class="usage-metric">
-                    <div class="usage-label">{{ t("setup.labels.usagePercent") }}</div>
-                    <div
-                      class="usage-value"
-                      :style="{ color: getUsageColor(row.usagePercent) }"
-                    >
+                    <div class="usage-label">{{ t('setup.labels.usagePercent') }}</div>
+                    <div class="usage-value" :style="{ color: getUsageColor(row.usagePercent) }">
                       {{ formatUsagePercent(row.usagePercent) }}
                     </div>
                   </div>
@@ -142,7 +121,7 @@
 
               <div class="kv-group kv-group-compact">
                 <div class="kv-row">
-                  <div class="kv-label">{{ t("setup.labels.configId") }}</div>
+                  <div class="kv-label">{{ t('setup.labels.configId') }}</div>
                   <div class="kv-value kv-mono">
                     <code class="mono-chip">{{ toDisplayText(row.id) }}</code>
                   </div>
@@ -169,21 +148,13 @@
                   type="default"
                   size="small"
                   :loading="savingDefault && settingDefaultId === row.id"
-                  :disabled="
-                    loading ||
-                    savingDefault ||
-                    row.id === r2Options.default_config_id
-                  "
+                  :disabled="loading || savingDefault || row.id === r2Options.default_config_id"
                   :aria-label="t('setup.aria.setDefault')"
                   @click="handleSetDefault(row.id)"
                 >
                   <Star
                     :size="14"
-                    :fill="
-                      row.id === r2Options.default_config_id
-                        ? 'currentColor'
-                        : 'none'
-                    "
+                    :fill="row.id === r2Options.default_config_id ? 'currentColor' : 'none'"
                   />
                 </Button>
 
@@ -194,9 +165,7 @@
                   size="small"
                   :disabled="row.source !== 'db'"
                   :aria-label="
-                    row.source === 'db'
-                      ? t('setup.aria.edit')
-                      : t('setup.aria.notEditable')
+                    row.source === 'db' ? t('setup.aria.edit') : t('setup.aria.notEditable')
                   "
                   @click="openEdit(row)"
                 >
@@ -219,24 +188,14 @@
         </div>
       </section>
 
-      <Modal
-        v-model:show="modalVisible"
-        :title="modalTitle"
-        width="560px"
-      >
+      <Modal v-model:show="modalVisible" :title="modalTitle" width="560px">
         <div class="form-grid">
           <FormItem :label="t('setup.labels.name')">
-            <Input
-              v-model="formValue.name"
-              :placeholder="t('setup.placeholders.name')"
-            />
+            <Input v-model="formValue.name" :placeholder="t('setup.placeholders.name')" />
           </FormItem>
 
           <FormItem :label="t('setup.labels.endpoint')">
-            <Input
-              v-model="formValue.endpoint"
-              :placeholder="t('setup.placeholders.endpoint')"
-            />
+            <Input v-model="formValue.endpoint" :placeholder="t('setup.placeholders.endpoint')" />
           </FormItem>
 
           <FormItem :label="t('setup.labels.bucketName')">
@@ -284,13 +243,13 @@
           <Alert type="info" :title="t('setup.hint.title')">
             <ul class="help-list">
               <li>
-                {{ t("setup.hint.endpointFormatPrefix") }}
+                {{ t('setup.hint.endpointFormatPrefix') }}
                 <code>https://&lt;account_id&gt;.r2.cloudflarestorage.com</code>
               </li>
               <li>
-                {{ t("setup.hint.tokenCreatePrefix") }}
+                {{ t('setup.hint.tokenCreatePrefix') }}
                 <strong>R2 → Manage R2 API Tokens</strong>
-                {{ t("setup.hint.tokenCreateSuffix") }}
+                {{ t('setup.hint.tokenCreateSuffix') }}
               </li>
             </ul>
           </Alert>
@@ -298,30 +257,17 @@
 
         <template #footer>
           <Button type="default" @click="modalVisible = false">
-            {{ t("common.cancel") }}
+            {{ t('common.cancel') }}
           </Button>
-          <Button
-            type="primary"
-            :loading="modalSubmitting"
-            @click="handleSubmit"
-          >
-            {{ t("setup.modal.save") }}
+          <Button type="primary" :loading="modalSubmitting" @click="handleSubmit">
+            {{ t('setup.modal.save') }}
           </Button>
         </template>
       </Modal>
 
-      <Modal
-        v-model:show="usageTipsVisible"
-        :title="t('setup.help')"
-        width="520px"
-      >
+      <Modal v-model:show="usageTipsVisible" :title="t('setup.help')" width="520px">
         <div class="usage-tips-grid">
-          <Alert
-            v-for="tip in usageTips"
-            :key="tip.key"
-            :type="tip.type"
-            :title="tip.title"
-          >
+          <Alert v-for="tip in usageTips" :key="tip.key" :type="tip.type" :title="tip.title">
             {{ tip.content }}
           </Alert>
         </div>
@@ -331,7 +277,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted } from 'vue'
 import {
   AlertTriangle,
   Database,
@@ -341,186 +287,181 @@ import {
   Star,
   Trash2,
   Network,
-} from "lucide-vue-next";
-import { useI18n } from "vue-i18n";
-import api from "../services/api";
-import { buildUsageTips } from "../lib/usageTips";
-import AppLayout from "../components/layout/AppLayout.vue";
-import Card from "../components/ui/card/Card.vue";
-import Button from "../components/ui/button/Button.vue";
-import Modal from "../components/ui/modal/Modal.vue";
-import FormItem from "../components/ui/form-item/FormItem.vue";
-import Input from "../components/ui/input/Input.vue";
-import Alert from "../components/ui/alert/Alert.vue";
-import Tag from "../components/ui/tag/Tag.vue";
-import Progress from "../components/ui/progress/Progress.vue";
-import { useMessage } from "../composables/useMessage";
+} from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
+import api from '../services/api'
+import { buildUsageTips } from '../lib/usageTips'
+import AppLayout from '../components/layout/AppLayout.vue'
+import Card from '../components/ui/card/Card.vue'
+import Button from '../components/ui/button/Button.vue'
+import Modal from '../components/ui/modal/Modal.vue'
+import FormItem from '../components/ui/form-item/FormItem.vue'
+import Input from '../components/ui/input/Input.vue'
+import Alert from '../components/ui/alert/Alert.vue'
+import Tag from '../components/ui/tag/Tag.vue'
+import Progress from '../components/ui/progress/Progress.vue'
+import { useMessage } from '../composables/useMessage'
 
-const message = useMessage();
-const { t } = useI18n({ useScope: "global" });
+const message = useMessage()
+const { t } = useI18n({ useScope: 'global' })
 
-const loading = ref(false);
-const savingDefault = ref(false);
+const loading = ref(false)
+const savingDefault = ref(false)
 
-const testingId = ref("");
-const settingDefaultId = ref("");
+const testingId = ref('')
+const settingDefaultId = ref('')
 
 const r2Options = ref({
   default_config_id: null,
   legacy_files_config_id: null,
   options: [],
-});
+})
 
-const configs = ref([]);
+const configs = ref([])
 
-const modalVisible = ref(false);
-const modalMode = ref("create");
-const modalSubmitting = ref(false);
-const editingId = ref("");
-const usageTipsVisible = ref(false);
-const usageTips = computed(() => buildUsageTips(t));
+const modalVisible = ref(false)
+const modalMode = ref('create')
+const modalSubmitting = ref(false)
+const editingId = ref('')
+const usageTipsVisible = ref(false)
+const usageTips = computed(() => buildUsageTips(t))
 
 const formValue = ref({
-  name: "",
-  endpoint: "",
-  bucket_name: "",
-  quota_gb: "10",
-  access_key_id: "",
-  secret_access_key: "",
-});
+  name: '',
+  endpoint: '',
+  bucket_name: '',
+  quota_gb: '10',
+  access_key_id: '',
+  secret_access_key: '',
+})
 
 const resetForm = () => {
   formValue.value = {
-    name: "",
-    endpoint: "",
-    bucket_name: "",
-    quota_gb: "10",
-    access_key_id: "",
-    secret_access_key: "",
-  };
-};
+    name: '',
+    endpoint: '',
+    bucket_name: '',
+    quota_gb: '10',
+    access_key_id: '',
+    secret_access_key: '',
+  }
+}
 
 const formatSource = (source) => {
-  if (source === "env") return "ENV";
-  if (source === "legacy") return "LEGACY";
-  return "DB";
-};
+  if (source === 'env') return 'ENV'
+  if (source === 'legacy') return 'LEGACY'
+  return 'DB'
+}
 
 const getSourceTagType = (source) => {
-  if (source === "env") return "info";
-  if (source === "legacy") return "warning";
-  return "default";
-};
+  if (source === 'env') return 'info'
+  if (source === 'legacy') return 'warning'
+  return 'default'
+}
 
 const toDisplayText = (value) => {
-  if (value === null || value === undefined || value === "") return "-";
-  return String(value);
-};
+  if (value === null || value === undefined || value === '') return '-'
+  return String(value)
+}
 
 const formatUsagePercent = (percent) => {
-  const value = Number(percent);
-  if (!Number.isFinite(value) || value <= 0) return "0%";
-  return `${Math.round(value)}%`;
-};
+  const value = Number(percent)
+  if (!Number.isFinite(value) || value <= 0) return '0%'
+  return `${Math.round(value)}%`
+}
 
 const clampProgressPercent = (percent) => {
-  const value = Number(percent);
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  return Math.max(0, Math.min(100, value));
-};
+  const value = Number(percent)
+  if (!Number.isFinite(value) || value <= 0) return 0
+  return Math.max(0, Math.min(100, value))
+}
 
 const getUsageColor = (percent) => {
-  const value = Number(percent);
-  if (!Number.isFinite(value)) return undefined;
-  if (value > 90) return "var(--nb-danger)";
-  if (value > 70) return "var(--nb-warning)";
-  return "var(--nb-success)";
-};
+  const value = Number(percent)
+  if (!Number.isFinite(value)) return undefined
+  if (value > 90) return 'var(--nb-danger)'
+  if (value > 70) return 'var(--nb-warning)'
+  return 'var(--nb-success)'
+}
 
 const modalTitle = computed(() => {
-  return modalMode.value === "create"
-    ? t("setup.modal.createTitle")
-    : t("setup.modal.editTitle");
-});
+  return modalMode.value === 'create' ? t('setup.modal.createTitle') : t('setup.modal.editTitle')
+})
 
 const refresh = async () => {
-  loading.value = true;
+  loading.value = true
   try {
     const [optionsResult, configsResult] = await Promise.all([
       api.getR2Options(),
       api.getR2Configs(),
-    ]);
+    ])
 
-    r2Options.value = optionsResult;
-    configs.value = configsResult.configs || [];
+    r2Options.value = optionsResult
+    configs.value = configsResult.configs || []
   } catch (error) {
-    message.error(error.response?.data?.error || t("setup.messages.loadFailed"));
+    message.error(error.response?.data?.error || t('setup.messages.loadFailed'))
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 const handleSetDefault = async (id) => {
-  if (!id) return;
+  if (!id) return
 
   try {
-    savingDefault.value = true;
-    settingDefaultId.value = id;
-    await api.setDefaultR2Config(id);
-    message.success(t("setup.messages.defaultUpdated"));
-    await refresh();
+    savingDefault.value = true
+    settingDefaultId.value = id
+    await api.setDefaultR2Config(id)
+    message.success(t('setup.messages.defaultUpdated'))
+    await refresh()
   } catch (error) {
-    message.error(
-      error.response?.data?.error || t("setup.messages.setDefaultFailed")
-    );
+    message.error(error.response?.data?.error || t('setup.messages.setDefaultFailed'))
   } finally {
-    savingDefault.value = false;
-    settingDefaultId.value = "";
+    savingDefault.value = false
+    settingDefaultId.value = ''
   }
-};
+}
 
 const handleTest = async (row) => {
   try {
-    testingId.value = row.id;
-    const result = await api.testR2Config(row.id);
-    if (result?.success)
-      message.success(result.message || t("setup.messages.testSuccess"));
-    else message.error(result?.message || t("setup.messages.testFailed"));
+    testingId.value = row.id
+    const result = await api.testR2Config(row.id)
+    if (result?.success) message.success(result.message || t('setup.messages.testSuccess'))
+    else message.error(result?.message || t('setup.messages.testFailed'))
   } catch (error) {
-    message.error(error.response?.data?.message || t("setup.messages.testFailed"));
+    message.error(error.response?.data?.message || t('setup.messages.testFailed'))
   } finally {
-    testingId.value = "";
+    testingId.value = ''
   }
-};
+}
 
 const openCreate = () => {
-  modalMode.value = "create";
-  editingId.value = "";
-  resetForm();
-  modalVisible.value = true;
-};
+  modalMode.value = 'create'
+  editingId.value = ''
+  resetForm()
+  modalVisible.value = true
+}
 
 const openEdit = (row) => {
-  modalMode.value = "edit";
-  editingId.value = row.id;
+  modalMode.value = 'edit'
+  editingId.value = row.id
   formValue.value = {
-    name: row.name || "",
-    endpoint: row.endpoint || "",
-    bucket_name: row.bucket_name || "",
-    quota_gb: row.totalSpace ? formatQuotaGb(row.totalSpace) : "10",
-    access_key_id: "",
-    secret_access_key: "",
-  };
-  modalVisible.value = true;
-};
+    name: row.name || '',
+    endpoint: row.endpoint || '',
+    bucket_name: row.bucket_name || '',
+    quota_gb: row.totalSpace ? formatQuotaGb(row.totalSpace) : '10',
+    access_key_id: '',
+    secret_access_key: '',
+  }
+  modalVisible.value = true
+}
 
 const formatQuotaGb = (bytesValue) => {
-  const bytes = Number(bytesValue);
-  if (!Number.isFinite(bytes) || bytes <= 0) return "10";
-  const gb = bytes / (1024 * 1024 * 1024);
-  const rounded = Math.round(gb * 100) / 100;
-  return String(rounded);
-};
+  const bytes = Number(bytesValue)
+  if (!Number.isFinite(bytes) || bytes <= 0) return '10'
+  const gb = bytes / (1024 * 1024 * 1024)
+  const rounded = Math.round(gb * 100) / 100
+  return String(rounded)
+}
 
 const handleSubmit = async () => {
   if (
@@ -529,32 +470,32 @@ const handleSubmit = async () => {
     !formValue.value.bucket_name ||
     !formValue.value.quota_gb
   ) {
-    message.error(t("setup.validation.required"));
-    return;
+    message.error(t('setup.validation.required'))
+    return
   }
 
-  const quotaGb = Number(String(formValue.value.quota_gb ?? "").trim());
+  const quotaGb = Number(String(formValue.value.quota_gb ?? '').trim())
   if (!Number.isFinite(quotaGb) || quotaGb <= 0) {
-    message.error(t("setup.validation.quotaInvalid"));
-    return;
+    message.error(t('setup.validation.quotaInvalid'))
+    return
   }
-  const quotaBytes = Math.round(quotaGb * 1024 * 1024 * 1024);
+  const quotaBytes = Math.round(quotaGb * 1024 * 1024 * 1024)
   if (!Number.isSafeInteger(quotaBytes) || quotaBytes <= 0) {
-    message.error(t("setup.validation.quotaInvalid"));
-    return;
+    message.error(t('setup.validation.quotaInvalid'))
+    return
   }
 
-  if (modalMode.value === "create") {
+  if (modalMode.value === 'create') {
     if (!formValue.value.access_key_id || !formValue.value.secret_access_key) {
-      message.error(t("setup.validation.createNeedKeys"));
-      return;
+      message.error(t('setup.validation.createNeedKeys'))
+      return
     }
   }
 
   try {
-    modalSubmitting.value = true;
+    modalSubmitting.value = true
 
-    if (modalMode.value === "create") {
+    if (modalMode.value === 'create') {
       await api.createR2Config({
         name: formValue.value.name,
         endpoint: formValue.value.endpoint,
@@ -562,47 +503,46 @@ const handleSubmit = async () => {
         secret_access_key: formValue.value.secret_access_key,
         bucket_name: formValue.value.bucket_name,
         quota_bytes: quotaBytes,
-      });
-      message.success(t("setup.messages.createSuccess"));
+      })
+      message.success(t('setup.messages.createSuccess'))
     } else {
       const payload = {
         name: formValue.value.name,
         endpoint: formValue.value.endpoint,
         bucket_name: formValue.value.bucket_name,
         quota_bytes: quotaBytes,
-      };
+      }
 
-      if (formValue.value.access_key_id)
-        payload.access_key_id = formValue.value.access_key_id;
+      if (formValue.value.access_key_id) payload.access_key_id = formValue.value.access_key_id
       if (formValue.value.secret_access_key)
-        payload.secret_access_key = formValue.value.secret_access_key;
+        payload.secret_access_key = formValue.value.secret_access_key
 
-      await api.updateR2Config(editingId.value, payload);
-      message.success(t("setup.messages.updateSuccess"));
+      await api.updateR2Config(editingId.value, payload)
+      message.success(t('setup.messages.updateSuccess'))
     }
 
-    modalVisible.value = false;
-    await refresh();
+    modalVisible.value = false
+    await refresh()
   } catch (error) {
-    message.error(error.response?.data?.error || t("setup.messages.saveFailed"));
+    message.error(error.response?.data?.error || t('setup.messages.saveFailed'))
   } finally {
-    modalSubmitting.value = false;
+    modalSubmitting.value = false
   }
-};
+}
 
 const handleDelete = async (row) => {
-  if (!confirm(t("setup.messages.deleteConfirm"))) return;
+  if (!confirm(t('setup.messages.deleteConfirm'))) return
 
   try {
-    await api.deleteR2Config(row.id);
-    message.success(t("setup.messages.deleteSuccess"));
-    await refresh();
+    await api.deleteR2Config(row.id)
+    message.success(t('setup.messages.deleteSuccess'))
+    await refresh()
   } catch (error) {
-    message.error(error.response?.data?.error || t("setup.messages.deleteFailed"));
+    message.error(error.response?.data?.error || t('setup.messages.deleteFailed'))
   }
-};
+}
 
-onMounted(() => refresh());
+onMounted(() => refresh())
 </script>
 
 <style scoped>
@@ -700,7 +640,7 @@ onMounted(() => refresh());
   flex-shrink: 0;
 }
 
-:root[data-ui-theme="shadcn"] .config-card-icon {
+:root[data-ui-theme='shadcn'] .config-card-icon {
   background: var(--nb-gray-50);
 }
 
@@ -740,11 +680,11 @@ onMounted(() => refresh());
   gap: 8px;
 }
 
-:root[data-ui-theme="shadcn"] .usage-panel {
+:root[data-ui-theme='shadcn'] .usage-panel {
   background: var(--nb-gray-50);
 }
 
-:root[data-ui-theme="shadcn"] .usage-panel :deep(.progress-container) {
+:root[data-ui-theme='shadcn'] .usage-panel :deep(.progress-container) {
   border: 1px solid var(--border);
   box-sizing: border-box;
 }
@@ -763,7 +703,7 @@ onMounted(() => refresh());
   text-transform: var(--nb-ui-text-transform, uppercase);
 }
 
-:root[data-ui-theme="shadcn"] .usage-label {
+:root[data-ui-theme='shadcn'] .usage-label {
   text-transform: none;
   letter-spacing: 0;
 }
@@ -806,7 +746,7 @@ onMounted(() => refresh());
   flex-shrink: 0;
 }
 
-:root[data-ui-theme="shadcn"] .kv-label {
+:root[data-ui-theme='shadcn'] .kv-label {
   text-transform: none;
   letter-spacing: 0;
 }
@@ -845,7 +785,7 @@ onMounted(() => refresh());
   vertical-align: middle;
 }
 
-:root[data-ui-theme="shadcn"] .mono-chip {
+:root[data-ui-theme='shadcn'] .mono-chip {
   background: var(--nb-gray-50);
 }
 
