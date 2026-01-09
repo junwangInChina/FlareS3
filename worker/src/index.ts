@@ -34,6 +34,7 @@ import { listFiles, downloadFile, deleteFile } from './routes/files'
 import { shortlink } from './routes/shortlink'
 import { getStats } from './routes/stats'
 import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
+import { listTexts, getText, createText, updateText, deleteText } from './routes/texts'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 
@@ -199,6 +200,32 @@ router.post('/api/audit/batch-delete', (request, env: Env) => {
   const auth = requireAdmin(request)
   if (auth) return auth
   return batchDeleteAudit(request, env)
+})
+
+router.get('/api/texts', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return listTexts(request, env)
+})
+router.post('/api/texts', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return createText(request, env)
+})
+router.get('/api/texts/:id', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return getText(request, env, (request as any).params.id)
+})
+router.patch('/api/texts/:id', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return updateText(request, env, (request as any).params.id)
+})
+router.delete('/api/texts/:id', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return deleteText(request, env, (request as any).params.id)
 })
 
 router.get('/s/:code', (request, env: Env) => shortlink(request, env, (request as any).params.code))
