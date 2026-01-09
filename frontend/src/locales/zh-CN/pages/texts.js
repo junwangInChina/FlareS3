@@ -1,6 +1,6 @@
 export default {
   texts: {
-    title: '文本',
+    title: '文本列表',
     subtitle: '创建并管理文本内容',
     createText: '新建文本',
     filters: {
@@ -9,8 +9,8 @@ export default {
     },
     columns: {
       title: '标题',
-      preview: '预览',
-      length: '长度',
+      preview: '内容',
+      length: '大小',
       owner: '归属用户',
       createdAt: '创建时间',
       updatedAt: '更新时间',
