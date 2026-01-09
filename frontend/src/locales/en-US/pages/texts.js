@@ -1,6 +1,6 @@
 export default {
   texts: {
-    title: 'Texts',
+    title: 'Text List',
     subtitle: 'Create and manage text notes',
     createText: 'New text',
     filters: {
@@ -9,8 +9,8 @@ export default {
     },
     columns: {
       title: 'Title',
-      preview: 'Preview',
-      length: 'Length',
+      preview: 'Content',
+      length: 'Size',
       owner: 'Owner',
       createdAt: 'Created at',
       updatedAt: 'Updated at',
