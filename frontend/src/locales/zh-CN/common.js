@@ -29,6 +29,7 @@ export default {
   },
   nav: {
     files: '文件列表',
+    texts: '文本列表',
     users: '用户列表',
     audit: '审计日志',
     setup: '存储管理',
