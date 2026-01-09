@@ -74,6 +74,9 @@ const useDirectTrigger = computed(() => {
   color: var(--nb-white);
   font-size: 13px;
   line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   border-radius: var(--nb-radius);
   border: var(--nb-border);
   box-shadow: var(--nb-shadow-lg);
