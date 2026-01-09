@@ -7,6 +7,7 @@ import audit from './pages/audit'
 import users from './pages/users'
 import files from './pages/files'
 import setup from './pages/setup'
+import texts from './pages/texts'
 
 export default {
   ...common,
@@ -18,4 +19,5 @@ export default {
   ...users,
   ...files,
   ...setup,
+  ...texts,
 }
