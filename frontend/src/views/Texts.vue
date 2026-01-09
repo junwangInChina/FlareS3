@@ -185,6 +185,7 @@ import { Info, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
 import Button from '../components/ui/button/Button.vue'
@@ -200,6 +201,7 @@ import Divider from '../components/ui/divider/Divider.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
 
@@ -235,6 +237,18 @@ const formatDateTime = (isoString) => {
   return date.toLocaleString(locale.value)
 }
 
+const formatBytes = (bytes) => {
+  const value = Number(bytes)
+  if (!Number.isFinite(value) || value < 0) return '-'
+  if (value === 0) return '0 B'
+
+  const unit = 1024
+  const units = ['B', 'KB', 'MB', 'GB']
+  const index = Math.min(units.length - 1, Math.floor(Math.log(value) / Math.log(unit)))
+  const size = Math.round((value / Math.pow(unit, index)) * 100) / 100
+  return `${size} ${units[index]}`
+}
+
 const buildPreview = (row) => {
   const preview = String(row?.content_preview ?? '')
   const contentLength = Number(row?.content_length ?? preview.length)
@@ -248,6 +262,7 @@ const columns = computed(() => {
       title: t('texts.columns.title'),
       key: 'title',
       align: 'left',
+      width: 160,
       render: (row) => {
         const value = String(row?.title ?? '').trim()
         return h(Tooltip, { content: value }, () => (value ? value : '-'))
@@ -256,28 +271,30 @@ const columns = computed(() => {
     {
       title: t('texts.columns.preview'),
       key: 'content_preview',
-      align: 'left',
+      align: 'center',
+      ellipsis: true,
       render: (row) => {
         const preview = buildPreview(row)
-        const tooltip = preview === '-' ? '' : String(row?.content_preview ?? '')
+        const tooltip = preview === '-' ? '' : preview
         return h(Tooltip, { content: tooltip }, () => preview)
       },
     },
     {
       title: t('texts.columns.length'),
       key: 'content_length',
-      width: 90,
+      width: 100,
       align: 'center',
       ellipsis: false,
       render: (row) => {
         const length = Number(row?.content_length ?? 0)
-        return h('span', Number.isFinite(length) ? String(length) : '-')
+        if (!Number.isFinite(length) || length < 0) return h('span', '-')
+        return h('span', formatBytes(length))
       },
     },
     {
       title: t('texts.columns.updatedAt'),
       key: 'updated_at',
-      width: 180,
+      width: themeStore.uiTheme === 'shadcn' ? 190 : 220,
       align: 'center',
       ellipsis: false,
       render: (row) => h('span', formatDateTime(row?.updated_at)),
@@ -285,7 +302,7 @@ const columns = computed(() => {
     {
       title: t('texts.columns.actions'),
       key: 'actions',
-      width: locale.value === 'zh-CN' ? 220 : 260,
+      width: themeStore.uiTheme === 'shadcn' ? 280 : 350,
       align: 'center',
       ellipsis: false,
       render: (row) => {
@@ -541,7 +558,7 @@ const viewInfoItems = computed(() => {
 
   const items = [
     { label: t('texts.columns.title'), value: title },
-    { label: t('texts.columns.length'), value: String(viewContent.value.length) },
+    { label: t('texts.columns.length'), value: formatBytes(viewContent.value.length) },
   ]
 
   if (authStore.isAdmin) {
