@@ -93,7 +93,10 @@ onBeforeUnmount(() => {
 })
 
 const menuItems = computed(() => {
-  const items = [{ key: '/', icon: 'folder', label: t('nav.files'), path: '/' }]
+  const items = [
+    { key: '/', icon: 'folder', label: t('nav.files'), path: '/' },
+    { key: '/texts', icon: 'file-text', label: t('nav.texts'), path: '/texts' },
+  ]
 
   if (authStore.isAdmin) {
     items.push(
@@ -260,6 +263,11 @@ const logoLetters = computed(() => logoText.split(''))
           <svg v-else-if="item.icon === 'audit'" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"
+            />
+          </svg>
+          <svg v-else-if="item.icon === 'file-text'" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm1 7V3.5L19.5 9H15zM8 13h8v2H8v-2zm0 4h8v2H8v-2zm0-8h4v2H8V9z"
             />
           </svg>
           <svg v-else-if="item.icon === 'settings'" viewBox="0 0 24 24" fill="currentColor">
