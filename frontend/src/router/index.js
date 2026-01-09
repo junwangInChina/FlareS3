@@ -26,6 +26,13 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/texts',
+    alias: '/texts/',
+    name: 'Texts',
+    component: () => import('../views/Texts.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/',
     name: 'Files',
     component: () => import('../views/Files.vue'),
