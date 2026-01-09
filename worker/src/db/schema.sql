@@ -94,3 +94,18 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   blocked_until DATETIME,
   failed_attempts INTEGER DEFAULT 0
 );
+
+-- texts
+CREATE TABLE IF NOT EXISTS texts (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  deleted_at DATETIME
+);
+
+CREATE INDEX IF NOT EXISTS idx_texts_owner_id ON texts(owner_id);
+CREATE INDEX IF NOT EXISTS idx_texts_updated_at ON texts(updated_at);
+CREATE INDEX IF NOT EXISTS idx_texts_deleted_at ON texts(deleted_at);
