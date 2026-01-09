@@ -140,11 +140,34 @@ export default {
   getAudit(params = {}) {
     return api.get('/audit', { params })
   },
+
   deleteAuditLog(auditId) {
     return api.delete(`/audit/${auditId}`)
   },
+
   batchDeleteAuditLogs(ids = []) {
     return api.post('/audit/batch-delete', { ids })
+  },
+
+  // 文本
+  getTexts(page = 1, limit = 20, params = {}) {
+    return api.get('/texts', { params: { page, limit, ...(params || {}) } })
+  },
+
+  getText(textId) {
+    return api.get(`/texts/${textId}`)
+  },
+
+  createText(payload) {
+    return api.post('/texts', payload)
+  },
+
+  updateText(textId, payload) {
+    return api.patch(`/texts/${textId}`, payload)
+  },
+
+  deleteText(textId) {
+    return api.delete(`/texts/${textId}`)
   },
 
   // 直接上传到 R2
