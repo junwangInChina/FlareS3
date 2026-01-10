@@ -1,6 +1,6 @@
 export default {
   users: {
-    title: '用户列表',
+    title: '用户',
     subtitle: '管理系统用户、角色及配额',
     createUser: '创建用户',
     createModalTitle: '创建用户',
@@ -45,7 +45,7 @@ export default {
     confirmDelete: '确定删除此用户？',
     confirmDisable: '确定禁用此用户？',
     messages: {
-      loadUserOptionsFailed: '加载用户列表失败',
+      loadUserOptionsFailed: '加载用户失败',
       loadUsersFailed: '加载用户失败',
       fillUsernamePassword: '请填写用户名和密码',
       quotaInvalid: '请输入有效的配额(GB)',
