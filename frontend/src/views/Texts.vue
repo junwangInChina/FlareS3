@@ -157,7 +157,8 @@
             >
               <Copy :size="16" />
             </Button>
-            <pre class="text-viewer-content">{{ viewContent || '-' }}</pre>
+            <div v-if="viewIsMarkdown" class="text-viewer-markdown" v-html="viewMarkdownHtml"></div>
+            <pre v-else class="text-viewer-content">{{ viewContent || '-' }}</pre>
           </div>
         </template>
 
@@ -193,6 +194,7 @@
 import { computed, h, onMounted, ref, watch } from 'vue'
 import { Copy, Info, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
+import MarkdownIt from 'markdown-it'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -212,6 +214,12 @@ const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
+
+const markdown = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true,
+})
 
 const texts = ref([])
 const loading = ref(false)
@@ -270,6 +278,81 @@ const buildAutoTitle = (content) => {
   const maxChars = 50
   const chars = Array.from(normalized)
   return chars.length > maxChars ? `${chars.slice(0, maxChars).join('')}…` : normalized
+}
+
+const isLikelyMarkdown = (value) => {
+  const text = String(value ?? '')
+  if (!text.trim()) return false
+
+  let score = 0
+
+  if (/```|~~~/.test(text)) score += 3
+  if (/\[[^\]]+\]\([^)]+\)/.test(text)) score += 2
+  if (/(\*\*|__)[^\s].+?(\*\*|__)/.test(text)) score += 1
+
+  const lines = text.split(/\r?\n/)
+  if (lines.some((line) => /^#{1,6}\s+\S/.test(line))) score += 2
+  if (lines.some((line) => /^\s*>\s+\S/.test(line))) score += 1
+  if (lines.some((line) => /^\s*([-*+]|\d+\.)\s+\S/.test(line))) score += 1
+
+  return score >= 2
+}
+
+const sanitizeMarkdownHtml = (html) => {
+  if (typeof window === 'undefined') return html
+  if (!html) return ''
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+
+  doc.querySelectorAll('script, iframe, object, embed, style').forEach((el) => el.remove())
+
+  doc.querySelectorAll('img').forEach((img) => img.remove())
+
+  doc.querySelectorAll('*').forEach((el) => {
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name.toLowerCase().startsWith('on')) {
+        el.removeAttribute(attr.name)
+      }
+    }
+  })
+
+  doc.querySelectorAll('a').forEach((anchor) => {
+    const rawHref = anchor.getAttribute('href') || ''
+
+    const isRelative =
+      rawHref.startsWith('#') || rawHref.startsWith('/') || rawHref.startsWith('./') || rawHref.startsWith('../')
+
+    let isSafe = isRelative
+    let isExternal = false
+
+    if (!isSafe) {
+      try {
+        const url = new URL(rawHref, window.location.origin)
+        isExternal = url.origin !== window.location.origin
+        isSafe = ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)
+      } catch {
+        isSafe = false
+      }
+    }
+
+    if (!isSafe) {
+      anchor.removeAttribute('href')
+      return
+    }
+
+    if (isExternal) {
+      anchor.setAttribute('target', '_blank')
+      anchor.setAttribute('rel', 'noopener noreferrer')
+    }
+  })
+
+  return doc.body.innerHTML
+}
+
+const renderMarkdown = (value) => {
+  const source = String(value ?? '')
+  const raw = markdown.render(source)
+  return sanitizeMarkdownHtml(raw)
 }
 
 const buildPreview = (row) => {
@@ -563,6 +646,9 @@ const viewModalVisible = ref(false)
 const viewLoading = ref(false)
 const viewContent = ref('')
 
+const viewIsMarkdown = computed(() => isLikelyMarkdown(viewContent.value))
+const viewMarkdownHtml = computed(() => (viewIsMarkdown.value ? renderMarkdown(viewContent.value) : ''))
+
 const resetView = () => {
   viewContent.value = ''
   viewLoading.value = false
@@ -799,5 +885,83 @@ onMounted(() => {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.text-viewer-markdown {
+  font-size: var(--nb-font-size-sm);
+  line-height: 1.6;
+  color: var(--nb-ink);
+}
+
+.text-viewer-markdown :deep(p) {
+  margin: 0 0 var(--nb-space-sm);
+}
+
+.text-viewer-markdown :deep(h1),
+.text-viewer-markdown :deep(h2),
+.text-viewer-markdown :deep(h3),
+.text-viewer-markdown :deep(h4),
+.text-viewer-markdown :deep(h5),
+.text-viewer-markdown :deep(h6) {
+  margin: var(--nb-space-md) 0 var(--nb-space-sm);
+  font-family: var(--nb-heading-font-family, var(--nb-font-ui));
+  font-weight: var(--nb-heading-font-weight, 700);
+  line-height: 1.25;
+}
+
+.text-viewer-markdown :deep(h1) {
+  font-size: 1.25rem;
+}
+
+.text-viewer-markdown :deep(h2) {
+  font-size: 1.125rem;
+}
+
+.text-viewer-markdown :deep(h3) {
+  font-size: 1rem;
+}
+
+.text-viewer-markdown :deep(ul),
+.text-viewer-markdown :deep(ol) {
+  margin: 0 0 var(--nb-space-sm);
+  padding-left: 1.25rem;
+}
+
+.text-viewer-markdown :deep(li) {
+  margin: 0.25rem 0;
+}
+
+.text-viewer-markdown :deep(a) {
+  color: var(--nb-link-color, var(--nb-primary));
+  text-decoration: underline;
+}
+
+.text-viewer-markdown :deep(blockquote) {
+  margin: 0 0 var(--nb-space-sm);
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--nb-border-color, var(--nb-black));
+  background: color-mix(in oklab, var(--nb-gray-50) 70%, transparent);
+}
+
+.text-viewer-markdown :deep(pre) {
+  margin: 0 0 var(--nb-space-sm);
+  padding: var(--nb-space-sm);
+  border: var(--nb-border-thin);
+  border-radius: var(--nb-radius);
+  background: var(--nb-surface);
+  overflow: auto;
+}
+
+.text-viewer-markdown :deep(code) {
+  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 0.9em;
+}
+
+.text-viewer-markdown :deep(p > code),
+.text-viewer-markdown :deep(li > code) {
+  padding: 0.1em 0.35em;
+  border: var(--nb-border-thin);
+  border-radius: calc(var(--nb-radius) - 1px);
+  background: var(--nb-surface);
 }
 </style>
