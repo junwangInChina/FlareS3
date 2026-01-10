@@ -33,6 +33,22 @@ export default {
       content: '内容',
       contentPlaceholder: '请输入内容…',
     },
+    markdown: {
+      preview: 'Markdown 预览',
+      actions: {
+        heading1: '一级标题',
+        bold: '加粗',
+        italic: '斜体',
+        strike: '删除线',
+        link: '链接',
+        quote: '引用',
+        ul: '无序列表',
+        ol: '有序列表',
+        code: '行内代码',
+        codeBlock: '代码块',
+        hr: '分割线',
+      },
+    },
     state: {
       loading: '加载中...',
     },
