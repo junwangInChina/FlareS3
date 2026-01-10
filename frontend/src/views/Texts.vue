@@ -78,7 +78,11 @@
         </Card>
       </section>
 
-      <Modal v-model:show="createModalVisible" :title="t('texts.modals.createTitle')" width="720px">
+      <Modal
+        v-model:show="createModalVisible"
+        :title="t('texts.modals.createTitle')"
+        :width="createMarkdownPreview ? '1440px' : '720px'"
+      >
         <FormItem :label="t('texts.form.title')">
           <Input
             v-model="createForm.title"
@@ -88,12 +92,44 @@
         </FormItem>
 
         <FormItem :label="t('texts.form.content')">
-          <Input
-            v-model="createForm.content"
-            type="textarea"
-            :rows="12"
-            :placeholder="t('texts.form.contentPlaceholder')"
-          />
+          <div class="markdown-editor">
+            <div class="markdown-toolbar">
+              <div class="markdown-toolbar-actions">
+                <Tooltip
+                  v-for="action in markdownToolbarActions"
+                  :key="action.key"
+                  :content="action.label"
+                >
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="markdown-tool-btn"
+                    :aria-label="action.label"
+                    @mousedown.prevent="noop"
+                    @click="applyMarkdownAction('create', action.key)"
+                  >
+                    <component :is="action.icon" :size="16" />
+                  </Button>
+                </Tooltip>
+              </div>
+
+              <Switch v-model="createMarkdownPreview" :label="t('texts.markdown.preview')" />
+            </div>
+
+            <div class="markdown-editor-body" :class="{ split: createMarkdownPreview }">
+              <Input
+                ref="createContentInputRef"
+                v-model="createForm.content"
+                type="textarea"
+                :rows="12"
+                :placeholder="t('texts.form.contentPlaceholder')"
+                class="markdown-editor-input"
+              />
+              <div v-if="createMarkdownPreview" class="markdown-preview">
+                <div class="text-viewer-markdown" v-html="createMarkdownHtml"></div>
+              </div>
+            </div>
+          </div>
         </FormItem>
 
         <template #footer>
@@ -106,7 +142,11 @@
         </template>
       </Modal>
 
-      <Modal v-model:show="editModalVisible" :title="t('texts.modals.editTitle')" width="720px">
+      <Modal
+        v-model:show="editModalVisible"
+        :title="t('texts.modals.editTitle')"
+        :width="editMarkdownPreview ? '1440px' : '720px'"
+      >
         <template v-if="editLoading">
           <div class="modal-state">{{ t('texts.state.loading') }}</div>
         </template>
@@ -121,12 +161,44 @@
           </FormItem>
 
           <FormItem :label="t('texts.form.content')">
-            <Input
-              v-model="editForm.content"
-              type="textarea"
-              :rows="12"
-              :placeholder="t('texts.form.contentPlaceholder')"
-            />
+            <div class="markdown-editor">
+              <div class="markdown-toolbar">
+                <div class="markdown-toolbar-actions">
+                  <Tooltip
+                    v-for="action in markdownToolbarActions"
+                    :key="action.key"
+                    :content="action.label"
+                  >
+                    <Button
+                      type="ghost"
+                      size="small"
+                      class="markdown-tool-btn"
+                      :aria-label="action.label"
+                      @mousedown.prevent="noop"
+                      @click="applyMarkdownAction('edit', action.key)"
+                    >
+                      <component :is="action.icon" :size="16" />
+                    </Button>
+                  </Tooltip>
+                </div>
+
+                <Switch v-model="editMarkdownPreview" :label="t('texts.markdown.preview')" />
+              </div>
+
+              <div class="markdown-editor-body" :class="{ split: editMarkdownPreview }">
+                <Input
+                  ref="editContentInputRef"
+                  v-model="editForm.content"
+                  type="textarea"
+                  :rows="12"
+                  :placeholder="t('texts.form.contentPlaceholder')"
+                  class="markdown-editor-input"
+                />
+                <div v-if="editMarkdownPreview" class="markdown-preview">
+                  <div class="text-viewer-markdown" v-html="editMarkdownHtml"></div>
+                </div>
+              </div>
+            </div>
           </FormItem>
         </template>
 
@@ -140,27 +212,33 @@
         </template>
       </Modal>
 
-      <Modal v-model:show="viewModalVisible" :title="t('texts.modals.viewTitle')" width="720px">
+      <Modal
+        v-model:show="viewModalVisible"
+        :title="t('texts.modals.viewTitle')"
+        width="720px"
+      >
         <template v-if="viewLoading">
           <div class="modal-state">{{ t('texts.state.loading') }}</div>
         </template>
 
-        <template v-else>
-          <div class="text-viewer">
-            <Button
-              type="ghost"
-              size="small"
-              class="text-viewer-copy"
-              :aria-label="t('upload.copy')"
-              :disabled="!viewContent"
-              @click="copyViewContent"
-            >
-              <Copy :size="16" />
-            </Button>
-            <div v-if="viewIsMarkdown" class="text-viewer-markdown" v-html="viewMarkdownHtml"></div>
-            <pre v-else class="text-viewer-content">{{ viewContent || '-' }}</pre>
-          </div>
-        </template>
+	        <template v-else>
+	          <div class="text-viewer">
+	            <Button
+	              type="ghost"
+	              size="small"
+	              class="text-viewer-copy"
+	              :aria-label="t('upload.copy')"
+	              :disabled="!viewContent"
+	              @click="copyViewContent"
+	            >
+	              <Copy :size="16" />
+	            </Button>
+	            <div class="text-viewer-body">
+	              <div v-if="viewIsMarkdown" class="text-viewer-markdown" v-html="viewMarkdownHtml"></div>
+	              <pre v-else class="text-viewer-content">{{ viewContent || '-' }}</pre>
+	            </div>
+	          </div>
+	        </template>
 
         <template #footer>
           <Button type="default" @click="viewModalVisible = false">{{ t('common.close') }}</Button>
@@ -191,8 +269,27 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, ref, watch } from 'vue'
-import { Copy, Info, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
+import { computed, h, nextTick, onMounted, ref, watch } from 'vue'
+import {
+  Bold,
+  Code,
+  Code2,
+  Copy,
+  Heading1,
+  Info,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Minus,
+  Pencil,
+  Plus,
+  Quote,
+  RefreshCw,
+  Search,
+  Strikethrough,
+  Trash2,
+} from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
 import api from '../services/api'
@@ -207,6 +304,7 @@ import FormItem from '../components/ui/form-item/FormItem.vue'
 import Input from '../components/ui/input/Input.vue'
 import Select from '../components/ui/select/Select.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
+import Switch from '../components/ui/switch/Switch.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import { useMessage } from '../composables/useMessage'
 
@@ -220,6 +318,8 @@ const markdown = new MarkdownIt({
   linkify: true,
   breaks: true,
 })
+
+const noop = () => {}
 
 const texts = ref([])
 const loading = ref(false)
@@ -353,6 +453,182 @@ const renderMarkdown = (value) => {
   const source = String(value ?? '')
   const raw = markdown.render(source)
   return sanitizeMarkdownHtml(raw)
+}
+
+const markdownToolbarActions = computed(() => [
+  { key: 'heading1', icon: Heading1, label: t('texts.markdown.actions.heading1') },
+  { key: 'bold', icon: Bold, label: t('texts.markdown.actions.bold') },
+  { key: 'italic', icon: Italic, label: t('texts.markdown.actions.italic') },
+  { key: 'strike', icon: Strikethrough, label: t('texts.markdown.actions.strike') },
+  { key: 'link', icon: Link2, label: t('texts.markdown.actions.link') },
+  { key: 'quote', icon: Quote, label: t('texts.markdown.actions.quote') },
+  { key: 'ul', icon: List, label: t('texts.markdown.actions.ul') },
+  { key: 'ol', icon: ListOrdered, label: t('texts.markdown.actions.ol') },
+  { key: 'code', icon: Code, label: t('texts.markdown.actions.code') },
+  { key: 'codeBlock', icon: Code2, label: t('texts.markdown.actions.codeBlock') },
+  { key: 'hr', icon: Minus, label: t('texts.markdown.actions.hr') },
+])
+
+const getTextareaEl = (inputRef) => {
+  const root = inputRef.value?.$el
+  return root?.querySelector?.('textarea') ?? null
+}
+
+const getMarkdownEditor = (target) => {
+  if (target === 'create') {
+    return {
+      inputRef: createContentInputRef,
+      getValue: () => String(createForm.value.content ?? ''),
+      setValue: (value) => {
+        createForm.value.content = value
+      },
+    }
+  }
+
+  if (target === 'edit') {
+    return {
+      inputRef: editContentInputRef,
+      getValue: () => String(editForm.value.content ?? ''),
+      setValue: (value) => {
+        editForm.value.content = value
+      },
+    }
+  }
+
+  return null
+}
+
+const getSelectionRange = (textarea, value) => {
+  const fallback = value.length
+  const rawStart = Number.isFinite(textarea?.selectionStart) ? textarea.selectionStart : fallback
+  const rawEnd = Number.isFinite(textarea?.selectionEnd) ? textarea.selectionEnd : fallback
+  const start = Math.max(0, Math.min(rawStart, rawEnd, value.length))
+  const end = Math.max(0, Math.min(Math.max(rawStart, rawEnd), value.length))
+  return { start, end }
+}
+
+const updateEditor = async (editor, nextValue, selectionStart, selectionEnd) => {
+  editor.setValue(nextValue)
+  await nextTick()
+  const textarea = getTextareaEl(editor.inputRef)
+  if (!textarea) return
+  textarea.focus()
+  const start = Math.max(0, Math.min(selectionStart, nextValue.length))
+  const end = Math.max(0, Math.min(selectionEnd, nextValue.length))
+  textarea.setSelectionRange(start, end)
+}
+
+const wrapSelection = async (editor, { prefix, suffix = prefix } = {}) => {
+  const textarea = getTextareaEl(editor.inputRef)
+  const value = editor.getValue()
+  const { start, end } = getSelectionRange(textarea, value)
+  const selected = value.slice(start, end)
+  const insert = `${prefix}${selected}${suffix}`
+  const nextValue = value.slice(0, start) + insert + value.slice(end)
+  const cursor = start + prefix.length
+  const nextEnd = cursor + selected.length
+  await updateEditor(editor, nextValue, cursor, nextEnd)
+}
+
+const prefixLines = async (editor, prefixer) => {
+  const textarea = getTextareaEl(editor.inputRef)
+  const value = editor.getValue()
+  const { start, end } = getSelectionRange(textarea, value)
+
+  const blockStart = value.lastIndexOf('\n', start - 1) + 1
+  const blockEnd = (() => {
+    const nextNewline = value.indexOf('\n', end)
+    return nextNewline === -1 ? value.length : nextNewline
+  })()
+
+  const block = value.slice(blockStart, blockEnd)
+  const lines = block.split('\n')
+  const updated = lines
+    .map((line, index) => {
+      if (!line.trim()) return line
+      return `${prefixer(index)}${line}`
+    })
+    .join('\n')
+
+  const nextValue = value.slice(0, blockStart) + updated + value.slice(blockEnd)
+  await updateEditor(editor, nextValue, blockStart, blockStart + updated.length)
+}
+
+const insertAtSelection = async (editor, text, { selectStartOffset = 0, selectEndOffset = 0 } = {}) => {
+  const textarea = getTextareaEl(editor.inputRef)
+  const value = editor.getValue()
+  const { start, end } = getSelectionRange(textarea, value)
+  const nextValue = value.slice(0, start) + text + value.slice(end)
+
+  const selectionStart = start + selectStartOffset
+  const selectionEnd = start + selectEndOffset
+  await updateEditor(editor, nextValue, selectionStart, selectionEnd)
+}
+
+const applyMarkdownAction = async (target, actionKey) => {
+  const editor = getMarkdownEditor(target)
+  if (!editor) return
+
+  const textarea = getTextareaEl(editor.inputRef)
+  const value = editor.getValue()
+  const { start, end } = getSelectionRange(textarea, value)
+  const selected = value.slice(start, end)
+
+  switch (actionKey) {
+    case 'heading1':
+      await prefixLines(editor, () => '# ')
+      return
+    case 'bold':
+      await wrapSelection(editor, { prefix: '**', suffix: '**' })
+      return
+    case 'italic':
+      await wrapSelection(editor, { prefix: '*', suffix: '*' })
+      return
+    case 'strike':
+      await wrapSelection(editor, { prefix: '~~', suffix: '~~' })
+      return
+    case 'quote':
+      await prefixLines(editor, () => '> ')
+      return
+    case 'ul':
+      await prefixLines(editor, () => '- ')
+      return
+    case 'ol':
+      await prefixLines(editor, (index) => `${index + 1}. `)
+      return
+    case 'code':
+      await wrapSelection(editor, { prefix: '`', suffix: '`' })
+      return
+    case 'codeBlock': {
+      const prefix = '```\n'
+      const suffix = '\n```'
+      const insert = `${prefix}${selected}${suffix}`
+      const nextValue = value.slice(0, start) + insert + value.slice(end)
+      const selectionStart = start + prefix.length
+      const selectionEnd = selectionStart + selected.length
+      await updateEditor(editor, nextValue, selectionStart, selectionEnd)
+      return
+    }
+    case 'link': {
+      const label = selected || 'link'
+      const url = 'https://'
+      const insert = `[${label}](${url})`
+      const nextValue = value.slice(0, start) + insert + value.slice(end)
+      const urlStart = start + label.length + 3
+      await updateEditor(editor, nextValue, urlStart, urlStart + url.length)
+      return
+    }
+    case 'hr': {
+      const insert = `${start === 0 ? '' : '\n'}---\n`
+      await insertAtSelection(editor, insert, {
+        selectStartOffset: insert.length,
+        selectEndOffset: insert.length,
+      })
+      return
+    }
+    default:
+      return
+  }
 }
 
 const buildPreview = (row) => {
@@ -534,9 +810,16 @@ const changePageSize = (pageSize) => {
 const createModalVisible = ref(false)
 const creating = ref(false)
 const createForm = ref({ title: '', content: '' })
+const createContentInputRef = ref(null)
+const createMarkdownPreview = ref(false)
+const createMarkdownHtml = computed(() => {
+  if (!createMarkdownPreview.value) return ''
+  return renderMarkdown(createForm.value.content)
+})
 
 const resetCreateForm = () => {
   createForm.value = { title: '', content: '' }
+  createMarkdownPreview.value = false
 }
 
 const openCreate = () => {
@@ -577,10 +860,17 @@ const editLoading = ref(false)
 const updating = ref(false)
 const editingId = ref('')
 const editForm = ref({ title: '', content: '' })
+const editContentInputRef = ref(null)
+const editMarkdownPreview = ref(false)
+const editMarkdownHtml = computed(() => {
+  if (!editMarkdownPreview.value) return ''
+  return renderMarkdown(editForm.value.content)
+})
 
 const resetEdit = () => {
   editingId.value = ''
   editForm.value = { title: '', content: '' }
+  editMarkdownPreview.value = false
   editLoading.value = false
   updating.value = false
 }
@@ -863,7 +1153,9 @@ onMounted(() => {
   border-radius: var(--nb-radius);
   background: var(--nb-gray-100);
   padding: var(--nb-space-md);
-  padding-right: calc(var(--nb-space-md) + 44px);
+}
+
+.text-viewer-body {
   max-height: 60vh;
   overflow: auto;
 }
@@ -875,6 +1167,11 @@ onMounted(() => {
   width: 32px;
   height: 32px;
   padding: 0;
+  z-index: 2;
+  background: color-mix(in oklab, var(--nb-surface, var(--background)) 85%, transparent);
+  border: var(--nb-border-thin);
+  border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow-sm);
 }
 
 .text-viewer-content {
@@ -885,6 +1182,83 @@ onMounted(() => {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.markdown-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-sm);
+}
+
+.markdown-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nb-space-sm);
+  padding: 6px 8px;
+  border: var(--nb-border-thin);
+  border-radius: var(--nb-radius);
+  background: var(--nb-surface);
+}
+
+.markdown-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.markdown-toolbar .markdown-tool-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.markdown-editor-input :deep(textarea) {
+  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  tab-size: 2;
+}
+
+.markdown-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-sm);
+}
+
+.markdown-editor-body.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--nb-space-sm);
+  height: min(52vh, 520px);
+}
+
+.markdown-editor-body.split .markdown-editor-input {
+  height: 100%;
+}
+
+.markdown-editor-body.split .markdown-editor-input :deep(textarea) {
+  height: 100%;
+  resize: none;
+}
+
+.markdown-preview {
+  border: var(--nb-border-thin);
+  border-radius: var(--nb-radius);
+  background: var(--nb-gray-100);
+  padding: var(--nb-space-sm);
+  overflow: auto;
+}
+
+.markdown-editor-body.split .markdown-preview {
+  height: 100%;
+  background: var(--nb-surface);
+}
+
+@media (max-width: 900px) {
+  .markdown-editor-body.split {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
 }
 
 .text-viewer-markdown {
