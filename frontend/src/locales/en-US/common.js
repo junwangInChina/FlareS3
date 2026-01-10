@@ -29,7 +29,7 @@ export default {
   },
   nav: {
     files: 'Files',
-    texts: 'Text list',
+    texts: 'Documents',
     users: 'Users',
     audit: 'Audit Logs',
     setup: 'Storage',
