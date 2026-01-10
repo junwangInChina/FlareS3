@@ -28,11 +28,11 @@ export default {
     'en-US': 'English',
   },
   nav: {
-    files: '文件列表',
-    texts: '文本列表',
-    users: '用户列表',
-    audit: '审计日志',
-    setup: '存储管理',
+    files: '文件',
+    texts: '文档',
+    users: '用户',
+    audit: '日志',
+    setup: '管理',
   },
   role: {
     admin: '管理员',
