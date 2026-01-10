@@ -1,8 +1,8 @@
 export default {
   texts: {
-    title: 'Text List',
-    subtitle: 'Create and manage text notes',
-    createText: 'New text',
+    title: 'Documents',
+    subtitle: 'Create and manage documents',
+    createText: 'New document',
     filters: {
       q: 'Search',
       allOwners: 'All users',
@@ -22,9 +22,9 @@ export default {
       delete: 'Delete',
     },
     modals: {
-      createTitle: 'Create text',
-      editTitle: 'Edit text',
-      viewTitle: 'Text',
+      createTitle: 'Create document',
+      editTitle: 'Edit document',
+      viewTitle: 'Document',
       deleteTitle: 'Confirm delete',
     },
     form: {
@@ -39,17 +39,17 @@ export default {
     validation: {
       contentRequired: 'Content is required',
     },
-    confirmDelete: 'Delete this text?',
+    confirmDelete: 'Delete this document?',
     messages: {
-      loadFailed: 'Failed to load texts',
+      loadFailed: 'Failed to load documents',
       loadUsersFailed: 'Failed to load users',
-      openFailed: 'Failed to load text',
-      createSuccess: 'Text created',
-      createFailed: 'Failed to create text',
-      updateSuccess: 'Text updated',
-      updateFailed: 'Failed to update text',
-      deleteSuccess: 'Text deleted',
-      deleteFailed: 'Failed to delete text',
+      openFailed: 'Failed to load document',
+      createSuccess: 'Document created',
+      createFailed: 'Failed to create document',
+      updateSuccess: 'Document updated',
+      updateFailed: 'Failed to update document',
+      deleteSuccess: 'Document deleted',
+      deleteFailed: 'Failed to delete document',
     },
   },
 }
