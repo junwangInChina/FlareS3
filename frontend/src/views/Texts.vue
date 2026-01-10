@@ -146,8 +146,6 @@
         </template>
 
         <template v-else>
-          <Descriptions :items="viewInfoItems" :column="1" />
-          <Divider />
           <Input v-model="viewContent" type="textarea" :rows="14" readonly />
         </template>
 
@@ -196,8 +194,6 @@ import Input from '../components/ui/input/Input.vue'
 import Select from '../components/ui/select/Select.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
-import Descriptions from '../components/ui/descriptions/Descriptions.vue'
-import Divider from '../components/ui/divider/Divider.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
@@ -553,11 +549,9 @@ const handleUpdate = async () => {
 
 const viewModalVisible = ref(false)
 const viewLoading = ref(false)
-const viewText = ref(null)
 const viewContent = ref('')
 
 const resetView = () => {
-  viewText.value = null
   viewContent.value = ''
   viewLoading.value = false
 }
@@ -566,32 +560,6 @@ watch(viewModalVisible, (visible) => {
   if (!visible) {
     resetView()
   }
-})
-
-const viewInfoItems = computed(() => {
-  const text = viewText.value
-  if (!text) return []
-
-  const title = String(text.title ?? '').trim() || '-'
-  const owner = String(text.owner_username || text.owner_id || '-').trim() || '-'
-  const createdAt = formatDateTime(text.created_at)
-  const updatedAt = formatDateTime(text.updated_at)
-
-  const items = [
-    { label: t('texts.columns.title'), value: title },
-    { label: t('texts.columns.length'), value: formatBytes(viewContent.value.length) },
-  ]
-
-  if (authStore.isAdmin) {
-    items.push({ label: t('texts.columns.owner'), value: owner })
-  }
-
-  items.push(
-    { label: t('texts.columns.createdAt'), value: createdAt },
-    { label: t('texts.columns.updatedAt'), value: updatedAt }
-  )
-
-  return items
 })
 
 const openView = async (row) => {
@@ -603,7 +571,6 @@ const openView = async (row) => {
 
   try {
     const result = await api.getText(id)
-    viewText.value = result?.text || null
     viewContent.value = String(result?.text?.content ?? '')
   } catch (error) {
     message.error(error.response?.data?.error || t('texts.messages.openFailed'))
