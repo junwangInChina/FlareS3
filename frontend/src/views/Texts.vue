@@ -146,7 +146,19 @@
         </template>
 
         <template v-else>
-          <Input v-model="viewContent" type="textarea" :rows="14" readonly />
+          <div class="text-viewer">
+            <Button
+              type="ghost"
+              size="small"
+              class="text-viewer-copy"
+              :aria-label="t('upload.copy')"
+              :disabled="!viewContent"
+              @click="copyViewContent"
+            >
+              <Copy :size="16" />
+            </Button>
+            <pre class="text-viewer-content">{{ viewContent || '-' }}</pre>
+          </div>
         </template>
 
         <template #footer>
@@ -179,7 +191,7 @@
 
 <script setup>
 import { computed, h, onMounted, ref, watch } from 'vue'
-import { Info, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
+import { Copy, Info, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -580,6 +592,12 @@ const openView = async (row) => {
   }
 }
 
+const copyViewContent = () => {
+  if (!viewContent.value) return
+  navigator.clipboard.writeText(viewContent.value)
+  message.success(t('common.copied'))
+}
+
 const openDeleteModal = (row) => {
   const id = normalizeId(row?.id)
   if (!id) return
@@ -751,5 +769,35 @@ onMounted(() => {
   .filter-item.owner {
     width: 100%;
   }
+}
+
+.text-viewer {
+  position: relative;
+  border: var(--nb-border-thin);
+  border-radius: var(--nb-radius);
+  background: var(--nb-gray-100);
+  padding: var(--nb-space-md);
+  padding-right: calc(var(--nb-space-md) + 44px);
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.text-viewer-copy {
+  position: absolute;
+  top: var(--nb-space-sm);
+  right: var(--nb-space-sm);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.text-viewer-content {
+  margin: 0;
+  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: var(--nb-font-size-sm);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 </style>
