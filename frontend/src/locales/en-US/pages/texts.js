@@ -33,6 +33,22 @@ export default {
       content: 'Content',
       contentPlaceholder: 'Write something…',
     },
+    markdown: {
+      preview: 'Markdown preview',
+      actions: {
+        heading1: 'Heading 1',
+        bold: 'Bold',
+        italic: 'Italic',
+        strike: 'Strikethrough',
+        link: 'Link',
+        quote: 'Blockquote',
+        ul: 'Bulleted list',
+        ol: 'Numbered list',
+        code: 'Inline code',
+        codeBlock: 'Code block',
+        hr: 'Horizontal rule',
+      },
+    },
     state: {
       loading: 'Loading...',
     },
