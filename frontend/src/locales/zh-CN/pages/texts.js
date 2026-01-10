@@ -1,8 +1,8 @@
 export default {
   texts: {
-    title: '文本列表',
-    subtitle: '创建并管理文本内容',
-    createText: '新建文本',
+    title: '文档',
+    subtitle: '创建并管理文档内容',
+    createText: '新建文档',
     filters: {
       q: '搜索',
       allOwners: '全部用户',
@@ -22,9 +22,9 @@ export default {
       delete: '删除',
     },
     modals: {
-      createTitle: '创建文本',
-      editTitle: '编辑文本',
-      viewTitle: '文本内容',
+      createTitle: '创建文档',
+      editTitle: '编辑文档',
+      viewTitle: '文档内容',
       deleteTitle: '确认删除',
     },
     form: {
@@ -39,11 +39,11 @@ export default {
     validation: {
       contentRequired: '内容不能为空',
     },
-    confirmDelete: '确定删除该文本？',
+    confirmDelete: '确定删除该文档？',
     messages: {
-      loadFailed: '加载文本列表失败',
-      loadUsersFailed: '加载用户列表失败',
-      openFailed: '加载文本失败',
+      loadFailed: '加载文档失败',
+      loadUsersFailed: '加载用户失败',
+      openFailed: '加载文档失败',
       createSuccess: '创建成功',
       createFailed: '创建失败',
       updateSuccess: '更新成功',
