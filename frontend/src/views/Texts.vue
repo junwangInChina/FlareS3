@@ -249,6 +249,21 @@ const formatBytes = (bytes) => {
   return `${size} ${units[index]}`
 }
 
+const buildAutoTitle = (content) => {
+  const source = String(content ?? '').trim()
+  if (!source) return ''
+
+  const firstNonEmptyLine = source
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0)
+
+  const normalized = String(firstNonEmptyLine ?? source).replace(/\s+/g, ' ').trim()
+  const maxChars = 50
+  const chars = Array.from(normalized)
+  return chars.length > maxChars ? `${chars.slice(0, maxChars).join('')}…` : normalized
+}
+
 const buildPreview = (row) => {
   const preview = String(row?.content_preview ?? '')
   const contentLength = Number(row?.content_length ?? preview.length)
@@ -448,7 +463,13 @@ const handleCreate = async () => {
 
   creating.value = true
   try {
-    await api.createText({ title: String(createForm.value.title ?? ''), content })
+    const rawTitle = String(createForm.value.title ?? '').trim()
+    const title = rawTitle || buildAutoTitle(content)
+    if (!rawTitle && title) {
+      createForm.value.title = title
+    }
+
+    await api.createText({ title, content })
     message.success(t('texts.messages.createSuccess'))
     createModalVisible.value = false
     pagination.value.page = 1
