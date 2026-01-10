@@ -1,6 +1,6 @@
 export default {
   setup: {
-    title: '存储管理',
+    title: '管理',
     help: '使用提示',
     subtitle:
       '管理多套 Cloudflare R2 配置，你可以在这里管理多套 Cloudflare R2 配置，并设置默认配置。 上传文件时可选择使用哪套配置。',
