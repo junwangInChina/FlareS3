@@ -1,6 +1,6 @@
 export default {
   files: {
-    title: '文件列表',
+    title: '文件',
     subtitle: '查看和管理所有上传的文件',
     uploadFile: '上传文件',
     filters: {
@@ -48,8 +48,8 @@ export default {
     downloadFile: '下载文件',
     confirmDelete: '确定要删除这个文件吗？',
     messages: {
-      loadUsersFailed: '加载用户列表失败',
-      loadFilesFailed: '加载文件列表失败',
+      loadUsersFailed: '加载用户失败',
+      loadFilesFailed: '加载文件失败',
       deleteSuccess: '文件已删除',
       deleteFailed: '删除文件失败',
     },
