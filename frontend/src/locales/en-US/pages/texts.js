@@ -20,6 +20,7 @@ export default {
       view: 'View',
       edit: 'Edit',
       delete: 'Delete',
+      loadMore: 'Load more',
     },
     modals: {
       createTitle: 'Create document',
@@ -49,8 +50,13 @@ export default {
         hr: 'Horizontal rule',
       },
     },
+    viewMode: {
+      table: 'Table view',
+      card: 'Card view',
+    },
     state: {
       loading: 'Loading...',
+      empty: 'No documents',
     },
     validation: {
       contentRequired: 'Content is required',
