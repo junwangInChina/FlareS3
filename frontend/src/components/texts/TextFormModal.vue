@@ -219,17 +219,60 @@ const buildAutoTitle = (content) => {
   const source = String(content ?? '').trim()
   if (!source) return ''
 
+  // 优先提取 Markdown 一级标题
+  const h1Match = source.match(/^#\s+(.+)$/m)
+  if (h1Match) {
+    return cleanAndTruncateTitle(h1Match[1])
+  }
+
+  // 其次提取任意级别 Markdown 标题
+  const hMatch = source.match(/^#{1,6}\s+(.+)$/m)
+  if (hMatch) {
+    return cleanAndTruncateTitle(hMatch[1])
+  }
+
+  // 否则使用第一行非空内容
   const firstNonEmptyLine = source
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find((line) => line.length > 0)
 
-  const normalized = String(firstNonEmptyLine ?? source)
-    .replace(/\s+/g, ' ')
+  return cleanAndTruncateTitle(firstNonEmptyLine ?? source)
+}
+
+const cleanAndTruncateTitle = (text) => {
+  // 去除 Markdown 语法
+  let cleaned = String(text ?? '')
+    .replace(/\*\*(.+?)\*\*/g, '$1') // 粗体 **text**
+    .replace(/__(.+?)__/g, '$1') // 粗体 __text__
+    .replace(/\*(.+?)\*/g, '$1') // 斜体 *text*
+    .replace(/_(.+?)_/g, '$1') // 斜体 _text_
+    .replace(/~~(.+?)~~/g, '$1') // 删除线 ~~text~~
+    .replace(/`(.+?)`/g, '$1') // 行内代码 `code`
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // 链接 [text](url)
+    .replace(/!\[.*?\]\(.+?\)/g, '') // 图片 ![alt](url)
+    .replace(/\s+/g, ' ') // 多个空格合并为一个
     .trim()
+
+  // 智能截断
   const maxChars = 50
-  const chars = Array.from(normalized)
-  return chars.length > maxChars ? `${chars.slice(0, maxChars).join('')}…` : normalized
+  const chars = Array.from(cleaned)
+
+  if (chars.length <= maxChars) {
+    return cleaned
+  }
+
+  // 尝试在单词边界截断（对英文友好）
+  const truncated = chars.slice(0, maxChars).join('')
+  const lastSpace = truncated.lastIndexOf(' ')
+
+  // 如果空格位置在合理范围内（超过70%长度），在空格处截断
+  if (lastSpace > maxChars * 0.7) {
+    return truncated.slice(0, lastSpace).trim() + '…'
+  }
+
+  // 否则直接截断
+  return truncated + '…'
 }
 
 const getTextareaEl = (inputRef) => {
