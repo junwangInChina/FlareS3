@@ -53,6 +53,37 @@
               <RefreshCw :size="16" style="margin-right: 6px" />
               {{ t('common.refresh') }}
             </Button>
+
+            <div class="filter-item view-mode">
+              <div class="view-mode-toggle" role="group" aria-label="View mode">
+                <Tooltip :content="t('texts.viewMode.table')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="view-mode-btn"
+                    :class="{ 'is-active': viewMode === 'table' }"
+                    :disabled="loading"
+                    :aria-label="t('texts.viewMode.table')"
+                    @click="setViewMode('table')"
+                  >
+                    <Table2 :size="18" />
+                  </Button>
+                </Tooltip>
+                <Tooltip :content="t('texts.viewMode.card')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="view-mode-btn"
+                    :class="{ 'is-active': viewMode === 'card' }"
+                    :disabled="loading"
+                    :aria-label="t('texts.viewMode.card')"
+                    @click="setViewMode('card')"
+                  >
+                    <LayoutGrid :size="18" />
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
           </div>
 
           <Button type="primary" size="small" :disabled="loading" @click="openCreate">
@@ -63,7 +94,7 @@
       </header>
 
       <section class="texts-content">
-        <Card class="texts-table-card">
+        <Card v-if="viewMode === 'table'" class="texts-table-card">
           <Table class="texts-table" :columns="columns" :data="texts" :loading="loading" />
 
           <Pagination
@@ -76,6 +107,88 @@
             @update:page-size="changePageSize"
           />
         </Card>
+
+        <template v-else>
+          <div v-if="loading && texts.length === 0" class="texts-state">
+            {{ t('texts.state.loading') }}
+          </div>
+          <div v-else-if="texts.length === 0" class="texts-state">
+            {{ t('texts.state.empty') }}
+          </div>
+          <div v-else class="texts-cards-section">
+            <div class="texts-cards">
+              <Card
+                v-for="row in texts"
+                :key="row.id"
+                header-bg="var(--nb-surface)"
+                header-color="var(--nb-ink)"
+                class="text-card"
+                @click="openView(row)"
+              >
+                <template #header>
+                  <div class="text-card-header">
+                    <span class="text-card-icon">
+                      <FileText :size="18" />
+                    </span>
+                    <Tag type="info" size="small">{{ detectFileType(row) }}</Tag>
+                  </div>
+                </template>
+
+                <template #header-extra>
+                  <div class="text-card-actions">
+                    <Tooltip :content="t('texts.actions.edit')">
+                      <Button
+                        type="ghost"
+                        size="small"
+                        class="icon-btn"
+                        :disabled="loading || deleting"
+                        @click.stop="openEdit(row)"
+                      >
+                        <Pencil :size="18" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip :content="t('texts.actions.delete')">
+                      <Button
+                        type="ghost"
+                        size="small"
+                        class="icon-btn icon-danger"
+                        :disabled="loading || deleting || deletingId === normalizeId(row?.id)"
+                        :loading="deletingId === normalizeId(row?.id)"
+                        @click.stop="handleDelete(row)"
+                      >
+                        <Trash2 :size="18" />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                </template>
+
+                <div class="text-card-body">
+                  <div class="text-card-preview">{{ buildPreview(row) }}</div>
+                </div>
+
+                <template #footer>
+                  <div class="text-card-footer">
+                    <span class="text-card-size">{{ formatBytes(row?.content_length ?? 0) }}</span>
+                    <span class="text-card-time">{{ formatDateTime(row?.updated_at) }}</span>
+                  </div>
+                </template>
+              </Card>
+            </div>
+
+            <div v-if="hasMore" class="texts-load-more">
+              <Button
+                type="default"
+                size="small"
+                class="load-more-btn"
+                :loading="loading && activeAction === 'loadMore'"
+                :disabled="loading"
+                @click="loadMore"
+              >
+                {{ t('texts.actions.loadMore') }}
+              </Button>
+            </div>
+          </div>
+        </template>
       </section>
 
       <TextFormModal
@@ -117,15 +230,8 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, ref } from 'vue'
-import {
-  Eye,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from 'lucide-vue-next'
+import { computed, h, onMounted, ref, watch } from 'vue'
+import { Eye, FileText, LayoutGrid, Pencil, Plus, RefreshCw, Search, Table2, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -138,6 +244,7 @@ import Modal from '../components/ui/modal/Modal.vue'
 import Input from '../components/ui/input/Input.vue'
 import Select from '../components/ui/select/Select.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
+import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TextFormModal from '../components/texts/TextFormModal.vue'
 import TextViewModal from '../components/texts/TextViewModal.vue'
@@ -162,6 +269,16 @@ const deleteConfirmText = computed(() => t('texts.confirmDelete'))
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 
 const filters = ref({ q: '', owner_id: '' })
+
+const viewModeKey = 'flares3:texts-view-mode'
+const viewMode = ref('table')
+
+const setViewMode = (mode) => {
+  if (mode !== 'table' && mode !== 'card') {
+    return
+  }
+  viewMode.value = mode
+}
 
 const usersLoading = ref(false)
 const users = ref([])
@@ -198,6 +315,31 @@ const buildPreview = (row) => {
   const suffix = contentLength > preview.length ? '…' : ''
   return preview ? `${preview}${suffix}` : '-'
 }
+
+const isLikelyMarkdown = (text) => {
+  const content = String(text ?? '')
+  if (!content.trim()) return false
+
+  let score = 0
+
+  if (/```|~~~/.test(content)) score += 3
+  if (/\[[^\]]+\]\([^)]+\)/.test(content)) score += 2
+  if (/(\*\*|__)[^\s].+?(\*\*|__)/.test(content)) score += 1
+
+  const lines = content.split(/\r?\n/)
+  if (lines.some((line) => /^#{1,6}\s+\S/.test(line))) score += 2
+  if (lines.some((line) => /^\s*>\s+\S/.test(line))) score += 1
+  if (lines.some((line) => /^\s*([-*+]|\d+\.)\s+\S/.test(line))) score += 1
+
+  return score >= 2
+}
+
+const detectFileType = (row) => {
+  const preview = String(row?.content_preview ?? '')
+  return isLikelyMarkdown(preview) ? 'MD' : 'TEXT'
+}
+
+const hasMore = computed(() => texts.value.length < pagination.value.itemCount)
 
 const columns = computed(() => {
   const base = [
@@ -322,17 +464,14 @@ const loadUsers = async () => {
   }
 }
 
-const loadTexts = async () => {
+const loadTexts = async ({ page = pagination.value.page, append = false } = {}) => {
   loading.value = true
   try {
-    const result = await api.getTexts(
-      pagination.value.page,
-      pagination.value.pageSize,
-      buildQueryParams()
-    )
-    texts.value = result.texts || []
+    const result = await api.getTexts(page, pagination.value.pageSize, buildQueryParams())
+    const nextTexts = result.texts || []
+    texts.value = append ? [...texts.value, ...nextTexts] : nextTexts
     pagination.value.itemCount = Number(result.total || 0)
-    pagination.value.page = Number(result.page || pagination.value.page)
+    pagination.value.page = Number(result.page || page)
     pagination.value.pageSize = Number(result.limit || pagination.value.pageSize)
   } catch (error) {
     message.error(t('texts.messages.loadFailed'))
@@ -340,6 +479,15 @@ const loadTexts = async () => {
     loading.value = false
     activeAction.value = ''
   }
+}
+
+const loadMore = async () => {
+  if (loading.value) return
+  if (!hasMore.value) return
+
+  activeAction.value = 'loadMore'
+  const nextPage = pagination.value.page + 1
+  await loadTexts({ page: nextPage, append: true })
 }
 
 const handleSearch = () => {
@@ -352,6 +500,9 @@ const handleSearch = () => {
 const handleRefresh = () => {
   if (loading.value) return
   activeAction.value = 'refresh'
+  if (viewMode.value === 'card') {
+    pagination.value.page = 1
+  }
   loadTexts()
 }
 
@@ -441,11 +592,15 @@ const handleDeleteConfirm = async () => {
 
     closeDeleteModal()
 
-    if (texts.value.length <= 1 && pagination.value.page > 1) {
-      pagination.value.page -= 1
+    if (viewMode.value === 'card') {
+      pagination.value.page = 1
+      await loadTexts()
+    } else {
+      if (texts.value.length <= 1 && pagination.value.page > 1) {
+        pagination.value.page -= 1
+      }
+      await loadTexts()
     }
-
-    await loadTexts()
   } catch (error) {
     message.error(error.response?.data?.error || t('texts.messages.deleteFailed'))
   } finally {
@@ -459,8 +614,24 @@ const handleDelete = (row) => {
 }
 
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem(viewModeKey)
+    if (stored === 'table' || stored === 'card') {
+      viewMode.value = stored
+    }
+  }
   loadTexts()
   loadUsers()
+})
+
+watch(viewMode, (value) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  if (value !== 'table' && value !== 'card') {
+    return
+  }
+  window.localStorage.setItem(viewModeKey, value)
 })
 </script>
 
@@ -526,13 +697,52 @@ onMounted(() => {
   width: 160px;
 }
 
+.filter-item.view-mode {
+  display: flex;
+  align-items: center;
+}
+
+.view-mode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: var(--nb-border);
+  border-radius: var(--nb-radius-md, var(--nb-radius));
+  background: var(--nb-surface);
+  height: 36px;
+  align-items: center;
+}
+
+:root[data-ui-theme='shadcn'] .view-mode-toggle {
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+
+.view-mode-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-mode-btn.is-active {
+  background: var(--nb-secondary);
+  border-color: var(--nb-border-color);
+}
+
+:root[data-ui-theme='shadcn'] .view-mode-btn.is-active {
+  background: var(--accent);
+}
+
 .texts-content {
   display: flex;
   flex-direction: column;
   gap: var(--nb-space-lg);
 }
 
-.modal-state {
+.texts-state {
   padding: var(--nb-space-md);
   text-align: center;
   color: var(--nb-muted-foreground, var(--nb-gray-500));
@@ -543,11 +753,143 @@ onMounted(() => {
   color: var(--nb-ink);
 }
 
+:deep(.texts-table .brutal-table),
+:deep(.texts-table .shadcn-table) {
+  table-layout: fixed;
+}
+
+:deep(.texts-table .brutal-table th),
+:deep(.texts-table .brutal-table td),
+:deep(.texts-table .shadcn-table th),
+:deep(.texts-table .shadcn-table td) {
+  white-space: nowrap;
+}
+
 :deep(.action-buttons) {
   display: flex;
   gap: 8px;
   justify-content: center;
   align-items: center;
+}
+
+.texts-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--nb-space-lg);
+}
+
+.text-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.text-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.texts-cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-lg);
+}
+
+.texts-load-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--nb-space-md) 0;
+  width: 100%;
+}
+
+.load-more-btn {
+  min-width: 120px;
+}
+
+.text-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--nb-space-sm);
+  min-width: 0;
+}
+
+.text-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--nb-radius-md, var(--nb-radius));
+  background: var(--nb-secondary);
+  border: var(--nb-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--nb-ink);
+  flex-shrink: 0;
+}
+
+:root[data-ui-theme='shadcn'] .text-card-icon {
+  background: var(--nb-gray-50);
+}
+
+.text-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.text-card:hover .text-card-actions {
+  opacity: 1;
+}
+
+.icon-btn {
+  width: 36px;
+  padding: 0;
+}
+
+.icon-danger {
+  color: var(--destructive, var(--nb-danger));
+}
+
+.text-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 120px;
+  padding: var(--nb-space-sm);
+  border-radius: var(--nb-radius);
+  background: var(--nb-gray-100);
+}
+
+.text-card-preview {
+  color: var(--nb-ink);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nb-space-sm);
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: 12px;
+  width: 100%;
+}
+
+.text-card-size {
+  flex-shrink: 0;
+}
+
+.text-card-time {
+  flex-shrink: 0;
 }
 
 @media (max-width: 720px) {
@@ -568,6 +910,10 @@ onMounted(() => {
   .filter-item.query,
   .filter-item.owner {
     width: 100%;
+  }
+
+  .texts-cards {
+    grid-template-columns: 1fr;
   }
 }
 </style>
