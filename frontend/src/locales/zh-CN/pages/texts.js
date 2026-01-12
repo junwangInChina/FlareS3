@@ -20,6 +20,7 @@ export default {
       view: '查看',
       edit: '编辑',
       delete: '删除',
+      loadMore: '加载更多',
     },
     modals: {
       createTitle: '创建文档',
@@ -49,8 +50,13 @@ export default {
         hr: '分割线',
       },
     },
+    viewMode: {
+      table: '表格视图',
+      card: '卡片视图',
+    },
     state: {
       loading: '加载中...',
+      empty: '暂无文档',
     },
     validation: {
       contentRequired: '内容不能为空',
