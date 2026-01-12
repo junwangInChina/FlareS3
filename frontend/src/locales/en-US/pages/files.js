@@ -17,6 +17,14 @@ export default {
       seconds: '{value}s',
       days: '{days}d',
     },
+    viewMode: {
+      table: 'Table view',
+      card: 'Card view',
+    },
+    state: {
+      loading: 'Loading...',
+      empty: 'No files',
+    },
     columns: {
       filename: 'Filename',
       size: 'Size',
@@ -29,6 +37,7 @@ export default {
     },
     actions: {
       delete: 'Delete',
+      loadMore: 'Load more',
     },
     modals: {
       infoTitle: 'File info',
