@@ -17,6 +17,14 @@ export default {
       seconds: '{value}秒',
       days: '{days}天',
     },
+    viewMode: {
+      table: '表格视图',
+      card: '卡片视图',
+    },
+    state: {
+      loading: '加载中...',
+      empty: '暂无文件',
+    },
     columns: {
       filename: '文件名',
       size: '大小',
@@ -29,6 +37,7 @@ export default {
     },
     actions: {
       delete: '删除',
+      loadMore: '加载更多',
     },
     modals: {
       infoTitle: '文件信息',
