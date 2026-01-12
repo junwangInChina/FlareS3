@@ -12,11 +12,14 @@ export const useFilesStore = defineStore('files', {
   }),
 
   actions: {
-    async fetchFiles(page = 1, limit = this.limit, filters = this.filters) {
+    async fetchFiles(page = 1, limit = this.limit, filters = this.filters, options = {}) {
       this.loading = true
       try {
         const response = await api.getFiles(page, limit, filters)
-        this.files = response.files || []
+        const nextFiles = response.files || []
+        const shouldAppend = Boolean(options?.append)
+
+        this.files = shouldAppend ? [...this.files, ...nextFiles] : nextFiles
         this.total = response.total
         this.page = response.page
         this.limit = response.limit
