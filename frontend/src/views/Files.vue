@@ -110,131 +110,31 @@
       </header>
 
       <section class="files-content">
-        <Card v-if="viewMode === 'table'" class="files-table-card">
-          <Table
-            class="files-table"
-            :columns="columns"
-            :data="filesStore.files"
-            :loading="tableLoading"
-          />
+        <FilesTableView
+          v-if="viewMode === 'table'"
+          :columns="columns"
+          :data="filesStore.files"
+          :loading="tableLoading"
+          :total="filesStore.total"
+          :page="pagination.page"
+          :page-size="pagination.pageSize"
+          :disabled="filesStore.loading"
+          @update:page="changePage"
+          @update:page-size="changePageSize"
+        />
 
-          <Pagination
-            v-if="filesStore.total > 0"
-            :page="pagination.page"
-            :page-size="pagination.pageSize"
-            :total="filesStore.total"
-            :disabled="filesStore.loading"
-            @update:page="changePage"
-            @update:page-size="changePageSize"
-          />
-        </Card>
-
-        <template v-else>
-          <div v-if="tableLoading && filesStore.files.length === 0" class="files-state">
-            {{ t('files.state.loading') }}
-          </div>
-          <div v-else-if="filesStore.files.length === 0" class="files-state">
-            {{ t('files.state.empty') }}
-          </div>
-          <div v-else class="files-cards-section">
-            <div class="files-cards">
-              <Card
-                v-for="row in filesStore.files"
-                :key="row.id"
-                header-bg="var(--nb-surface)"
-                header-color="var(--nb-ink)"
-                :class="['file-card', { 'is-disabled': isFileDeleted(row) }]"
-                @click="handleCardClick(row)"
-              >
-                <template #header>
-                  <div class="file-card-header">
-                    <span class="file-card-icon">
-                      <File :size="18" />
-                    </span>
-                    <Tooltip :content="row.filename">
-                      <span class="file-card-title">{{ row.filename }}</span>
-                    </Tooltip>
-                  </div>
-                </template>
-
-                <template #header-extra>
-                  <div class="file-card-actions">
-                    <Tooltip :content="t('common.details')">
-                      <Button
-                        type="ghost"
-                        size="small"
-                        class="icon-btn"
-                        :disabled="filesStore.loading || isFileDeleted(row)"
-                        @click.stop="showFileInfo(row)"
-                      >
-                        <Info :size="18" />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip :content="t('files.actions.delete')">
-                      <Button
-                        type="ghost"
-                        size="small"
-                        class="icon-btn icon-danger"
-                        :disabled="filesStore.loading || isFileDeleted(row)"
-                        @click.stop="handleDelete(row.id)"
-                      >
-                        <Trash2 :size="18" />
-                      </Button>
-                    </Tooltip>
-                  </div>
-                </template>
-
-                <div class="file-card-body">
-                  <div class="file-card-meta">
-                    <Tag :type="getFileStatus(row).tagType" size="small">{{
-                      getFileStatus(row).text
-                    }}</Tag>
-                    <span class="file-card-size">{{ formatBytes(row.size) }}</span>
-                  </div>
-
-                  <div class="file-card-lines">
-                    <div class="file-card-line">
-                      <span class="file-card-label">{{ t('files.columns.expires') }}</span>
-                      <span class="file-card-value">{{ getExpiresText(row) }}</span>
-                    </div>
-                    <div class="file-card-line">
-                      <span class="file-card-label">{{ t('files.columns.remaining') }}</span>
-                      <Tooltip :content="getRemainingText(row)">
-                        <span class="file-card-value">{{ getRemainingText(row) }}</span>
-                      </Tooltip>
-                    </div>
-                    <div v-if="authStore.isAdmin" class="file-card-line">
-                      <span class="file-card-label">{{ t('files.columns.owner') }}</span>
-                      <span class="file-card-value">{{
-                        row.owner_username || row.owner_id || '-'
-                      }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <template #footer>
-                  <div class="file-card-footer">
-                    <span class="file-card-footer-time">{{ formatDateTime(row.created_at) }}</span>
-                    <span class="file-card-footer-code">{{ row.short_code || '-' }}</span>
-                  </div>
-                </template>
-              </Card>
-            </div>
-
-            <div v-if="hasMore" class="files-load-more">
-              <Button
-                type="default"
-                size="small"
-                class="load-more-btn"
-                :loading="filesStore.loading && activeAction === 'loadMore'"
-                :disabled="filesStore.loading"
-                @click="loadMore"
-              >
-                {{ t('files.actions.loadMore') }}
-              </Button>
-            </div>
-          </div>
-        </template>
+        <FilesCardView
+          v-else
+          :files="filesStore.files"
+          :loading="filesStore.loading"
+          :initial-loading="tableLoading"
+          :has-more="hasMore"
+          :active-action="activeAction"
+          :is-admin="authStore.isAdmin"
+          @show-info="showFileInfo"
+          @delete="handleDelete"
+          @load-more="loadMore"
+        />
       </section>
 
       <Modal v-model:show="showInfoModal" :title="t('files.modals.infoTitle')" width="500px">
@@ -281,22 +181,21 @@
 
 <script setup>
 import { ref, h, onMounted, computed, watch } from 'vue'
-import { Info, Trash2, RefreshCw, Search, Upload, LayoutGrid, Table2, File } from 'lucide-vue-next'
+import { Info, Trash2, RefreshCw, Search, Upload, LayoutGrid, Table2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
-import Card from '../components/ui/card/Card.vue'
+import FilesTableView from '../components/files/FilesTableView.vue'
+import FilesCardView from '../components/files/FilesCardView.vue'
 import Button from '../components/ui/button/Button.vue'
 import Select from '../components/ui/select/Select.vue'
-import Table from '../components/ui/table/Table.vue'
 import Modal from '../components/ui/modal/Modal.vue'
 import Descriptions from '../components/ui/descriptions/Descriptions.vue'
 import Divider from '../components/ui/divider/Divider.vue'
 import Input from '../components/ui/input/Input.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
-import Pagination from '../components/ui/pagination/Pagination.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import UploadPanel from '../components/upload/UploadPanel.vue'
@@ -386,12 +285,6 @@ const getFileStatus = (row) => {
   const tagType = deleted ? 'danger' : expired ? 'warning' : 'success'
 
   return { deleted, expired, text, tagType }
-}
-
-const handleCardClick = (row) => {
-  if (filesStore.loading) return
-  if (isFileDeleted(row)) return
-  showFileInfo(row)
 }
 
 const fileInfoItems = computed(() => {
@@ -855,195 +748,6 @@ watch(viewMode, (value) => {
   gap: var(--nb-space-lg);
 }
 
-.files-state {
-  padding: var(--nb-space-md);
-  text-align: center;
-  color: var(--nb-muted-foreground, var(--nb-gray-500));
-}
-
-.files-cards-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--nb-space-lg);
-}
-
-.files-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--nb-space-lg);
-}
-
-.files-load-more {
-  display: flex;
-  justify-content: center;
-  padding: var(--nb-space-md) 0;
-  width: 100%;
-}
-
-.load-more-btn {
-  min-width: 120px;
-}
-
-.file-card {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.file-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.file-card.is-disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.file-card.is-disabled:hover {
-  transform: none;
-  box-shadow: none;
-}
-
-.file-card-header {
-  display: flex;
-  align-items: center;
-  gap: var(--nb-space-sm);
-  min-width: 0;
-}
-
-.file-card-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--nb-radius-md, var(--nb-radius));
-  background: var(--nb-secondary);
-  border: var(--nb-border);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--nb-ink);
-  flex-shrink: 0;
-}
-
-:root[data-ui-theme='shadcn'] .file-card-icon {
-  background: var(--nb-gray-50);
-}
-
-.file-card-title {
-  display: block;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-  color: var(--nb-ink);
-}
-
-.file-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.file-card:hover .file-card-actions {
-  opacity: 1;
-}
-
-.icon-btn {
-  width: 36px;
-  padding: 0;
-}
-
-.icon-danger {
-  color: var(--destructive, var(--nb-danger));
-}
-
-.file-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: var(--nb-space-sm);
-  border-radius: var(--nb-radius);
-  background: var(--nb-gray-100);
-}
-
-.file-card-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--nb-space-sm);
-}
-
-.file-card-size {
-  color: var(--nb-muted-foreground, var(--nb-gray-500));
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.file-card-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.file-card-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--nb-space-sm);
-  font-size: 12px;
-}
-
-.file-card-label {
-  color: var(--nb-muted-foreground, var(--nb-gray-500));
-  flex-shrink: 0;
-}
-
-.file-card-value {
-  color: var(--nb-ink);
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: right;
-}
-
-.file-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--nb-space-sm);
-  color: var(--nb-muted-foreground, var(--nb-gray-500));
-  font-size: 12px;
-  width: 100%;
-}
-
-.file-card-footer-time {
-  white-space: nowrap;
-}
-
-.file-card-footer-code {
-  font-family: var(--nb-font-mono);
-}
-
-/* Table Card Styling */
-.files-table-card {
-  /* min-height removed to avoid empty space */
-}
-
-:deep(.files-table .brutal-table),
-:deep(.files-table .shadcn-table) {
-  table-layout: fixed;
-}
-
-:deep(.files-table .brutal-table th),
-:deep(.files-table .brutal-table td),
-:deep(.files-table .shadcn-table th),
-:deep(.files-table .shadcn-table td) {
-  white-space: nowrap;
-}
-
 .link-group {
   margin-bottom: var(--nb-space-md);
 }
@@ -1067,13 +771,6 @@ watch(viewMode, (value) => {
   flex: 1;
 }
 
-:deep(.action-buttons) {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
-}
-
 @media (max-width: 720px) {
   .files-header {
     flex-direction: column;
@@ -1094,14 +791,6 @@ watch(viewMode, (value) => {
   .filter-item.status,
   .filter-item.created-range {
     width: 100%;
-  }
-
-  .files-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .file-card-actions {
-    opacity: 1;
   }
 }
 </style>
