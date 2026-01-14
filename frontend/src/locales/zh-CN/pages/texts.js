@@ -20,6 +20,7 @@ export default {
       view: '查看',
       edit: '编辑',
       delete: '删除',
+      copy: '复制',
       loadMore: '加载更多',
     },
     modals: {
@@ -70,6 +71,8 @@ export default {
       createFailed: '创建失败',
       updateSuccess: '更新成功',
       updateFailed: '更新失败',
+      copySuccess: '文档内容已经复制到剪切板',
+      copyFailed: '复制失败',
       deleteSuccess: '已删除',
       deleteFailed: '删除失败',
     },
