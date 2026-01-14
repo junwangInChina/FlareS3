@@ -20,6 +20,7 @@ export default {
       view: 'View',
       edit: 'Edit',
       delete: 'Delete',
+      copy: 'Copy',
       loadMore: 'Load more',
     },
     modals: {
@@ -70,6 +71,8 @@ export default {
       createFailed: 'Failed to create document',
       updateSuccess: 'Document updated',
       updateFailed: 'Failed to update document',
+      copySuccess: 'Document content copied to clipboard',
+      copyFailed: 'Failed to copy document content',
       deleteSuccess: 'Document deleted',
       deleteFailed: 'Failed to delete document',
     },
