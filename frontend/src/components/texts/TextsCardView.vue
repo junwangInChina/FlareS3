@@ -27,6 +27,19 @@
 
           <template #header-extra>
             <div class="text-card-actions">
+              <Tooltip :content="t('texts.actions.copy')">
+                <Button
+                  type="ghost"
+                  size="small"
+                  class="icon-btn"
+                  :aria-label="t('texts.actions.copy')"
+                  :disabled="loading || deleting || !!copyingId"
+                  :loading="copyingId === normalizeId(row?.id)"
+                  @click.stop="copyTextContent(row)"
+                >
+                  <Copy :size="18" />
+                </Button>
+              </Tooltip>
               <Tooltip :content="t('texts.actions.edit')">
                 <Button
                   type="ghost"
@@ -83,14 +96,17 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FileText, Pencil, Trash2 } from 'lucide-vue-next'
+import { Copy, FileText, Pencil, Trash2 } from 'lucide-vue-next'
+import api from '../../services/api'
+import { useMessage } from '../../composables/useMessage'
 import Card from '../ui/card/Card.vue'
 import Button from '../ui/button/Button.vue'
 import Tag from '../ui/tag/Tag.vue'
 import Tooltip from '../ui/tooltip/Tooltip.vue'
 
-defineProps({
+const props = defineProps({
   texts: {
     type: Array,
     required: true,
@@ -144,6 +160,41 @@ defineProps({
 const emit = defineEmits(['view', 'edit', 'delete', 'load-more'])
 
 const { t } = useI18n({ useScope: 'global' })
+const message = useMessage()
+
+const copyingId = ref('')
+
+const copyTextContent = async (row) => {
+  const id = props.normalizeId(row?.id)
+  if (!id) return
+  if (props.loading || props.deleting || copyingId.value) return
+
+  copyingId.value = id
+  try {
+    const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : null
+    if (!clipboard) {
+      throw new Error('Clipboard API is not available')
+    }
+
+    if (clipboard.write && typeof window !== 'undefined' && window.ClipboardItem) {
+      const blobPromise = api.getText(id).then((result) => {
+        const content = String(result?.text?.content ?? '')
+        return new Blob([content], { type: 'text/plain' })
+      })
+      await clipboard.write([new window.ClipboardItem({ 'text/plain': blobPromise })])
+    } else {
+      const result = await api.getText(id)
+      const content = String(result?.text?.content ?? '')
+      await clipboard.writeText(content)
+    }
+
+    message.success(t('texts.messages.copySuccess'))
+  } catch (error) {
+    message.error(error.response?.data?.error || t('texts.messages.copyFailed'))
+  } finally {
+    copyingId.value = ''
+  }
+}
 </script>
 
 <style scoped>
