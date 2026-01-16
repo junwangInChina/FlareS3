@@ -1,7 +1,20 @@
 import type { Env } from '../config/env'
+import type { AuthUser } from '../middleware/authSession'
 import { getUser, jsonResponse, parseJson } from './utils'
 import { ensureTextsTable, ensureTextSharesTable } from '../services/dbSchema'
 import { hashPassword, verifyPassword } from '../services/password'
+
+type LoadTextAuthResult =
+  | { response: Response }
+  | {
+      user: AuthUser
+      text: unknown
+      ownerId: string
+    }
+
+type ResolveShareRecordResult =
+  | { error: { status: number; message: string } }
+  | { share: unknown }
 
 function generateShareCode(length = 8): string {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -38,43 +51,119 @@ function buildPage({ title, body }: { title: string; body: string }): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)}</title>
+  <script>
+    (() => {
+      try {
+        const key = 'flares3:theme'
+        const stored = window.localStorage.getItem(key)
+        const mode =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
+              ? 'dark'
+              : 'light'
+
+        document.documentElement.dataset.theme = mode
+        document.documentElement.style.colorScheme = mode
+
+        const uiThemeKey = 'flares3:ui-theme'
+        const defaultUiTheme = 'motherduck-neobrutalism'
+        const uiThemes = [defaultUiTheme, 'shadcn']
+        const storedUiTheme = window.localStorage.getItem(uiThemeKey)
+        const uiTheme = uiThemes.includes(storedUiTheme) ? storedUiTheme : defaultUiTheme
+        document.documentElement.dataset.uiTheme = uiTheme
+      } catch {
+        // ignore
+      }
+    })()
+  </script>
   <style>
     :root {
+      color-scheme: light dark;
+
+      --share-bg: #f4efea;
+      --share-card: #ffffff;
+      --share-text: #383838;
+      --share-muted: #6b6b6b;
+      --share-border: #383838;
+      --share-border-width: 2px;
+      --share-shadow: -5px 5px 0px 0px #383838;
+      --share-radius: 2px;
+      --share-primary: #ffde00;
+      --share-primary-text: #383838;
+      --share-code-bg: rgba(248, 248, 247, 0.7);
+    }
+
+    :root[data-ui-theme='motherduck-neobrutalism'][data-theme='dark'] {
+      --share-bg: #0f0f10;
+      --share-card: #171717;
+      --share-text: #f4efea;
+      --share-muted: #c7c1bc;
+      --share-border: #f4efea;
+      --share-border-width: 2px;
+      --share-shadow: -5px 5px 0px 0px #f4efea;
+      --share-radius: 2px;
+      --share-primary: #ffde00;
+      --share-primary-text: #383838;
+      --share-code-bg: rgba(23, 23, 23, 0.75);
+    }
+
+    :root[data-ui-theme='shadcn'] {
       color-scheme: light;
-      --bg: #0b0b0f;
-      --card: #12121a;
-      --text: #f5f5f7;
-      --muted: rgba(245,245,247,.7);
-      --border: rgba(245,245,247,.15);
-      --primary: #7c3aed;
+
+      --share-bg: oklch(1 0 0);
+      --share-card: oklch(1 0 0);
+      --share-text: oklch(0.145 0 0);
+      --share-muted: oklch(0.556 0 0);
+      --share-border: oklch(0.922 0 0);
+      --share-border-width: 1px;
+      --share-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      --share-radius: 16px;
+      --share-primary: oklch(0.205 0 0);
+      --share-primary-text: oklch(0.985 0 0);
+      --share-code-bg: oklch(0.97 0 0);
+    }
+
+    :root[data-ui-theme='shadcn'][data-theme='dark'] {
+      color-scheme: dark;
+
+      --share-bg: oklch(0.145 0 0);
+      --share-card: oklch(0.205 0 0);
+      --share-text: oklch(0.985 0 0);
+      --share-muted: oklch(0.708 0 0);
+      --share-border: oklch(1 0 0 / 10%);
+      --share-border-width: 1px;
+      --share-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      --share-radius: 16px;
+      --share-primary: oklch(0.922 0 0);
+      --share-primary-text: oklch(0.205 0 0);
+      --share-code-bg: oklch(0.269 0 0);
     }
 
     body {
       margin: 0;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      background: radial-gradient(1200px 800px at 20% 0%, rgba(124,58,237,.25), transparent 55%),
-        radial-gradient(900px 600px at 85% 15%, rgba(56,189,248,.18), transparent 60%),
-        var(--bg);
-      color: var(--text);
+      background: var(--share-bg);
+      color: var(--share-text);
     }
 
     .wrap {
-      max-width: 860px;
+      max-width: 980px;
       margin: 0 auto;
-      padding: 32px 16px 64px;
+      padding: 40px 16px 64px;
     }
 
     .card {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: color-mix(in oklab, var(--card) 88%, transparent);
-      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: var(--share-radius);
+      background: var(--share-card);
+      box-shadow: var(--share-shadow);
       overflow: hidden;
     }
 
     .header {
-      padding: 18px 20px;
-      border-bottom: 1px solid var(--border);
+      padding: 20px 24px;
+      border-bottom: var(--share-border-width) solid var(--share-border);
       display: flex;
       align-items: baseline;
       justify-content: space-between;
@@ -92,13 +181,13 @@ function buildPage({ title, body }: { title: string; body: string }): string {
     }
 
     .meta {
-      color: var(--muted);
+      color: var(--share-muted);
       font-size: 12px;
       white-space: nowrap;
     }
 
     .body {
-      padding: 18px 20px;
+      padding: 20px 24px;
     }
 
     pre {
@@ -108,11 +197,15 @@ function buildPage({ title, body }: { title: string; body: string }): string {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 13px;
       line-height: 1.65;
-      color: var(--text);
+      color: var(--share-text);
+      background: var(--share-code-bg);
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: calc(var(--share-radius) + 2px);
+      padding: 14px 16px;
     }
 
     .muted {
-      color: var(--muted);
+      color: var(--share-muted);
       font-size: 14px;
       line-height: 1.6;
       margin: 0;
@@ -133,24 +226,23 @@ function buildPage({ title, body }: { title: string; body: string }): string {
     input {
       width: 100%;
       padding: 12px 14px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(255,255,255,.06);
-      color: var(--text);
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: calc(var(--share-radius) + 2px);
+      background: var(--share-card);
+      color: var(--share-text);
       outline: none;
     }
 
     input:focus {
-      border-color: color-mix(in oklab, var(--primary) 70%, var(--border));
-      box-shadow: 0 0 0 4px rgba(124,58,237,.25);
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--share-primary) 25%, transparent);
     }
 
     button {
       padding: 12px 14px;
-      border: 0;
-      border-radius: 12px;
-      background: var(--primary);
-      color: white;
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: calc(var(--share-radius) + 2px);
+      background: var(--share-primary);
+      color: var(--share-primary-text);
       font-weight: 700;
       cursor: pointer;
     }
@@ -172,14 +264,18 @@ function buildPage({ title, body }: { title: string; body: string }): string {
 </html>`
 }
 
-async function loadTextAndAuthorize(request: Request, env: Env, textId: string) {
+async function loadTextAndAuthorize(
+  request: Request,
+  env: Env,
+  textId: string
+): Promise<LoadTextAuthResult> {
   const user = getUser(request)
   if (!user) {
-    return { response: jsonResponse({ error: '未授权' }, 401) as Response }
+    return { response: jsonResponse({ error: '未授权' }, 401) }
   }
 
   if (!textId) {
-    return { response: jsonResponse({ error: 'id 不能为空' }, 400) as Response }
+    return { response: jsonResponse({ error: 'id 不能为空' }, 400) }
   }
 
   await ensureTextsTable(env.DB)
@@ -192,12 +288,12 @@ async function loadTextAndAuthorize(request: Request, env: Env, textId: string) 
     .first()
 
   if (!text) {
-    return { response: jsonResponse({ error: '文本不存在' }, 404) as Response }
+    return { response: jsonResponse({ error: '文本不存在' }, 404) }
   }
 
   const ownerId = String((text as any).owner_id)
   if (user.role !== 'admin' && ownerId !== user.id) {
-    return { response: jsonResponse({ error: '无权限' }, 403) as Response }
+    return { response: jsonResponse({ error: '无权限' }, 403) }
   }
 
   return { user, text, ownerId }
@@ -474,7 +570,7 @@ function formatDateTimeLocal(isoString: string | null): string {
   return `${y}-${m}-${d} ${hh}:${mm}`
 }
 
-async function resolveShareRecord(env: Env, code: string) {
+async function resolveShareRecord(env: Env, code: string): Promise<ResolveShareRecordResult> {
   await ensureTextsTable(env.DB)
   await ensureTextSharesTable(env.DB)
 
@@ -558,7 +654,7 @@ function renderMessagePage(title: string, message: string, status = 200): Respon
     body: `
 <div class="header">
   <h1 class="title">${escapeHtml(title)}</h1>
-  <div class="meta">${escapeHtml('') }</div>
+  <div class="meta"></div>
 </div>
 <div class="body">
   <p class="muted">${escapeHtml(message)}</p>
