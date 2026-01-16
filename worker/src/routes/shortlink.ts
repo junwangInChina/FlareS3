@@ -1,6 +1,7 @@
 import type { Env } from '../config/env'
 import { getUser } from './utils'
 import { jsonResponse } from './utils'
+import { viewTextShare } from './textShares'
 
 export async function shortlink(request: Request, env: Env, code: string): Promise<Response> {
   if (!code) return jsonResponse({ error: '短码不能为空' }, 400)
@@ -10,7 +11,7 @@ export async function shortlink(request: Request, env: Env, code: string): Promi
     .bind(code)
     .first()
   if (!file) {
-    return jsonResponse({ error: '文件不存在' }, 404)
+    return viewTextShare(request, env, code)
   }
   if (Number(file.require_login) === 1) {
     const user = getUser(request)
