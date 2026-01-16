@@ -2,7 +2,7 @@
   <Modal
     :show="show"
     :title="t('texts.modals.shareTitle')"
-    width="800px"
+    width="600px"
     @update:show="handleUpdateShow"
   >
     <template v-if="loading">
