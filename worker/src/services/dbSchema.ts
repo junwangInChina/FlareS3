@@ -29,3 +29,35 @@ export async function ensureTextsTable(db: D1Database): Promise<void> {
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_texts_updated_at ON texts(updated_at)').run()
   await db.prepare('CREATE INDEX IF NOT EXISTS idx_texts_deleted_at ON texts(deleted_at)').run()
 }
+
+export async function ensureTextSharesTable(db: D1Database): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS text_shares (
+        id TEXT PRIMARY KEY,
+        text_id TEXT NOT NULL UNIQUE,
+        owner_id TEXT NOT NULL,
+        share_code TEXT NOT NULL UNIQUE,
+        password_hash TEXT,
+        expires_in INTEGER NOT NULL DEFAULT 0,
+        expires_at DATETIME,
+        max_views INTEGER NOT NULL DEFAULT 0,
+        views INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL
+      )`
+    )
+    .run()
+
+  await db
+    .prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_text_shares_text_id ON text_shares(text_id)')
+    .run()
+  await db
+    .prepare(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_text_shares_share_code ON text_shares(share_code)'
+    )
+    .run()
+  await db
+    .prepare('CREATE INDEX IF NOT EXISTS idx_text_shares_owner_id ON text_shares(owner_id)')
+    .run()
+}
