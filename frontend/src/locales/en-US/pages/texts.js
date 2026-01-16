@@ -66,6 +66,7 @@ export default {
       statsAccessible: 'Accessible',
       statsRemaining: 'Remaining',
       statsValidity: 'Validity',
+      statsVisits: 'Visits',
       unlimited: 'Unlimited',
       neverExpires: 'Never',
       passwordStatus: 'Password',

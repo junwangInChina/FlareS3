@@ -66,6 +66,7 @@ export default {
       statsAccessible: '可访问',
       statsRemaining: '剩余',
       statsValidity: '有效期',
+      statsVisits: '访问',
       unlimited: '不限',
       neverExpires: '永不过期',
       passwordStatus: '口令',
