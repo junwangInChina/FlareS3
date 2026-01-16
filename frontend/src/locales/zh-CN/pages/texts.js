@@ -19,6 +19,7 @@ export default {
     actions: {
       view: '查看',
       edit: '编辑',
+      share: '分享',
       delete: '删除',
       copy: '复制',
       loadMore: '加载更多',
@@ -28,6 +29,7 @@ export default {
       editTitle: '编辑文档',
       viewTitle: '文档内容',
       deleteTitle: '确认删除',
+      shareTitle: '分享',
     },
     form: {
       title: '标题',
@@ -55,6 +57,38 @@ export default {
       table: '表格视图',
       card: '卡片视图',
     },
+    share: {
+      notCreated: '尚未创建分享链接',
+      link: '分享链接',
+      protected: '需要口令',
+
+      maxViews: '最大访问次数',
+      maxViewsPlaceholder: '0 表示不限制',
+      maxViewsHint: '设置为 0 表示不限制访问次数。',
+      maxViewsInvalid: '访问次数请输入大于等于 0 的数字',
+
+      visits: '已访问 {views}',
+      visitsWithMax: '已访问 {views}/{max}',
+
+      enableExpires: '启用过期',
+      expiresAt: '过期时间',
+      expiresHint: '未启用则永不过期。',
+      expiresRequired: '请选择过期时间',
+      noExpires: '不过期',
+      expiresAtText: '过期时间 {time}',
+
+      enablePassword: '启用口令',
+      password: '访问口令',
+      passwordPlaceholder: '请输入访问口令',
+      passwordKeepPlaceholder: '留空则不修改',
+      passwordKeepHint: '留空则保持原口令不变。',
+      passwordRequired: '请输入访问口令',
+
+      create: '创建',
+      save: '保存',
+      disable: '关闭分享',
+      regenerate: '重置链接',
+    },
     state: {
       loading: '加载中...',
       empty: '暂无文档',
@@ -75,6 +109,12 @@ export default {
       copyFailed: '复制失败',
       deleteSuccess: '已删除',
       deleteFailed: '删除失败',
+      shareLoadFailed: '获取分享信息失败',
+      shareSaveSuccess: '分享设置已保存',
+      shareSaveFailed: '保存分享设置失败',
+      shareDisableSuccess: '分享已关闭',
+      shareDisableFailed: '关闭分享失败',
+      shareCopyFailed: '复制分享链接失败',
     },
   },
 }
