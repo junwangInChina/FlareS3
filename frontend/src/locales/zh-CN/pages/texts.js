@@ -62,6 +62,25 @@ export default {
       link: '分享链接',
       protected: '需要口令',
 
+      statsVisited: '已访问',
+      statsAccessible: '可访问',
+      statsRemaining: '剩余',
+      statsValidity: '有效期',
+      unlimited: '不限',
+      neverExpires: '永不过期',
+      passwordStatus: '口令',
+      passwordUnset: '未设置',
+      passwordSet: '已设置',
+
+      fieldsValidity: '有效期',
+      fieldsAccessCount: '可访问次数',
+      fieldsSharePassword: '分享口令',
+      optional: '可选',
+      expire1d: '1天',
+      expire7d: '7天',
+      expire30d: '30天',
+      expireCustom: '自定义',
+
       maxViews: '最大访问次数',
       maxViewsPlaceholder: '0 表示不限制',
       maxViewsHint: '设置为 0 表示不限制访问次数。',
@@ -86,6 +105,7 @@ export default {
 
       create: '创建',
       save: '保存',
+      saveAndClose: '保存并关闭',
       disable: '关闭分享',
       regenerate: '重置链接',
     },
