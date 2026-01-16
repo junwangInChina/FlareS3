@@ -35,6 +35,7 @@ import { shortlink } from './routes/shortlink'
 import { getStats } from './routes/stats'
 import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
 import { listTexts, getText, createText, updateText, deleteText } from './routes/texts'
+import { getTextShare, upsertTextShare, deleteTextShare, viewTextShare } from './routes/textShares'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 
@@ -228,7 +229,29 @@ router.delete('/api/texts/:id', (request, env: Env) => {
   return deleteText(request, env, (request as any).params.id)
 })
 
+router.get('/api/texts/:id/share', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return getTextShare(request, env, (request as any).params.id)
+})
+router.post('/api/texts/:id/share', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return upsertTextShare(request, env, (request as any).params.id)
+})
+router.delete('/api/texts/:id/share', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return deleteTextShare(request, env, (request as any).params.id)
+})
+
 router.get('/s/:code', (request, env: Env) => shortlink(request, env, (request as any).params.code))
+router.get('/t/:code', (request, env: Env) =>
+  viewTextShare(request, env, (request as any).params.code)
+)
+router.post('/t/:code', (request, env: Env) =>
+  viewTextShare(request, env, (request as any).params.code)
+)
 
 router.all('*', () => new Response('Not Found', { status: 404 }))
 
