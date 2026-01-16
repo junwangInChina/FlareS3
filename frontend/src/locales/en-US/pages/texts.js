@@ -62,6 +62,25 @@ export default {
       link: 'Share link',
       protected: 'Password protected',
 
+      statsVisited: 'Visited',
+      statsAccessible: 'Accessible',
+      statsRemaining: 'Remaining',
+      statsValidity: 'Validity',
+      unlimited: 'Unlimited',
+      neverExpires: 'Never',
+      passwordStatus: 'Password',
+      passwordUnset: 'Not set',
+      passwordSet: 'Set',
+
+      fieldsValidity: 'Validity',
+      fieldsAccessCount: 'Accessible views',
+      fieldsSharePassword: 'Share password',
+      optional: 'Optional',
+      expire1d: '1 day',
+      expire7d: '7 days',
+      expire30d: '30 days',
+      expireCustom: 'Custom',
+
       maxViews: 'Max views',
       maxViewsPlaceholder: '0 for unlimited',
       maxViewsHint: 'Set 0 for unlimited views.',
@@ -86,6 +105,7 @@ export default {
 
       create: 'Create',
       save: 'Save',
+      saveAndClose: 'Save & Close',
       disable: 'Disable',
       regenerate: 'Regenerate',
     },
