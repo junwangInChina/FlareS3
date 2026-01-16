@@ -10,6 +10,14 @@ export default defineConfig({
         target: "http://127.0.0.1:18787",
         changeOrigin: true,
       },
+      "/s/": {
+        target: "http://127.0.0.1:18787",
+        changeOrigin: true,
+      },
+      "/t/": {
+        target: "http://127.0.0.1:18787",
+        changeOrigin: true,
+      },
     },
   },
   build: {
