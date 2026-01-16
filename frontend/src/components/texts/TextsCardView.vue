@@ -40,6 +40,18 @@
                   <Copy :size="18" />
                 </Button>
               </Tooltip>
+              <Tooltip :content="t('texts.actions.share')">
+                <Button
+                  type="ghost"
+                  size="small"
+                  class="icon-btn"
+                  :aria-label="t('texts.actions.share')"
+                  :disabled="loading || deleting"
+                  @click.stop="emit('share', row)"
+                >
+                  <Share2 :size="18" />
+                </Button>
+              </Tooltip>
               <Tooltip :content="t('texts.actions.edit')">
                 <Button
                   type="ghost"
@@ -98,7 +110,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Copy, FileText, Pencil, Trash2 } from 'lucide-vue-next'
+import { Copy, FileText, Pencil, Share2, Trash2 } from 'lucide-vue-next'
 import api from '../../services/api'
 import { useMessage } from '../../composables/useMessage'
 import Card from '../ui/card/Card.vue'
@@ -157,7 +169,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view', 'edit', 'delete', 'load-more'])
+const emit = defineEmits(['view', 'share', 'edit', 'delete', 'load-more'])
 
 const { t } = useI18n({ useScope: 'global' })
 const message = useMessage()
@@ -327,6 +339,10 @@ const copyTextContent = async (row) => {
 @media (max-width: 720px) {
   .texts-cards {
     grid-template-columns: 1fr;
+  }
+
+  .text-card-actions {
+    opacity: 1;
   }
 }
 </style>
