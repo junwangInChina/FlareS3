@@ -19,6 +19,7 @@ export default {
     actions: {
       view: 'View',
       edit: 'Edit',
+      share: 'Share',
       delete: 'Delete',
       copy: 'Copy',
       loadMore: 'Load more',
@@ -28,6 +29,7 @@ export default {
       editTitle: 'Edit document',
       viewTitle: 'Document',
       deleteTitle: 'Confirm delete',
+      shareTitle: 'Share',
     },
     form: {
       title: 'Title',
@@ -55,6 +57,38 @@ export default {
       table: 'Table view',
       card: 'Card view',
     },
+    share: {
+      notCreated: 'Share link not created',
+      link: 'Share link',
+      protected: 'Password protected',
+
+      maxViews: 'Max views',
+      maxViewsPlaceholder: '0 for unlimited',
+      maxViewsHint: 'Set 0 for unlimited views.',
+      maxViewsInvalid: 'Max views must be a number >= 0',
+
+      visits: 'Views {views}',
+      visitsWithMax: 'Views {views}/{max}',
+
+      enableExpires: 'Enable expiration',
+      expiresAt: 'Expires at',
+      expiresHint: 'Leave off for no expiration.',
+      expiresRequired: 'Please select an expiration time',
+      noExpires: 'No expiration',
+      expiresAtText: 'Expires {time}',
+
+      enablePassword: 'Enable password',
+      password: 'Password',
+      passwordPlaceholder: 'Enter password',
+      passwordKeepPlaceholder: 'Leave blank to keep',
+      passwordKeepHint: 'Leave blank to keep current password.',
+      passwordRequired: 'Password is required',
+
+      create: 'Create',
+      save: 'Save',
+      disable: 'Disable',
+      regenerate: 'Regenerate',
+    },
     state: {
       loading: 'Loading...',
       empty: 'No documents',
@@ -75,6 +109,12 @@ export default {
       copyFailed: 'Failed to copy document content',
       deleteSuccess: 'Document deleted',
       deleteFailed: 'Failed to delete document',
+      shareLoadFailed: 'Failed to load share settings',
+      shareSaveSuccess: 'Share settings saved',
+      shareSaveFailed: 'Failed to save share settings',
+      shareDisableSuccess: 'Share disabled',
+      shareDisableFailed: 'Failed to disable share',
+      shareCopyFailed: 'Failed to copy share link',
     },
   },
 }
