@@ -122,6 +122,7 @@
           :format-date-time="formatDateTime"
           :detect-file-type="detectFileType"
           @view="openView"
+          @share="openShare"
           @edit="openEdit"
           @delete="handleDelete"
           @load-more="loadMore"
@@ -138,6 +139,12 @@
       />
 
       <TextViewModal v-model:show="viewModalVisible" :text-id="viewingId" />
+
+      <TextShareModal
+        v-model:show="shareModalVisible"
+        :text-id="sharingId"
+        :text-title="sharingTitle"
+      />
 
       <Modal
         :show="showDeleteModal"
@@ -172,6 +179,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Share2,
   Table2,
   Trash2,
 } from 'lucide-vue-next'
@@ -190,6 +198,7 @@ import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TextFormModal from '../components/texts/TextFormModal.vue'
 import TextViewModal from '../components/texts/TextViewModal.vue'
+import TextShareModal from '../components/texts/TextShareModal.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
@@ -329,7 +338,7 @@ const columns = computed(() => {
     {
       title: t('texts.columns.actions'),
       key: 'actions',
-      width: themeStore.uiTheme === 'shadcn' ? 280 : 350,
+      width: locale.value === 'zh-CN' ? 340 : 460,
       align: 'center',
       ellipsis: false,
       render: (row) => {
@@ -347,6 +356,11 @@ const columns = computed(() => {
             Button,
             { size: 'small', type: 'default', disabled, onClick: () => openEdit(row) },
             () => [h(Pencil, { size: 16, style: 'margin-right: 4px' }), t('texts.actions.edit')]
+          ),
+          h(
+            Button,
+            { size: 'small', type: 'default', disabled, onClick: () => openShare(row) },
+            () => [h(Share2, { size: 16, style: 'margin-right: 4px' }), t('texts.actions.share')]
           ),
           h(
             Button,
@@ -489,6 +503,18 @@ const openView = async (row) => {
   if (!id) return
   viewingId.value = id
   viewModalVisible.value = true
+}
+
+const shareModalVisible = ref(false)
+const sharingId = ref('')
+const sharingTitle = ref('')
+
+const openShare = (row) => {
+  const id = normalizeId(row?.id)
+  if (!id) return
+  sharingId.value = id
+  sharingTitle.value = String(row?.title ?? '').trim()
+  shareModalVisible.value = true
 }
 
 const openDeleteModal = (row) => {
