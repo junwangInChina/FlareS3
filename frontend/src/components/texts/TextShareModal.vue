@@ -2,7 +2,7 @@
   <Modal
     :show="show"
     :title="t('texts.modals.shareTitle')"
-    width="920px"
+    width="800px"
     @update:show="handleUpdateShow"
   >
     <template v-if="loading">
@@ -15,20 +15,8 @@
       <div class="share-stats">
         <div class="share-stat-card">
           <div class="share-stat-row">
-            <span class="share-stat-label">{{ t('texts.share.statsVisited') }}：</span>
-            <span class="share-stat-value">{{ statsVisited }}</span>
-          </div>
-        </div>
-        <div class="share-stat-card">
-          <div class="share-stat-row">
-            <span class="share-stat-label">{{ t('texts.share.statsAccessible') }}：</span>
-            <span class="share-stat-value">{{ statsAccessible }}</span>
-          </div>
-        </div>
-        <div class="share-stat-card">
-          <div class="share-stat-row">
-            <span class="share-stat-label">{{ t('texts.share.statsRemaining') }}：</span>
-            <span class="share-stat-value">{{ statsRemaining }}</span>
+            <span class="share-stat-label">{{ t('texts.share.statsVisits') }}：</span>
+            <span class="share-stat-value">{{ statsVisits }}</span>
           </div>
         </div>
         <div class="share-stat-card">
@@ -226,29 +214,17 @@ const expiresPresetOptions = computed(() => [
   { value: 'custom', label: t('texts.share.expireCustom') },
 ])
 
-const statsVisited = computed(() => {
-  if (!share.value) return 0
-  const views = Number(share.value.views ?? 0)
-  return Number.isFinite(views) ? views : 0
-})
-
-const statsAccessible = computed(() => {
+const statsVisits = computed(() => {
   if (!share.value) return '-'
-  const maxViews = Number(share.value.max_views ?? 0)
-  if (Number.isFinite(maxViews) && maxViews > 0) {
-    return String(maxViews)
-  }
-  return t('texts.share.unlimited')
-})
-
-const statsRemaining = computed(() => {
-  if (!share.value) return '-'
-  const maxViews = Number(share.value.max_views ?? 0)
-  if (!Number.isFinite(maxViews) || maxViews <= 0) return '-'
-
   const views = Number(share.value.views ?? 0)
+  const maxViews = Number(share.value.max_views ?? 0)
   const safeViews = Number.isFinite(views) ? views : 0
-  return String(Math.max(0, Math.floor(maxViews) - Math.floor(safeViews)))
+
+  if (Number.isFinite(maxViews) && maxViews > 0) {
+    return `${safeViews}/${Math.floor(maxViews)}`
+  }
+
+  return `${safeViews}/${t('texts.share.unlimited')}`
 })
 
 const statsValidity = computed(() => {
@@ -439,7 +415,7 @@ watch(
 
 .share-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--nb-space-sm);
   margin-bottom: var(--nb-space-md);
 }
