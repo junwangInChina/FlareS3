@@ -170,6 +170,19 @@ export default {
     return api.delete(`/texts/${textId}`)
   },
 
+  // 文档分享
+  getTextShare(textId) {
+    return api.get(`/texts/${textId}/share`)
+  },
+
+  upsertTextShare(textId, payload) {
+    return api.post(`/texts/${textId}/share`, payload)
+  },
+
+  deleteTextShare(textId) {
+    return api.delete(`/texts/${textId}/share`)
+  },
+
   // 直接上传到 R2
   uploadToR2(url, file, onProgress, options = {}) {
     const { signal } = options || {}
