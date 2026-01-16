@@ -2,7 +2,7 @@
   <Modal
     :show="show"
     :title="t('texts.modals.shareTitle')"
-    width="560px"
+    width="920px"
     @update:show="handleUpdateShow"
   >
     <template v-if="loading">
@@ -10,50 +10,68 @@
     </template>
 
     <template v-else>
-      <div class="share-summary">
-        <div class="share-summary-title">
-          <span class="share-title">{{ textTitle || '-' }}</span>
+      <p v-if="!share" class="share-empty">{{ t('texts.share.notCreated') }}</p>
+
+      <div class="share-stats">
+        <div class="share-stat-card">
+          <div class="share-stat-row">
+            <span class="share-stat-label">{{ t('texts.share.statsVisited') }}：</span>
+            <span class="share-stat-value">{{ statsVisited }}</span>
+          </div>
         </div>
-        <div v-if="share" class="share-summary-meta">
-          <span>{{ visitsText }}</span>
-          <span v-if="expiresSummary"> · {{ expiresSummary }}</span>
-          <span v-if="share?.has_password"> · {{ t('texts.share.protected') }}</span>
+        <div class="share-stat-card">
+          <div class="share-stat-row">
+            <span class="share-stat-label">{{ t('texts.share.statsAccessible') }}：</span>
+            <span class="share-stat-value">{{ statsAccessible }}</span>
+          </div>
         </div>
-        <div v-else class="share-summary-meta">
-          <span>{{ t('texts.share.notCreated') }}</span>
+        <div class="share-stat-card">
+          <div class="share-stat-row">
+            <span class="share-stat-label">{{ t('texts.share.statsRemaining') }}：</span>
+            <span class="share-stat-value">{{ statsRemaining }}</span>
+          </div>
+        </div>
+        <div class="share-stat-card">
+          <div class="share-stat-row">
+            <span class="share-stat-label">{{ t('texts.share.statsValidity') }}：</span>
+            <span class="share-stat-value">{{ statsValidity }}</span>
+          </div>
+        </div>
+        <div class="share-stat-card">
+          <div class="share-stat-row">
+            <span class="share-stat-label">{{ t('texts.share.passwordStatus') }}：</span>
+            <span class="share-stat-value">{{ passwordStatus }}</span>
+          </div>
         </div>
       </div>
 
-      <FormItem :label="t('texts.share.maxViews')">
-        <Input
-          v-model="form.maxViews"
-          type="number"
-          size="small"
-          :placeholder="t('texts.share.maxViewsPlaceholder')"
-          :disabled="saving"
-        />
-        <p class="form-hint">{{ t('texts.share.maxViewsHint') }}</p>
-      </FormItem>
-
-      <FormItem :label="t('texts.share.expiresAt')">
-        <Switch
-          v-model="form.expiresEnabled"
-          :label="t('texts.share.enableExpires')"
-          :disabled="saving"
-        />
-        <div v-if="form.expiresEnabled" class="inline-row">
-          <Input v-model="form.expiresAt" type="datetime-local" size="small" :disabled="saving" />
+      <div class="share-form-grid">
+        <div class="share-field">
+          <label class="share-field-label">{{ t('texts.share.fieldsValidity') }}</label>
+          <Select
+            v-model="form.expiresPreset"
+            size="small"
+            :options="expiresPresetOptions"
+            :disabled="saving"
+          />
+          <div v-if="form.expiresPreset === 'custom'" class="share-field-extra">
+            <Input v-model="form.expiresAt" type="datetime-local" size="small" :disabled="saving" />
+          </div>
         </div>
-        <p class="form-hint">{{ t('texts.share.expiresHint') }}</p>
-      </FormItem>
 
-      <FormItem :label="t('texts.share.password')">
-        <Switch
-          v-model="form.passwordEnabled"
-          :label="t('texts.share.enablePassword')"
-          :disabled="saving"
-        />
-        <div v-if="form.passwordEnabled" class="inline-row">
+        <div class="share-field">
+          <label class="share-field-label">{{ t('texts.share.fieldsAccessCount') }}</label>
+          <Input
+            v-model="form.maxViews"
+            type="number"
+            size="small"
+            :placeholder="t('texts.share.optional')"
+            :disabled="saving"
+          />
+        </div>
+
+        <div class="share-field">
+          <label class="share-field-label">{{ t('texts.share.fieldsSharePassword') }}</label>
           <Input
             v-model="form.password"
             type="password"
@@ -62,8 +80,7 @@
             :disabled="saving"
           />
         </div>
-        <p v-if="share?.has_password" class="form-hint">{{ t('texts.share.passwordKeepHint') }}</p>
-      </FormItem>
+      </div>
 
       <div class="link-group">
         <label class="link-label">{{ t('texts.share.link') }}</label>
@@ -77,31 +94,31 @@
     </template>
 
     <template #footer>
-      <Button type="default" :disabled="saving" @click="emit('update:show', false)">{{
-        t('common.close')
-      }}</Button>
+      <div class="share-footer">
+        <div class="share-footer-left">
+          <Button
+            v-if="share"
+            type="default"
+            :disabled="saving"
+            @click="saveShare({ regenerate: true })"
+          >
+            {{ t('texts.share.regenerate') }}
+          </Button>
 
-      <Button
-        v-if="share"
-        type="default"
-        :disabled="saving"
-        @click="saveShare({ regenerate: true })"
-      >
-        {{ t('texts.share.regenerate') }}
-      </Button>
+          <Button v-if="share" type="danger" :disabled="saving" @click="disableShare">
+            {{ t('texts.share.disable') }}
+          </Button>
+        </div>
 
-      <Button v-if="share" type="danger" :disabled="saving" @click="disableShare">
-        {{ t('texts.share.disable') }}
-      </Button>
-
-      <Button
-        type="primary"
-        :loading="saving"
-        :disabled="loading || !resolvedTextId"
-        @click="saveShare()"
-      >
-        {{ share ? t('texts.share.save') : t('texts.share.create') }}
-      </Button>
+        <Button
+          type="primary"
+          :loading="saving"
+          :disabled="loading || !resolvedTextId"
+          @click="saveShareAndClose"
+        >
+          {{ t('texts.share.saveAndClose') }}
+        </Button>
+      </div>
     </template>
   </Modal>
 </template>
@@ -110,9 +127,8 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Modal from '../ui/modal/Modal.vue'
-import FormItem from '../ui/form-item/FormItem.vue'
 import Input from '../ui/input/Input.vue'
-import Switch from '../ui/switch/Switch.vue'
+import Select from '../ui/select/Select.vue'
 import Button from '../ui/button/Button.vue'
 import api from '../../services/api'
 import { useMessage } from '../../composables/useMessage'
@@ -133,10 +149,9 @@ const saving = ref(false)
 const share = ref(null)
 
 const form = ref({
-  maxViews: '0',
-  expiresEnabled: false,
+  maxViews: '',
+  expiresPreset: 'never',
   expiresAt: '',
-  passwordEnabled: false,
   password: '',
 })
 
@@ -144,10 +159,9 @@ const resolvedTextId = computed(() => String(props.textId ?? '').trim())
 
 const resetForm = () => {
   form.value = {
-    maxViews: '0',
-    expiresEnabled: false,
+    maxViews: '',
+    expiresPreset: 'never',
     expiresAt: '',
-    passwordEnabled: false,
     password: '',
   }
 }
@@ -188,13 +202,12 @@ const applyShareToForm = (record) => {
   }
 
   const maxViews = Number(record.max_views ?? 0)
-  form.value.maxViews = Number.isFinite(maxViews) ? String(maxViews) : '0'
+  form.value.maxViews = Number.isFinite(maxViews) && maxViews > 0 ? String(maxViews) : ''
 
   const expiresAt = String(record.expires_at ?? '').trim()
-  form.value.expiresEnabled = Boolean(expiresAt)
+  form.value.expiresPreset = expiresAt ? 'custom' : 'never'
   form.value.expiresAt = expiresAt ? toDatetimeLocalValue(expiresAt) : ''
 
-  form.value.passwordEnabled = Boolean(record.has_password)
   form.value.password = ''
 }
 
@@ -205,34 +218,59 @@ const shareUrl = computed(() => {
   return `${window.location.origin}/s/${code}`
 })
 
-const visitsText = computed(() => {
-  if (!share.value) return ''
+const expiresPresetOptions = computed(() => [
+  { value: 'never', label: t('texts.share.neverExpires') },
+  { value: '1d', label: t('texts.share.expire1d') },
+  { value: '7d', label: t('texts.share.expire7d') },
+  { value: '30d', label: t('texts.share.expire30d') },
+  { value: 'custom', label: t('texts.share.expireCustom') },
+])
+
+const statsVisited = computed(() => {
+  if (!share.value) return 0
   const views = Number(share.value.views ?? 0)
-  const maxViews = Number(share.value.max_views ?? 0)
-
-  if (Number.isFinite(maxViews) && maxViews > 0) {
-    return t('texts.share.visitsWithMax', { views, max: maxViews })
-  }
-
-  return t('texts.share.visits', { views })
+  return Number.isFinite(views) ? views : 0
 })
 
-const expiresSummary = computed(() => {
-  if (!share.value) return ''
-  const expiresAt = String(share.value.expires_at ?? '').trim()
-  if (!expiresAt) {
-    return t('texts.share.noExpires')
+const statsAccessible = computed(() => {
+  if (!share.value) return '-'
+  const maxViews = Number(share.value.max_views ?? 0)
+  if (Number.isFinite(maxViews) && maxViews > 0) {
+    return String(maxViews)
   }
+  return t('texts.share.unlimited')
+})
+
+const statsRemaining = computed(() => {
+  if (!share.value) return '-'
+  const maxViews = Number(share.value.max_views ?? 0)
+  if (!Number.isFinite(maxViews) || maxViews <= 0) return '-'
+
+  const views = Number(share.value.views ?? 0)
+  const safeViews = Number.isFinite(views) ? views : 0
+  return String(Math.max(0, Math.floor(maxViews) - Math.floor(safeViews)))
+})
+
+const statsValidity = computed(() => {
+  if (!share.value) return '-'
+
+  const expiresAt = String(share.value.expires_at ?? '').trim()
+  if (!expiresAt) return t('texts.share.neverExpires')
 
   const formatted = formatDateTime(expiresAt)
-  return formatted ? t('texts.share.expiresAtText', { time: formatted }) : ''
+  return formatted || '-'
 })
 
 const passwordPlaceholder = computed(() => {
   if (share.value?.has_password) {
     return t('texts.share.passwordKeepPlaceholder')
   }
-  return t('texts.share.passwordPlaceholder')
+  return t('texts.share.optional')
+})
+
+const passwordStatus = computed(() => {
+  if (share.value?.has_password) return t('texts.share.passwordSet')
+  return t('texts.share.passwordUnset')
 })
 
 const loadShare = async () => {
@@ -252,7 +290,8 @@ const loadShare = async () => {
 }
 
 const buildPayload = ({ regenerate = false } = {}) => {
-  const maxViews = Number(form.value.maxViews ?? 0)
+  const maxViewsRaw = String(form.value.maxViews ?? '').trim()
+  const maxViews = maxViewsRaw ? Number(maxViewsRaw) : 0
   if (!Number.isFinite(maxViews) || maxViews < 0) {
     message.error(t('texts.share.maxViewsInvalid'))
     return null
@@ -263,25 +302,26 @@ const buildPayload = ({ regenerate = false } = {}) => {
     expires_at: null,
   }
 
-  if (form.value.expiresEnabled) {
+  const preset = String(form.value.expiresPreset ?? 'never')
+  if (preset === 'custom') {
     const expiresAt = fromDatetimeLocalValue(form.value.expiresAt)
     if (!expiresAt) {
       message.error(t('texts.share.expiresRequired'))
       return null
     }
     payload.expires_at = expiresAt
-  }
-
-  if (form.value.passwordEnabled) {
-    const password = String(form.value.password ?? '').trim()
-    if (password) {
-      payload.password = password
-    } else if (!share.value?.has_password) {
-      message.error(t('texts.share.passwordRequired'))
+  } else if (preset !== 'never') {
+    const days = Number.parseInt(preset.replace('d', ''), 10)
+    if (!Number.isFinite(days) || days <= 0) {
+      message.error(t('texts.share.expiresRequired'))
       return null
     }
-  } else {
-    payload.password = null
+    payload.expires_at = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+  }
+
+  const password = String(form.value.password ?? '').trim()
+  if (password) {
+    payload.password = password
   }
 
   if (regenerate) {
@@ -293,11 +333,11 @@ const buildPayload = ({ regenerate = false } = {}) => {
 
 const saveShare = async ({ regenerate = false } = {}) => {
   const id = resolvedTextId.value
-  if (!id) return
-  if (saving.value) return
+  if (!id) return false
+  if (saving.value) return false
 
   const payload = buildPayload({ regenerate })
-  if (!payload) return
+  if (!payload) return false
 
   saving.value = true
   try {
@@ -306,10 +346,19 @@ const saveShare = async ({ regenerate = false } = {}) => {
     applyShareToForm(share.value)
     form.value.password = ''
     message.success(t('texts.messages.shareSaveSuccess'))
+    return true
   } catch (error) {
     message.error(error.response?.data?.error || t('texts.messages.shareSaveFailed'))
+    return false
   } finally {
     saving.value = false
+  }
+}
+
+const saveShareAndClose = async () => {
+  const saved = await saveShare()
+  if (saved) {
+    emit('update:show', false)
   }
 }
 
@@ -382,32 +431,65 @@ watch(
   color: var(--nb-muted-foreground, var(--nb-gray-500));
 }
 
-.share-summary {
+.share-empty {
+  margin: 0 0 var(--nb-space-md);
+  font-size: 12px;
+  color: var(--nb-muted-foreground, var(--muted-foreground, var(--nb-gray-500)));
+}
+
+.share-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--nb-space-sm);
+  margin-bottom: var(--nb-space-md);
+}
+
+.share-stat-card {
+  border: var(--nb-border, 1px solid var(--border, rgba(0, 0, 0, 0.12)));
+  background: var(--nb-gray-100, var(--muted, rgba(0, 0, 0, 0.04)));
+  border-radius: var(--nb-radius-md);
+  padding: var(--nb-space-sm);
+}
+
+.share-stat-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: baseline;
+  gap: var(--nb-space-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.share-stat-label {
+  font-size: 13px;
+  color: var(--nb-muted-foreground, var(--muted-foreground, var(--nb-gray-600)));
+  flex: 0 0 auto;
+}
+
+.share-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--nb-ink, var(--foreground, #111));
+  flex: 0 0 auto;
+}
+
+.share-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--nb-space-lg);
   margin-bottom: var(--nb-space-lg);
 }
 
-.share-title {
-  font-weight: 700;
-  color: var(--nb-ink);
-  word-break: break-word;
+.share-field-label {
+  display: block;
+  margin-bottom: var(--nb-space-xs);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nb-ink, var(--foreground, #111));
 }
 
-.share-summary-meta {
-  font-size: 12px;
-  color: var(--nb-muted-foreground, var(--nb-gray-500));
-}
-
-.inline-row {
+.share-field-extra {
   margin-top: var(--nb-space-sm);
-}
-
-.form-hint {
-  margin: var(--nb-space-xs) 0 0;
-  font-size: 12px;
-  color: var(--nb-muted-foreground, var(--nb-gray-500));
 }
 
 .link-group {
@@ -429,9 +511,27 @@ watch(
 }
 
 @media (max-width: 720px) {
+  .share-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .link-row {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+.share-footer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nb-space-md);
+}
+
+.share-footer-left {
+  display: flex;
+  align-items: center;
+  gap: var(--nb-space-sm);
 }
 </style>
