@@ -648,7 +648,7 @@ function renderPasswordForm({
   return htmlResponse(html, 200)
 }
 
-function renderMessagePage(title: string, message: string, status = 200): Response {
+export function renderMessagePage(title: string, message: string, status = 200): Response {
   const html = buildPage({
     title,
     body: `
@@ -664,7 +664,15 @@ function renderMessagePage(title: string, message: string, status = 200): Respon
   return htmlResponse(html, status)
 }
 
-function renderContentPage({ title, meta, content }: { title: string; meta: string; content: string }): Response {
+export function renderContentPage({
+  title,
+  meta,
+  content,
+}: {
+  title: string
+  meta: string
+  content: string
+}): Response {
   const html = buildPage({
     title,
     body: `
