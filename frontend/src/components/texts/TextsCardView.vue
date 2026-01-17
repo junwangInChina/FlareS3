@@ -39,6 +39,18 @@
                   <QrCode :size="18" />
                 </Button>
               </Tooltip>
+              <Tooltip :content="t('texts.actions.share')">
+                <Button
+                  type="ghost"
+                  size="small"
+                  class="icon-btn"
+                  :aria-label="t('texts.actions.share')"
+                  :disabled="loading || deleting"
+                  @click.stop="emit('share', row)"
+                >
+                  <Share2 :size="18" />
+                </Button>
+              </Tooltip>
               <Tooltip :content="t('texts.actions.copy')">
                 <Button
                   type="ghost"
@@ -50,18 +62,6 @@
                   @click.stop="copyTextContent(row)"
                 >
                   <Copy :size="18" />
-                </Button>
-              </Tooltip>
-              <Tooltip :content="t('texts.actions.share')">
-                <Button
-                  type="ghost"
-                  size="small"
-                  class="icon-btn"
-                  :aria-label="t('texts.actions.share')"
-                  :disabled="loading || deleting"
-                  @click.stop="emit('share', row)"
-                >
-                  <Share2 :size="18" />
                 </Button>
               </Tooltip>
               <Tooltip :content="t('texts.actions.edit')">
