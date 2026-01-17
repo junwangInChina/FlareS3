@@ -27,6 +27,18 @@
 
           <template #header-extra>
             <div class="text-card-actions">
+              <Tooltip :content="t('texts.actions.qrcode')">
+                <Button
+                  type="ghost"
+                  size="small"
+                  class="icon-btn"
+                  :aria-label="t('texts.actions.qrcode')"
+                  :disabled="loading || deleting"
+                  @click.stop="emit('qrcode', row)"
+                >
+                  <QrCode :size="18" />
+                </Button>
+              </Tooltip>
               <Tooltip :content="t('texts.actions.copy')">
                 <Button
                   type="ghost"
@@ -110,7 +122,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Copy, FileText, Pencil, Share2, Trash2 } from 'lucide-vue-next'
+import { Copy, FileText, Pencil, QrCode, Share2, Trash2 } from 'lucide-vue-next'
 import api from '../../services/api'
 import { useMessage } from '../../composables/useMessage'
 import Card from '../ui/card/Card.vue'
@@ -169,7 +181,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view', 'share', 'edit', 'delete', 'load-more'])
+const emit = defineEmits(['view', 'qrcode', 'share', 'edit', 'delete', 'load-more'])
 
 const { t } = useI18n({ useScope: 'global' })
 const message = useMessage()
