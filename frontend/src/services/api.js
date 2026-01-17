@@ -115,6 +115,19 @@ export default {
     return `/api/files/${fileId}/download`
   },
 
+  // 文件分享
+  getFileShare(fileId) {
+    return api.get(`/files/${fileId}/share`)
+  },
+
+  upsertFileShare(fileId, payload) {
+    return api.post(`/files/${fileId}/share`, payload)
+  },
+
+  deleteFileShare(fileId) {
+    return api.delete(`/files/${fileId}/share`)
+  },
+
   // 用户管理
   getUsers(params = {}) {
     return api.get('/users', { params })
