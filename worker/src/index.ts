@@ -37,6 +37,7 @@ import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
 import { listTexts, getText, createText, updateText, deleteText } from './routes/texts'
 import { getTextShare, upsertTextShare, deleteTextShare, viewTextShare } from './routes/textShares'
 import { createTextOneTimeShare } from './routes/textOneTimeShares'
+import { getFileShare, upsertFileShare, deleteFileShare } from './routes/fileShares'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 
@@ -181,6 +182,22 @@ router.delete('/api/files/:id', (request, env: Env) => {
 router.get('/api/files/:id/download', (request, env: Env) =>
   downloadFile(request, env, (request as any).params.id)
 )
+
+router.get('/api/files/:id/share', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return getFileShare(request, env, (request as any).params.id)
+})
+router.post('/api/files/:id/share', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return upsertFileShare(request, env, (request as any).params.id)
+})
+router.delete('/api/files/:id/share', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return deleteFileShare(request, env, (request as any).params.id)
+})
 
 router.get('/api/stats', (request, env: Env) => {
   const auth = requireAuth(request)
