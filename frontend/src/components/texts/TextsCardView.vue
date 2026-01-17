@@ -288,7 +288,7 @@ const copyTextContent = async (row) => {
 .text-card-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: -2px;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
