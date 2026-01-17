@@ -22,6 +22,7 @@ export default {
       share: '分享',
       delete: '删除',
       copy: '复制',
+      qrcode: '二维码',
       loadMore: '加载更多',
     },
     modals: {
@@ -30,6 +31,7 @@ export default {
       viewTitle: '文档内容',
       deleteTitle: '确认删除',
       shareTitle: '分享',
+      qrcodeTitle: '二维码',
     },
     form: {
       title: '标题',
@@ -110,6 +112,11 @@ export default {
       disable: '关闭分享',
       regenerate: '重置链接',
     },
+    qrcode: {
+      hint: '扫描后将打开一次性链接（1小时内有效，仅可访问1次）。每次打开都会生成新链接并使旧二维码失效。',
+      empty: '生成链接失败',
+      expiresAt: '过期时间：{time}',
+    },
     state: {
       loading: '加载中...',
       empty: '暂无文档',
@@ -136,6 +143,8 @@ export default {
       shareDisableSuccess: '分享已关闭',
       shareDisableFailed: '关闭分享失败',
       shareCopyFailed: '复制分享链接失败',
+      qrcodeFailed: '生成二维码失败',
+      qrcodeTooLarge: '文档内容过长，无法生成二维码（建议使用分享链接）',
     },
   },
 }

@@ -22,6 +22,7 @@ export default {
       share: 'Share',
       delete: 'Delete',
       copy: 'Copy',
+      qrcode: 'QR code',
       loadMore: 'Load more',
     },
     modals: {
@@ -30,6 +31,7 @@ export default {
       viewTitle: 'Document',
       deleteTitle: 'Confirm delete',
       shareTitle: 'Share',
+      qrcodeTitle: 'QR code',
     },
     form: {
       title: 'Title',
@@ -110,6 +112,11 @@ export default {
       disable: 'Disable',
       regenerate: 'Regenerate',
     },
+    qrcode: {
+      hint: 'Scan to open a one-time link (valid for 1 hour, can be accessed only once). Opening this again regenerates the link and invalidates the old QR code.',
+      empty: 'Failed to create link',
+      expiresAt: 'Expires at: {time}',
+    },
     state: {
       loading: 'Loading...',
       empty: 'No documents',
@@ -136,6 +143,8 @@ export default {
       shareDisableSuccess: 'Share disabled',
       shareDisableFailed: 'Failed to disable share',
       shareCopyFailed: 'Failed to copy share link',
+      qrcodeFailed: 'Failed to generate QR code',
+      qrcodeTooLarge: 'Content is too large to encode as a QR code (try using a share link).',
     },
   },
 }
