@@ -170,6 +170,10 @@ export default {
     return api.delete(`/texts/${textId}`)
   },
 
+  createTextOneTimeShare(textId) {
+    return api.post(`/texts/${textId}/one-time-share`)
+  },
+
   // 文档分享
   getTextShare(textId) {
     return api.get(`/texts/${textId}/share`)
