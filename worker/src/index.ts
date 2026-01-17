@@ -36,6 +36,7 @@ import { getStats } from './routes/stats'
 import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
 import { listTexts, getText, createText, updateText, deleteText } from './routes/texts'
 import { getTextShare, upsertTextShare, deleteTextShare, viewTextShare } from './routes/textShares'
+import { createTextOneTimeShare } from './routes/textOneTimeShares'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 
@@ -243,6 +244,12 @@ router.delete('/api/texts/:id/share', (request, env: Env) => {
   const auth = requireAuth(request)
   if (auth) return auth
   return deleteTextShare(request, env, (request as any).params.id)
+})
+
+router.post('/api/texts/:id/one-time-share', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return createTextOneTimeShare(request, env, (request as any).params.id)
 })
 
 router.get('/s/:code', (request, env: Env) => shortlink(request, env, (request as any).params.code))
