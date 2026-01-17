@@ -40,6 +40,17 @@
                   <Info :size="18" />
                 </Button>
               </Tooltip>
+              <Tooltip :content="t('files.actions.share')">
+                <Button
+                  type="ghost"
+                  size="small"
+                  class="icon-btn"
+                  :disabled="loading || isFileDeleted(row)"
+                  @click.stop="emit('share', row)"
+                >
+                  <Share2 :size="18" />
+                </Button>
+              </Tooltip>
               <Tooltip :content="t('files.actions.delete')">
                 <Button
                   type="ghost"
@@ -107,7 +118,7 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
-import { Info, Trash2, File } from 'lucide-vue-next'
+import { Info, Trash2, File, Share2 } from 'lucide-vue-next'
 import Card from '../ui/card/Card.vue'
 import Button from '../ui/button/Button.vue'
 import Tooltip from '../ui/tooltip/Tooltip.vue'
@@ -140,7 +151,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['show-info', 'delete', 'load-more'])
+const emit = defineEmits(['show-info', 'share', 'delete', 'load-more'])
 
 const { t, locale } = useI18n({ useScope: 'global' })
 
@@ -284,7 +295,7 @@ const handleCardClick = (row) => {
 .file-card-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
