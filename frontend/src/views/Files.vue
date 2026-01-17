@@ -132,6 +132,7 @@
           :active-action="activeAction"
           :is-admin="authStore.isAdmin"
           @show-info="showFileInfo"
+          @share="showFileShare"
           @delete="handleDelete"
           @load-more="loadMore"
         />
@@ -175,6 +176,12 @@
       <Modal v-model:show="showUploadModal" :title="t('files.modals.uploadTitle')" width="760px">
         <UploadPanel v-if="showUploadModal" @uploaded="handleUploaded" />
       </Modal>
+
+      <FileShareModal
+        v-model:show="showShareModal"
+        :file-id="sharingFileId"
+        :filename="sharingFilename"
+      />
     </div>
   </AppLayout>
 </template>
@@ -189,6 +196,7 @@ import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import FilesTableView from '../components/files/FilesTableView.vue'
 import FilesCardView from '../components/files/FilesCardView.vue'
+import FileShareModal from '../components/files/FileShareModal.vue'
 import Button from '../components/ui/button/Button.vue'
 import Select from '../components/ui/select/Select.vue'
 import Modal from '../components/ui/modal/Modal.vue'
@@ -209,6 +217,9 @@ const { t, locale } = useI18n({ useScope: 'global' })
 const showInfoModal = ref(false)
 const selectedFile = ref(null)
 const showUploadModal = ref(false)
+const showShareModal = ref(false)
+const sharingFileId = ref('')
+const sharingFilename = ref('')
 
 const filters = ref({
   filename: '',
@@ -444,6 +455,14 @@ const showFileInfo = (row) => {
   if (isFileDeleted(row)) return
   selectedFile.value = row
   showInfoModal.value = true
+}
+
+const showFileShare = (row) => {
+  if (!row) return
+  if (isFileDeleted(row)) return
+  sharingFileId.value = String(row.id ?? '')
+  sharingFilename.value = String(row.filename ?? '')
+  showShareModal.value = true
 }
 
 const toIsoStartOfDay = (dateValue) => {
