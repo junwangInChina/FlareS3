@@ -122,6 +122,7 @@
           :format-date-time="formatDateTime"
           :detect-file-type="detectFileType"
           @view="openView"
+          @qrcode="openQrCode"
           @share="openShare"
           @edit="openEdit"
           @delete="handleDelete"
@@ -139,6 +140,8 @@
       />
 
       <TextViewModal v-model:show="viewModalVisible" :text-id="viewingId" />
+
+      <TextQrModal v-model:show="qrModalVisible" :text-id="qrTextId" :text-title="qrTextTitle" />
 
       <TextShareModal
         v-model:show="shareModalVisible"
@@ -199,6 +202,7 @@ import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TextFormModal from '../components/texts/TextFormModal.vue'
 import TextViewModal from '../components/texts/TextViewModal.vue'
 import TextShareModal from '../components/texts/TextShareModal.vue'
+import TextQrModal from '../components/texts/TextQrModal.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
@@ -515,6 +519,18 @@ const openShare = (row) => {
   sharingId.value = id
   sharingTitle.value = String(row?.title ?? '').trim()
   shareModalVisible.value = true
+}
+
+const qrModalVisible = ref(false)
+const qrTextId = ref('')
+const qrTextTitle = ref('')
+
+const openQrCode = (row) => {
+  const id = normalizeId(row?.id)
+  if (!id) return
+  qrTextId.value = id
+  qrTextTitle.value = String(row?.title ?? '').trim()
+  qrModalVisible.value = true
 }
 
 const openDeleteModal = (row) => {
