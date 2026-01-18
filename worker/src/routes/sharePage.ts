@@ -1,0 +1,240 @@
+function escapeHtml(value: string): string {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function htmlResponse(html: string, status = 200): Response {
+  return new Response(html, {
+    status,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  })
+}
+
+function buildPage({ title, body }: { title: string; body: string }): string {
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+  <script>
+    (() => {
+      try {
+        const key = 'flares3:theme'
+        const stored = window.localStorage.getItem(key)
+        const mode =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
+              ? 'dark'
+              : 'light'
+
+        document.documentElement.dataset.theme = mode
+        document.documentElement.style.colorScheme = mode
+
+        const uiThemeKey = 'flares3:ui-theme'
+        const defaultUiTheme = 'motherduck-neobrutalism'
+        const uiThemes = [defaultUiTheme, 'shadcn']
+        const storedUiTheme = window.localStorage.getItem(uiThemeKey)
+        const uiTheme = uiThemes.includes(storedUiTheme) ? storedUiTheme : defaultUiTheme
+        document.documentElement.dataset.uiTheme = uiTheme
+      } catch {
+        // ignore
+      }
+    })()
+  </script>
+  <style>
+    :root {
+      color-scheme: light dark;
+
+      --share-bg: #f4efea;
+      --share-card: #ffffff;
+      --share-text: #383838;
+      --share-muted: #6b6b6b;
+      --share-border: #383838;
+      --share-border-width: 2px;
+      --share-shadow: -5px 5px 0px 0px #383838;
+      --share-radius: 2px;
+      --share-primary: #ffde00;
+      --share-primary-text: #383838;
+      --share-code-bg: rgba(248, 248, 247, 0.7);
+    }
+
+    :root[data-ui-theme='motherduck-neobrutalism'][data-theme='dark'] {
+      --share-bg: #0f0f10;
+      --share-card: #171717;
+      --share-text: #f4efea;
+      --share-muted: #c7c1bc;
+      --share-border: #f4efea;
+      --share-border-width: 2px;
+      --share-shadow: -5px 5px 0px 0px #f4efea;
+      --share-radius: 2px;
+      --share-primary: #ffde00;
+      --share-primary-text: #383838;
+      --share-code-bg: rgba(23, 23, 23, 0.75);
+    }
+
+    :root[data-ui-theme='shadcn'] {
+      color-scheme: light;
+
+      --share-bg: oklch(1 0 0);
+      --share-card: oklch(1 0 0);
+      --share-text: oklch(0.145 0 0);
+      --share-muted: oklch(0.556 0 0);
+      --share-border: oklch(0.922 0 0);
+      --share-border-width: 1px;
+      --share-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      --share-radius: 16px;
+      --share-primary: oklch(0.205 0 0);
+      --share-primary-text: oklch(0.985 0 0);
+      --share-code-bg: oklch(0.97 0 0);
+    }
+
+    :root[data-ui-theme='shadcn'][data-theme='dark'] {
+      color-scheme: dark;
+
+      --share-bg: oklch(0.145 0 0);
+      --share-card: oklch(0.205 0 0);
+      --share-text: oklch(0.985 0 0);
+      --share-muted: oklch(0.708 0 0);
+      --share-border: oklch(1 0 0 / 10%);
+      --share-border-width: 1px;
+      --share-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      --share-radius: 16px;
+      --share-primary: oklch(0.922 0 0);
+      --share-primary-text: oklch(0.205 0 0);
+      --share-code-bg: oklch(0.269 0 0);
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: var(--share-bg);
+      color: var(--share-text);
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 40px 16px 64px;
+    }
+
+    .card {
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: var(--share-radius);
+      background: var(--share-card);
+      box-shadow: var(--share-shadow);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 20px 24px;
+      border-bottom: var(--share-border-width) solid var(--share-border);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .meta {
+      color: var(--share-muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .body {
+      padding: 20px 24px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--share-text);
+      background: var(--share-code-bg);
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: calc(var(--share-radius) + 2px);
+      padding: 14px 16px;
+    }
+
+    .muted {
+      color: var(--share-muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 420px;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: calc(var(--share-radius) + 2px);
+      background: var(--share-card);
+      color: var(--share-text);
+      outline: none;
+    }
+
+    input:focus {
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--share-primary) 25%, transparent);
+    }
+
+    button {
+      padding: 12px 14px;
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: calc(var(--share-radius) + 2px);
+      background: var(--share-primary);
+      color: var(--share-primary-text);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .error {
+      margin: 0;
+      color: #fb7185;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      ${body}
+    </div>
+  </div>
+</body>
+</html>`
+}
+
+export { buildPage, escapeHtml, htmlResponse }
