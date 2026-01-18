@@ -2,11 +2,29 @@
   <Modal
     :show="show"
     :title="t('files.modals.infoTitle')"
-    width="500px"
+    width="600px"
     @update:show="handleUpdateShow"
   >
     <template v-if="file">
-      <Descriptions :items="fileInfoItems" :column="1" />
+      <div class="file-info">
+        <div
+          v-for="row in fileInfoRows"
+          :key="row.key"
+          class="file-info-row"
+          :style="{ '--columns': row.columns }"
+        >
+          <div v-for="item in row.items" :key="item.key" class="file-info-item">
+            <span class="file-info-label">{{ item.label }}:</span>
+            <span class="file-info-value">
+              <template v-if="item.key === 'fileInfo'">
+                <span class="file-info-filename">{{ item.value.filename }}</span>
+                <span v-if="item.value.sizeText" class="file-info-filesize"> ({{ item.value.sizeText }})</span>
+              </template>
+              <template v-else>{{ item.value }}</template>
+            </span>
+          </div>
+        </div>
+      </div>
 
       <Divider />
 
@@ -44,7 +62,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Modal from '../ui/modal/Modal.vue'
-import Descriptions from '../ui/descriptions/Descriptions.vue'
 import Divider from '../ui/divider/Divider.vue'
 import Input from '../ui/input/Input.vue'
 import Button from '../ui/button/Button.vue'
@@ -67,27 +84,43 @@ const formatDateTime = (isoString) => {
   return date.toLocaleString(locale.value)
 }
 
-const formatBytes = (bytes) => {
-  const size = Number(bytes || 0)
+const formatMegabytes = (bytes) => {
+  const size = Number(bytes)
   if (!Number.isFinite(size) || size < 0) return '-'
-  if (size === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(size) / Math.log(k))
-  return Math.round((size / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+  const mb = size / (1024 * 1024)
+  return `${mb.toFixed(2)}MB`
 }
 
-const fileInfoItems = computed(() => {
+const formatFileInfo = (file) => {
+  const filename = String(file?.filename ?? '').trim()
+  if (!filename) return { filename: '-', sizeText: '' }
+  const size = formatMegabytes(file?.size)
+  if (size === '-') return { filename, sizeText: '' }
+  return { filename, sizeText: size }
+}
+
+const fileInfoRows = computed(() => {
   const file = props.file
   if (!file) return []
 
   const permission = file.require_login ? t('files.permission.requireLogin') : t('files.permission.public')
   return [
-    { label: t('files.info.filename'), value: file.filename || '-' },
-    { label: t('files.info.size'), value: formatBytes(file.size) },
-    { label: t('files.info.uploadedAt'), value: formatDateTime(file.created_at) },
-    { label: t('files.info.remaining'), value: file.remaining_time || '-' },
-    { label: t('files.info.permission'), value: permission },
+    {
+      key: 'primary',
+      columns: 2,
+      items: [
+        { key: 'fileInfo', label: t('files.info.fileInfo'), value: formatFileInfo(file) },
+        { key: 'permission', label: t('files.info.permission'), value: permission },
+      ],
+    },
+    {
+      key: 'secondary',
+      columns: 2,
+      items: [
+        { key: 'uploadedAt', label: t('files.info.uploadedAt'), value: formatDateTime(file.created_at) },
+        { key: 'remaining', label: t('files.info.remaining'), value: file.remaining_time || '-' },
+      ],
+    },
   ]
 })
 
@@ -126,6 +159,52 @@ const handleUpdateShow = (value) => {
 </script>
 
 <style scoped>
+.file-info {
+  display: grid;
+  gap: 16px;
+}
+
+.file-info-row {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.file-info-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.file-info-label {
+  font-size: 0.875rem;
+  font-weight: var(--nb-font-weight-medium);
+  color: var(--muted-foreground, var(--nb-gray-500));
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.file-info-value {
+  font-size: 0.875rem;
+  color: var(--foreground, var(--nb-ink));
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-info-filename {
+  color: var(--foreground, var(--nb-ink));
+  font-weight: var(--nb-font-weight-medium);
+}
+
+.file-info-filesize {
+  color: var(--muted-foreground, var(--nb-gray-500));
+  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  white-space: nowrap;
+}
+
 .link-group {
   margin-bottom: var(--nb-space-md);
 }
@@ -146,9 +225,12 @@ const handleUpdateShow = (value) => {
 }
 
 @media (max-width: 720px) {
+  .file-info-row {
+    grid-template-columns: 1fr;
+  }
+
   .link-row {
     flex-direction: column;
   }
 }
 </style>
-
