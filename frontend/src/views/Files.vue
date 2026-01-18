@@ -138,44 +138,9 @@
         />
       </section>
 
-      <Modal v-model:show="showInfoModal" :title="t('files.modals.infoTitle')" width="500px">
-        <template v-if="selectedFile">
-          <Descriptions :items="fileInfoItems" :column="1" />
+      <FileInfoModal v-model:show="showInfoModal" :file="selectedFile" />
 
-          <Divider />
-
-          <div class="link-group">
-            <label class="link-label">{{ t('upload.shortLink') }}</label>
-            <div class="link-row">
-              <Input :model-value="getShortUrl(selectedFile)" readonly size="small" />
-              <Button type="primary" size="small" @click="copyUrl(getShortUrl(selectedFile))">{{
-                t('upload.copy')
-              }}</Button>
-            </div>
-          </div>
-
-          <div class="link-group">
-            <label class="link-label">{{ t('upload.directLink') }}</label>
-            <div class="link-row">
-              <Input :model-value="getDownloadUrl(selectedFile)" readonly size="small" />
-              <Button type="default" size="small" @click="copyUrl(getDownloadUrl(selectedFile))">{{
-                t('upload.copy')
-              }}</Button>
-            </div>
-          </div>
-        </template>
-
-        <template #footer>
-          <Button type="default" @click="showInfoModal = false">{{ t('common.close') }}</Button>
-          <Button type="primary" @click="handleDownload(selectedFile)">{{
-            t('files.downloadFile')
-          }}</Button>
-        </template>
-      </Modal>
-
-      <Modal v-model:show="showUploadModal" :title="t('files.modals.uploadTitle')" width="760px">
-        <UploadPanel v-if="showUploadModal" @uploaded="handleUploaded" />
-      </Modal>
+      <FileUploadModal v-model:show="showUploadModal" @uploaded="handleUploaded" />
 
       <FileShareModal
         v-model:show="showShareModal"
@@ -188,29 +153,29 @@
 
 <script setup>
 import { ref, h, onMounted, computed, watch } from 'vue'
-import { Info, Trash2, RefreshCw, Search, Upload, LayoutGrid, Table2 } from 'lucide-vue-next'
+import { Info, Trash2, RefreshCw, Search, Upload, LayoutGrid, Table2, Share2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
+import { useThemeStore } from '../stores/theme'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import FilesTableView from '../components/files/FilesTableView.vue'
 import FilesCardView from '../components/files/FilesCardView.vue'
+import FileInfoModal from '../components/files/FileInfoModal.vue'
+import FileUploadModal from '../components/files/FileUploadModal.vue'
 import FileShareModal from '../components/files/FileShareModal.vue'
 import Button from '../components/ui/button/Button.vue'
 import Select from '../components/ui/select/Select.vue'
-import Modal from '../components/ui/modal/Modal.vue'
-import Descriptions from '../components/ui/descriptions/Descriptions.vue'
-import Divider from '../components/ui/divider/Divider.vue'
 import Input from '../components/ui/input/Input.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
-import UploadPanel from '../components/upload/UploadPanel.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
 const filesStore = useFilesStore()
+const themeStore = useThemeStore()
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
 
@@ -298,26 +263,6 @@ const getFileStatus = (row) => {
   return { deleted, expired, text, tagType }
 }
 
-const fileInfoItems = computed(() => {
-  const file = selectedFile.value
-  if (!file) {
-    return []
-  }
-
-  const uploadedAt = formatDateTime(file.created_at)
-  const permission = file.require_login
-    ? t('files.permission.requireLogin')
-    : t('files.permission.public')
-
-  return [
-    { label: t('files.info.filename'), value: file.filename },
-    { label: t('files.info.size'), value: formatBytes(file.size) },
-    { label: t('files.info.uploadedAt'), value: uploadedAt },
-    { label: t('files.info.remaining'), value: file.remaining_time },
-    { label: t('files.info.permission'), value: permission },
-  ]
-})
-
 const columns = computed(() => [
   {
     title: t('files.columns.filename'),
@@ -402,7 +347,7 @@ const columns = computed(() => [
   {
     title: t('files.columns.actions'),
     key: 'actions',
-    width: locale.value === 'zh-CN' ? 200 : 240,
+    width: locale.value === 'zh-CN' ? themeStore.uiTheme === 'shadcn' ? 280 : 330 : themeStore.uiTheme === 'shadcn' ? 330 : 380,
     align: 'center',
     ellipsis: false,
     render: (row) => {
@@ -417,6 +362,16 @@ const columns = computed(() => [
             onClick: () => showFileInfo(row),
           },
           () => [h(Info, { size: 16, style: 'margin-right: 4px' }), t('common.details')]
+        ),
+        h(
+          Button,
+          {
+            size: 'small',
+            type: 'default',
+            disabled,
+            onClick: () => showFileShare(row),
+          },
+          () => [h(Share2, { size: 16, style: 'margin-right: 4px' }), t('files.actions.share')]
         ),
         h(
           Button,
@@ -439,15 +394,6 @@ const formatBytes = (bytes) => {
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
-}
-
-const getShortUrl = (file) => window.location.origin + '/s/' + file.short_code
-const getDownloadUrl = (file) =>
-  file.download_url || window.location.origin + `/api/files/${file.id}/download`
-
-const copyUrl = (url) => {
-  navigator.clipboard.writeText(url)
-  message.success(t('common.copied'))
 }
 
 const showFileInfo = (row) => {
@@ -587,10 +533,6 @@ const loadMore = async () => {
   activeAction.value = 'loadMore'
   const nextPage = pagination.value.page + 1
   await loadFiles({ page: nextPage, append: true })
-}
-
-const handleDownload = (row) => {
-  window.open(getDownloadUrl(row), '_blank')
 }
 
 const handleDelete = async (fileId) => {
@@ -765,29 +707,6 @@ watch(viewMode, (value) => {
   display: flex;
   flex-direction: column;
   gap: var(--nb-space-lg);
-}
-
-.link-group {
-  margin-bottom: var(--nb-space-md);
-}
-
-.link-label {
-  display: block;
-  font-family: var(--nb-font-ui, var(--nb-font-mono));
-  font-size: 12px;
-  text-transform: var(--nb-ui-text-transform, uppercase);
-  letter-spacing: var(--nb-ui-letter-spacing, 0.02em);
-  color: var(--nb-gray-500);
-  margin-bottom: 4px;
-}
-
-.link-row {
-  display: flex;
-  gap: var(--nb-space-sm);
-}
-
-.link-row > :first-child {
-  flex: 1;
 }
 
 @media (max-width: 720px) {
