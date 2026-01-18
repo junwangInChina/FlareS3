@@ -109,3 +109,72 @@ CREATE TABLE IF NOT EXISTS texts (
 CREATE INDEX IF NOT EXISTS idx_texts_owner_id ON texts(owner_id);
 CREATE INDEX IF NOT EXISTS idx_texts_updated_at ON texts(updated_at);
 CREATE INDEX IF NOT EXISTS idx_texts_deleted_at ON texts(deleted_at);
+
+-- text_shares
+CREATE TABLE IF NOT EXISTS text_shares (
+  id TEXT PRIMARY KEY,
+  text_id TEXT NOT NULL UNIQUE,
+  owner_id TEXT NOT NULL,
+  share_code TEXT NOT NULL UNIQUE,
+  password_hash TEXT,
+  expires_in INTEGER NOT NULL DEFAULT 0,
+  expires_at DATETIME,
+  max_views INTEGER NOT NULL DEFAULT 0,
+  views INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_text_shares_text_id ON text_shares(text_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_text_shares_share_code ON text_shares(share_code);
+CREATE INDEX IF NOT EXISTS idx_text_shares_owner_id ON text_shares(owner_id);
+
+-- text_one_time_shares
+CREATE TABLE IF NOT EXISTS text_one_time_shares (
+  id TEXT PRIMARY KEY,
+  text_id TEXT NOT NULL UNIQUE,
+  owner_id TEXT NOT NULL,
+  share_code TEXT NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  consumed_at DATETIME,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_text_one_time_shares_text_id ON text_one_time_shares(text_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_text_one_time_shares_share_code ON text_one_time_shares(share_code);
+CREATE INDEX IF NOT EXISTS idx_text_one_time_shares_expires_at ON text_one_time_shares(expires_at);
+
+-- file_shares
+CREATE TABLE IF NOT EXISTS file_shares (
+  id TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL UNIQUE,
+  owner_id TEXT NOT NULL,
+  share_code TEXT NOT NULL UNIQUE,
+  password_hash TEXT,
+  expires_in INTEGER NOT NULL DEFAULT 0,
+  expires_at DATETIME,
+  max_views INTEGER NOT NULL DEFAULT 0,
+  views INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_file_id ON file_shares(file_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_share_code ON file_shares(share_code);
+CREATE INDEX IF NOT EXISTS idx_file_shares_owner_id ON file_shares(owner_id);
+
+-- r2_configs
+CREATE TABLE IF NOT EXISTS r2_configs (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  bucket_name TEXT NOT NULL,
+  access_key_id_enc TEXT NOT NULL,
+  secret_access_key_enc TEXT NOT NULL,
+  quota_bytes INTEGER NOT NULL DEFAULT 10737418240,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_r2_configs_name ON r2_configs(name);
