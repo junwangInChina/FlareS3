@@ -37,7 +37,7 @@ import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
 import { listTexts, getText, createText, updateText, deleteText } from './routes/texts'
 import { getTextShare, upsertTextShare, deleteTextShare, viewTextShare } from './routes/textShares'
 import { createTextOneTimeShare } from './routes/textOneTimeShares'
-import { getFileShare, upsertFileShare, deleteFileShare } from './routes/fileShares'
+import { getFileShare, upsertFileShare, deleteFileShare, viewFileShare } from './routes/fileShares'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 
@@ -275,6 +275,12 @@ router.get('/t/:code', (request, env: Env) =>
 )
 router.post('/t/:code', (request, env: Env) =>
   viewTextShare(request, env, (request as any).params.code)
+)
+router.get('/f/:code', (request, env: Env) =>
+  viewFileShare(request, env, (request as any).params.code)
+)
+router.post('/f/:code', (request, env: Env) =>
+  viewFileShare(request, env, (request as any).params.code)
 )
 
 router.all('*', () => new Response('Not Found', { status: 404 }))
