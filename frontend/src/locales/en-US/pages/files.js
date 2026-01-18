@@ -36,12 +36,44 @@ export default {
       actions: 'Actions',
     },
     actions: {
+      share: 'Share',
       delete: 'Delete',
       loadMore: 'Load more',
     },
     modals: {
       infoTitle: 'File info',
       uploadTitle: 'Upload',
+      shareTitle: 'Share',
+    },
+    share: {
+      notCreated: 'Share link has not been created yet',
+      link: 'Share link',
+
+      statsValidity: 'Validity',
+      statsVisits: 'Visits',
+      unlimited: 'Unlimited',
+      neverExpires: 'Never expires',
+      passwordStatus: 'Password',
+      passwordUnset: 'Not set',
+      passwordSet: 'Set',
+
+      fieldsValidity: 'Validity',
+      fieldsAccessCount: 'Max views',
+      fieldsSharePassword: 'Share password',
+      optional: 'Optional',
+      expire1d: '1 day',
+      expire7d: '7 days',
+      expire30d: '30 days',
+      expireCustom: 'Custom',
+
+      maxViewsInvalid: 'Max views must be a number greater than or equal to 0',
+      expiresRequired: 'Please select an expiration time',
+
+      passwordKeepPlaceholder: 'Leave empty to keep unchanged',
+
+      saveAndClose: 'Save & close',
+      disable: 'Disable share',
+      regenerate: 'Regenerate link',
     },
     info: {
       filename: 'Filename',
@@ -61,6 +93,12 @@ export default {
       loadFilesFailed: 'Failed to load files',
       deleteSuccess: 'File deleted',
       deleteFailed: 'Failed to delete file',
+      shareLoadFailed: 'Failed to load share info',
+      shareSaveSuccess: 'Share settings saved',
+      shareSaveFailed: 'Failed to save share settings',
+      shareDisableSuccess: 'Share disabled',
+      shareDisableFailed: 'Failed to disable share',
+      shareCopyFailed: 'Failed to copy share link',
     },
   },
 }

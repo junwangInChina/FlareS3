@@ -36,12 +36,44 @@ export default {
       actions: '操作',
     },
     actions: {
+      share: '分享',
       delete: '删除',
       loadMore: '加载更多',
     },
     modals: {
       infoTitle: '文件信息',
       uploadTitle: '上传文件',
+      shareTitle: '分享',
+    },
+    share: {
+      notCreated: '尚未创建分享链接',
+      link: '分享链接',
+
+      statsValidity: '有效期',
+      statsVisits: '访问',
+      unlimited: '不限',
+      neverExpires: '永不过期',
+      passwordStatus: '口令',
+      passwordUnset: '未设置',
+      passwordSet: '已设置',
+
+      fieldsValidity: '有效期',
+      fieldsAccessCount: '可访问次数',
+      fieldsSharePassword: '分享口令',
+      optional: '可选',
+      expire1d: '1天',
+      expire7d: '7天',
+      expire30d: '30天',
+      expireCustom: '自定义',
+
+      maxViewsInvalid: '访问次数请输入大于等于 0 的数字',
+      expiresRequired: '请选择过期时间',
+
+      passwordKeepPlaceholder: '留空则不修改',
+
+      saveAndClose: '保存并关闭',
+      disable: '关闭分享',
+      regenerate: '重置链接',
     },
     info: {
       filename: '文件名',
@@ -61,6 +93,12 @@ export default {
       loadFilesFailed: '加载文件失败',
       deleteSuccess: '文件已删除',
       deleteFailed: '删除文件失败',
+      shareLoadFailed: '获取分享信息失败',
+      shareSaveSuccess: '分享设置已保存',
+      shareSaveFailed: '保存分享设置失败',
+      shareDisableSuccess: '分享已关闭',
+      shareDisableFailed: '关闭分享失败',
+      shareCopyFailed: '复制分享链接失败',
     },
   },
 }
