@@ -29,17 +29,6 @@
 
           <template #header-extra>
             <div class="file-card-actions">
-              <Tooltip :content="t('common.details')">
-                <Button
-                  type="ghost"
-                  size="small"
-                  class="icon-btn"
-                  :disabled="loading || isFileDeleted(row)"
-                  @click.stop="emit('show-info', row)"
-                >
-                  <Info :size="18" />
-                </Button>
-              </Tooltip>
               <Tooltip :content="t('files.actions.share')">
                 <Button
                   type="ghost"
@@ -118,7 +107,7 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
-import { Info, Trash2, File, Share2 } from 'lucide-vue-next'
+import { Trash2, File, Share2 } from 'lucide-vue-next'
 import Card from '../ui/card/Card.vue'
 import Button from '../ui/button/Button.vue'
 import Tooltip from '../ui/tooltip/Tooltip.vue'
