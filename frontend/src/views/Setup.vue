@@ -188,96 +188,21 @@
         </div>
       </section>
 
-      <Modal v-model:show="modalVisible" :title="modalTitle" width="560px">
-        <div class="form-grid">
-          <FormItem :label="t('setup.labels.name')">
-            <Input v-model="formValue.name" :placeholder="t('setup.placeholders.name')" />
-          </FormItem>
+      <R2ConfigModal
+        v-model:show="modalVisible"
+        :mode="modalMode"
+        :submitting="modalSubmitting"
+        :initial-value="modalInitialValue"
+        @submit="handleSubmit"
+      />
 
-          <FormItem :label="t('setup.labels.endpoint')">
-            <Input v-model="formValue.endpoint" :placeholder="t('setup.placeholders.endpoint')" />
-          </FormItem>
-
-          <FormItem :label="t('setup.labels.bucketName')">
-            <Input
-              v-model="formValue.bucket_name"
-              :placeholder="t('setup.placeholders.bucketName')"
-            />
-          </FormItem>
-
-          <FormItem :label="t('setup.labels.quotaGb')">
-            <Input
-              v-model="formValue.quota_gb"
-              type="number"
-              :placeholder="t('setup.placeholders.quotaGb')"
-            />
-          </FormItem>
-
-          <FormItem
-            :label="
-              modalMode === 'create'
-                ? t('setup.labels.accessKeyId')
-                : t('setup.labels.accessKeyIdOptional')
-            "
-          >
-            <Input
-              v-model="formValue.access_key_id"
-              :placeholder="t('setup.placeholders.accessKeyId')"
-            />
-          </FormItem>
-
-          <FormItem
-            :label="
-              modalMode === 'create'
-                ? t('setup.labels.secretAccessKey')
-                : t('setup.labels.secretAccessKeyOptional')
-            "
-          >
-            <Input
-              v-model="formValue.secret_access_key"
-              type="password"
-              :placeholder="t('setup.placeholders.secretAccessKey')"
-            />
-          </FormItem>
-
-          <Alert type="info" :title="t('setup.hint.title')">
-            <ul class="help-list">
-              <li>
-                {{ t('setup.hint.endpointFormatPrefix') }}
-                <code>https://&lt;account_id&gt;.r2.cloudflarestorage.com</code>
-              </li>
-              <li>
-                {{ t('setup.hint.tokenCreatePrefix') }}
-                <strong>R2 → Manage R2 API Tokens</strong>
-                {{ t('setup.hint.tokenCreateSuffix') }}
-              </li>
-            </ul>
-          </Alert>
-        </div>
-
-        <template #footer>
-          <Button type="default" @click="modalVisible = false">
-            {{ t('common.cancel') }}
-          </Button>
-          <Button type="primary" :loading="modalSubmitting" @click="handleSubmit">
-            {{ t('setup.modal.save') }}
-          </Button>
-        </template>
-      </Modal>
-
-      <Modal v-model:show="usageTipsVisible" :title="t('setup.help')" width="520px">
-        <div class="usage-tips-grid">
-          <Alert v-for="tip in usageTips" :key="tip.key" :type="tip.type" :title="tip.title">
-            {{ tip.content }}
-          </Alert>
-        </div>
-      </Modal>
+      <UsageTipsModal v-model:show="usageTipsVisible" />
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import {
   AlertTriangle,
   Database,
@@ -290,13 +215,11 @@ import {
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
-import { buildUsageTips } from '../lib/usageTips'
 import AppLayout from '../components/layout/AppLayout.vue'
+import R2ConfigModal from '../components/setup/R2ConfigModal.vue'
+import UsageTipsModal from '../components/setup/UsageTipsModal.vue'
 import Card from '../components/ui/card/Card.vue'
 import Button from '../components/ui/button/Button.vue'
-import Modal from '../components/ui/modal/Modal.vue'
-import FormItem from '../components/ui/form-item/FormItem.vue'
-import Input from '../components/ui/input/Input.vue'
 import Alert from '../components/ui/alert/Alert.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Progress from '../components/ui/progress/Progress.vue'
@@ -324,9 +247,8 @@ const modalMode = ref('create')
 const modalSubmitting = ref(false)
 const editingId = ref('')
 const usageTipsVisible = ref(false)
-const usageTips = computed(() => buildUsageTips(t))
 
-const formValue = ref({
+const defaultModalInitialValue = () => ({
   name: '',
   endpoint: '',
   bucket_name: '',
@@ -334,17 +256,7 @@ const formValue = ref({
   access_key_id: '',
   secret_access_key: '',
 })
-
-const resetForm = () => {
-  formValue.value = {
-    name: '',
-    endpoint: '',
-    bucket_name: '',
-    quota_gb: '10',
-    access_key_id: '',
-    secret_access_key: '',
-  }
-}
+const modalInitialValue = ref(defaultModalInitialValue())
 
 const formatSource = (source) => {
   if (source === 'env') return 'ENV'
@@ -382,10 +294,6 @@ const getUsageColor = (percent) => {
   if (value > 70) return 'var(--nb-warning)'
   return 'var(--nb-success)'
 }
-
-const modalTitle = computed(() => {
-  return modalMode.value === 'create' ? t('setup.modal.createTitle') : t('setup.modal.editTitle')
-})
 
 const refresh = async () => {
   loading.value = true
@@ -437,14 +345,14 @@ const handleTest = async (row) => {
 const openCreate = () => {
   modalMode.value = 'create'
   editingId.value = ''
-  resetForm()
+  modalInitialValue.value = defaultModalInitialValue()
   modalVisible.value = true
 }
 
 const openEdit = (row) => {
   modalMode.value = 'edit'
   editingId.value = row.id
-  formValue.value = {
+  modalInitialValue.value = {
     name: row.name || '',
     endpoint: row.endpoint || '',
     bucket_name: row.bucket_name || '',
@@ -463,18 +371,18 @@ const formatQuotaGb = (bytesValue) => {
   return String(rounded)
 }
 
-const handleSubmit = async () => {
+const handleSubmit = async (submittedForm) => {
   if (
-    !formValue.value.name ||
-    !formValue.value.endpoint ||
-    !formValue.value.bucket_name ||
-    !formValue.value.quota_gb
+    !submittedForm?.name ||
+    !submittedForm?.endpoint ||
+    !submittedForm?.bucket_name ||
+    !submittedForm?.quota_gb
   ) {
     message.error(t('setup.validation.required'))
     return
   }
 
-  const quotaGb = Number(String(formValue.value.quota_gb ?? '').trim())
+  const quotaGb = Number(String(submittedForm.quota_gb ?? '').trim())
   if (!Number.isFinite(quotaGb) || quotaGb <= 0) {
     message.error(t('setup.validation.quotaInvalid'))
     return
@@ -486,7 +394,7 @@ const handleSubmit = async () => {
   }
 
   if (modalMode.value === 'create') {
-    if (!formValue.value.access_key_id || !formValue.value.secret_access_key) {
+    if (!submittedForm.access_key_id || !submittedForm.secret_access_key) {
       message.error(t('setup.validation.createNeedKeys'))
       return
     }
@@ -497,25 +405,24 @@ const handleSubmit = async () => {
 
     if (modalMode.value === 'create') {
       await api.createR2Config({
-        name: formValue.value.name,
-        endpoint: formValue.value.endpoint,
-        access_key_id: formValue.value.access_key_id,
-        secret_access_key: formValue.value.secret_access_key,
-        bucket_name: formValue.value.bucket_name,
+        name: submittedForm.name,
+        endpoint: submittedForm.endpoint,
+        access_key_id: submittedForm.access_key_id,
+        secret_access_key: submittedForm.secret_access_key,
+        bucket_name: submittedForm.bucket_name,
         quota_bytes: quotaBytes,
       })
       message.success(t('setup.messages.createSuccess'))
     } else {
       const payload = {
-        name: formValue.value.name,
-        endpoint: formValue.value.endpoint,
-        bucket_name: formValue.value.bucket_name,
+        name: submittedForm.name,
+        endpoint: submittedForm.endpoint,
+        bucket_name: submittedForm.bucket_name,
         quota_bytes: quotaBytes,
       }
 
-      if (formValue.value.access_key_id) payload.access_key_id = formValue.value.access_key_id
-      if (formValue.value.secret_access_key)
-        payload.secret_access_key = formValue.value.secret_access_key
+      if (submittedForm.access_key_id) payload.access_key_id = submittedForm.access_key_id
+      if (submittedForm.secret_access_key) payload.secret_access_key = submittedForm.secret_access_key
 
       await api.updateR2Config(editingId.value, payload)
       message.success(t('setup.messages.updateSuccess'))
@@ -810,33 +717,6 @@ onMounted(() => refresh())
   height: 16px;
   background-color: var(--nb-border-color);
   margin: 0 2px;
-}
-
-.form-grid {
-  display: grid;
-  gap: var(--nb-space-md);
-}
-
-.form-grid :deep(.brutal-form-item) {
-  margin-bottom: 0;
-}
-
-.usage-tips-grid {
-  display: grid;
-  gap: var(--nb-space-md);
-}
-
-.help-list {
-  margin: 0;
-  padding-left: 18px;
-  line-height: 1.8;
-}
-
-.help-list code {
-  background: var(--nb-gray-200);
-  padding: 2px 6px;
-  font-family: var(--nb-font-mono);
-  font-size: 13px;
 }
 
 @media (max-width: 720px) {
