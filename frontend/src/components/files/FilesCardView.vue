@@ -22,7 +22,7 @@
                 <File :size="18" />
               </span>
               <Tooltip :content="row.filename">
-                <span class="file-card-title">{{ row.filename }}</span>
+                <span class="file-card-title">{{ formatFilename(row.filename) }}</span>
               </Tooltip>
             </div>
           </template>
@@ -146,6 +146,32 @@ const { t, locale } = useI18n({ useScope: 'global' })
 
 const isFileDeleted = (row) => row?.upload_status === 'deleted'
 
+const isCjkChar = (ch) => {
+  try {
+    return /\p{Script=Han}/u.test(ch)
+  } catch {
+    return /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/.test(ch)
+  }
+}
+
+const formatFilename = (filename, maxUnits = 24) => {
+  const text = String(filename ?? '').trim()
+  if (!text) return '-'
+
+  let units = 0
+  const result = []
+  for (const ch of Array.from(text)) {
+    const weight = isCjkChar(ch) ? 2 : 1
+    if (units + weight > maxUnits) {
+      return `${result.join('')}...`
+    }
+    result.push(ch)
+    units += weight
+  }
+
+  return text
+}
+
 const getExpiresText = (row) => {
   const expiresIn = Number(row?.expires_in)
   if (!Number.isFinite(expiresIn)) return '-'
@@ -168,8 +194,8 @@ const getFileStatus = (row) => {
   const text = deleted
     ? t('files.status.invalid')
     : expired
-    ? t('files.status.expired')
-    : t('files.status.valid')
+      ? t('files.status.expired')
+      : t('files.status.valid')
   const tagType = deleted ? 'danger' : expired ? 'warning' : 'success'
 
   return { deleted, expired, text, tagType }
@@ -251,6 +277,7 @@ const handleCardClick = (row) => {
   display: flex;
   align-items: center;
   gap: var(--nb-space-sm);
+  flex: 1;
   min-width: 0;
 }
 
@@ -273,7 +300,9 @@ const handleCardClick = (row) => {
 
 .file-card-title {
   display: block;
-  max-width: 220px;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
