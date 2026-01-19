@@ -80,26 +80,45 @@ npm run format:check
 
 ## 部署到 Cloudflare
 
+本项目支持两种部署模式：
+
+- **拆分部署（Pages + Worker）**：前端用 Cloudflare Pages，后端用 Cloudflare Workers（同域接管 `/api/*`、`/s/*`、`/f/*`、`/t/*`）
+- **单 Worker 全栈部署（Worker Only）**：只部署一个 Worker，同域提供前端静态资源 + 后端 API（Worker 接管 `/*`）
+
 ### 手动部署
+
+#### A) 拆分部署（Pages + Worker）
 
 1. 创建/绑定 D1 与 R2（并在 `worker/wrangler.toml` 填写实际 `database_id`）
 2. 设置 Secrets（见 `worker/.dev.vars.example`）
 3. 部署 Worker（`wrangler deploy`）
 4. Pages 绑定路由：`/api/*`、`/s/*`、`/f/*`、`/t/*`
 
+#### B) 单 Worker 全栈部署（Worker Only）
+
+1. 创建/绑定 D1 与 R2（并在 `worker/wrangler.full.toml` 填写实际 `database_id`）
+2. 设置 Secrets（见 `worker/.dev.vars.example`）
+3. 构建前端（生成 `frontend/dist`）：`npm --prefix frontend run build`
+4. 部署 Worker（全栈）：`npm --prefix worker run deploy:full`
+5. 在 Cloudflare Dashboard 绑定 Worker 路由：`/*` -> Worker（此模式不再需要 Pages 项目）
+
 ### 自动化部署（可选）
 
 仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖并执行 `lint/typecheck/build`。
 
-如需 CD（由 GitHub Actions 统一发布 Pages + Worker），使用 `.github/workflows/deploy.yml`。
+如需 CD（由 GitHub Actions 发布），可选两套工作流：
+
+- **拆分部署（Pages + Worker）**：`.github/workflows/deploy.yml`
+- **单 Worker 全栈部署（Worker Only）**：`.github/workflows/deploy-worker-only.yml`
 
 #### 0) Cloudflare 侧准备（一次性）
 
 1. 创建 D1 数据库
    - 默认使用 `database_name = "flares3-r2"`（见 `worker/wrangler.toml`，可改但需保持一致）
-   - 将 D1 的 `database_id` 写入 `worker/wrangler.toml`（替换 `REPLACE_WITH_D1_ID`；可在 Cloudflare Dashboard -> D1 -> 对应数据库详情页查看）
+   - 将 D1 的 `database_id` 写入 `worker/wrangler.toml`（拆分部署）或 `worker/wrangler.full.toml`（单 Worker 全栈），替换 `REPLACE_WITH_D1_ID`
 2. 创建 Pages 项目（Direct Upload / CLI）
    - 项目名用于 GitHub Variable：`CLOUDFLARE_PAGES_PROJECT_NAME`
+   - 仅 **拆分部署** 需要
 3. 配置 Worker 运行时变量 / Secrets（生产环境）
    - 位置：Cloudflare Dashboard -> Workers & Pages -> Workers -> `flares3` -> Settings/Variables
    - Secrets（至少需要）：
@@ -138,14 +157,23 @@ npm run format:check
 4. 部署 Worker：`wrangler deploy`
 5. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=$CLOUDFLARE_PAGES_PROJECT_NAME --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
 
+`deploy-worker-only.yml` 会依次执行：
+
+1. 安装依赖（`worker/`、`frontend/`）
+2. `npm run lint` / `npm run typecheck` / `npm run build`
+3. 执行 D1 幂等初始化：`wrangler d1 execute DB --remote --file=src/db/schema.sql --yes`
+4. 部署 Worker（全栈）：`wrangler deploy --config wrangler.full.toml`
+
 ### 部署后操作
 
-- 在 Cloudflare Dashboard 绑定 Worker 路由：
+- **拆分部署（Pages + Worker）**：在 Cloudflare Dashboard 绑定 Worker 路由：
   - `/api/*` -> Worker
   - `/s/*` -> Worker
   - `/f/*` -> Worker
   - `/t/*` -> Worker
-- 打开 Pages URL 并用 bootstrap 管理员登录；如未配置 `R2_*`，在 `/setup` 完成 R2 配置
+- **单 Worker 全栈部署（Worker Only）**：绑定 Worker 路由：
+  - `/*` -> Worker
+- 如未配置 `R2_*`，登录后在 `/setup` 完成 R2 配置
 
 ### R2 CORS（必须）
 
@@ -161,7 +189,8 @@ npm run format:check
       "http://127.0.0.1:18786",
       "http://localhost:18787",
       "http://127.0.0.1:18787",
-      "https://*.pages.dev"
+      "https://*.pages.dev",
+      "https://*.workers.dev"
     ],
     "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
     "AllowedHeaders": ["*"],
