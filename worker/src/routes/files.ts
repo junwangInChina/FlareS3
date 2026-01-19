@@ -1,8 +1,9 @@
 import type { Env } from '../config/env'
-import { jsonResponse, getUser, calcPresignedDownloadUrlTtlSeconds } from './utils'
+import { jsonResponse, getUser, calcPresignedDownloadUrlTtlSeconds, redirect } from './utils'
 import {
   extractR2ConfigIdFromKey,
   generateDownloadUrl,
+  generatePreviewUrl,
   resolveR2ConfigForKey,
 } from '../services/r2'
 import { logAudit } from '../services/audit'
@@ -151,7 +152,7 @@ export async function downloadFile(request: Request, env: Env, fileId: string): 
   const user = getUser(request)
   if (Number(file.require_login) === 1 && !user) {
     const next = encodeURIComponent(`/api/files/${fileId}/download`)
-    return Response.redirect(`/login?next=${next}`, 302)
+    return redirect(`/login?next=${next}`, 302)
   }
 
   const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
@@ -175,7 +176,190 @@ export async function downloadFile(request: Request, env: Env, fileId: string): 
     metadata: { require_login: Number(file.require_login) },
   })
 
-  return Response.redirect(downloadUrl, 302)
+  return redirect(downloadUrl, 302)
+}
+
+const ARCHIVE_MIME_TYPES = new Set([
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/x-7z-compressed',
+  'application/x-rar-compressed',
+  'application/vnd.rar',
+  'application/x-tar',
+  'application/gzip',
+  'application/x-gzip',
+  'application/x-bzip2',
+  'application/x-xz',
+])
+
+const ARCHIVE_EXTENSIONS = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz'])
+
+function normalizeContentType(value: unknown): string {
+  return String(value || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase()
+}
+
+function getFilenameExtension(filename: unknown): string {
+  const name = String(filename || '').trim()
+  const index = name.lastIndexOf('.')
+  if (index <= 0 || index === name.length - 1) return ''
+  return name.slice(index + 1).toLowerCase()
+}
+
+function isArchiveFile(contentType: string, extension: string): boolean {
+  if (contentType && ARCHIVE_MIME_TYPES.has(contentType)) return true
+  if (extension && ARCHIVE_EXTENSIONS.has(extension)) return true
+  return false
+}
+
+function formatUpstreamFetchError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error || '')
+  const message = raw.replace(/\s+/g, ' ').trim()
+  if (!message) return 'upstream_fetch_failed'
+  return message.slice(0, 200)
+}
+
+function resolvePreviewMode(
+  contentType: string,
+  extension: string
+):
+  | { kind: 'redirect'; responseContentType: string }
+  | { kind: 'proxy'; responseContentType: string }
+  | null {
+  if (contentType === 'application/pdf' || extension === 'pdf') {
+    return { kind: 'redirect', responseContentType: 'application/pdf' }
+  }
+
+  if (contentType.startsWith('image/')) {
+    return { kind: 'redirect', responseContentType: contentType }
+  }
+
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+    const map: Record<string, string> = {
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      bmp: 'image/bmp',
+      svg: 'image/svg+xml',
+    }
+    return { kind: 'redirect', responseContentType: map[extension] || 'image/*' }
+  }
+
+  if (
+    contentType === 'text/markdown' ||
+    contentType === 'text/x-markdown' ||
+    extension === 'md' ||
+    extension === 'markdown'
+  ) {
+    return { kind: 'proxy', responseContentType: 'text/markdown; charset=utf-8' }
+  }
+
+  if (
+    contentType.startsWith('text/') ||
+    ['txt', 'log', 'csv', 'json', 'yml', 'yaml', 'ini', 'conf'].includes(extension)
+  )
+    return { kind: 'proxy', responseContentType: 'text/plain; charset=utf-8' }
+
+  return null
+}
+
+export async function previewFile(request: Request, env: Env, fileId: string): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const file = await env.DB.prepare(
+    `SELECT id, owner_id, filename, r2_key, content_type, expires_at, upload_status FROM files WHERE id = ? LIMIT 1`
+  )
+    .bind(fileId)
+    .first()
+
+  if (!file) {
+    return jsonResponse({ error: '文件不存在' }, 404)
+  }
+  if (user.role !== 'admin' && file.owner_id !== user.id) {
+    return jsonResponse({ error: '无权限' }, 403)
+  }
+  if (file.upload_status !== 'completed') {
+    return jsonResponse({ error: '文件未完成上传' }, 400)
+  }
+
+  const expiresAt = new Date(String(file.expires_at))
+  const expiresAtMs = expiresAt.getTime()
+  if (Number.isNaN(expiresAtMs)) {
+    return jsonResponse({ error: '文件过期时间无效' }, 500)
+  }
+  if (Date.now() > expiresAtMs) {
+    return jsonResponse({ error: '文件已过期' }, 410)
+  }
+
+  const contentType = normalizeContentType(file.content_type)
+  const extension = getFilenameExtension(file.filename)
+  if (isArchiveFile(contentType, extension)) {
+    return jsonResponse({ error: '不支持预览压缩包' }, 415)
+  }
+
+  const mode = resolvePreviewMode(contentType, extension)
+  if (!mode) {
+    return jsonResponse({ error: '不支持预览该文件类型' }, 415)
+  }
+
+  const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
+  if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+
+  const ttl = calcPresignedDownloadUrlTtlSeconds(expiresAt)
+  let previewUrl = ''
+  try {
+    previewUrl = await generatePreviewUrl(
+      loaded.config,
+      String(file.r2_key),
+      String(file.filename),
+      ttl,
+      mode.kind === 'redirect' ? mode.responseContentType : undefined
+    )
+  } catch (error) {
+    return jsonResponse({ error: `生成预览链接失败：${formatUpstreamFetchError(error)}` }, 502)
+  }
+
+  if (mode.kind === 'redirect') {
+    return redirect(previewUrl, 302)
+  }
+
+  const MAX_PREVIEW_BYTES = 200 * 1024
+  let response: Response
+  try {
+    response = await fetch(previewUrl, {
+      headers: {
+        Range: `bytes=0-${MAX_PREVIEW_BYTES - 1}`,
+      },
+    })
+  } catch (error) {
+    return jsonResponse({ error: `预览内容获取失败：${formatUpstreamFetchError(error)}` }, 502)
+  }
+  if (response.status === 416) {
+    try {
+      response = await fetch(previewUrl)
+    } catch (error) {
+      return jsonResponse({ error: `预览内容获取失败：${formatUpstreamFetchError(error)}` }, 502)
+    }
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    return jsonResponse({ error: text || '预览内容获取失败' }, response.status || 502)
+  }
+
+  const headers = new Headers()
+  headers.set('Content-Type', mode.responseContentType)
+  headers.set('Cache-Control', 'no-store')
+  headers.set('X-Content-Type-Options', 'nosniff')
+
+  return new Response(response.body, {
+    status: response.status,
+    headers,
+  })
 }
 
 export async function deleteFile(request: Request, env: Env, fileId: string): Promise<Response> {
