@@ -477,6 +477,25 @@ export async function generateDownloadUrl(
   return getSignedUrl(client, command, { expiresIn: expiresInSeconds })
 }
 
+export async function generatePreviewUrl(
+  config: R2Config,
+  key: string,
+  filename: string,
+  expiresInSeconds: number,
+  responseContentType?: string
+): Promise<string> {
+  const client = createS3Client(config)
+  const safeFilename = String(filename || 'file').replaceAll('"', '')
+  const contentDisposition = `inline; filename="${safeFilename}"`
+  const command = new GetObjectCommand({
+    Bucket: config.bucketName,
+    Key: key,
+    ResponseContentDisposition: contentDisposition,
+    ...(responseContentType ? { ResponseContentType: responseContentType } : {}),
+  })
+  return getSignedUrl(client, command, { expiresIn: expiresInSeconds })
+}
+
 export async function initiateMultipartUpload(
   config: R2Config,
   key: string,
