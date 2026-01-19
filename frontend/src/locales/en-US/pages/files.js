@@ -76,6 +76,8 @@ export default {
       regenerate: 'Regenerate link',
     },
     info: {
+      fileInfo: 'File info',
+      previewLoadFailed: 'Failed to load preview',
       filename: 'Filename',
       size: 'Size',
       uploadedAt: 'Uploaded at',

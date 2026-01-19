@@ -76,6 +76,8 @@ export default {
       regenerate: '重置链接',
     },
     info: {
+      fileInfo: '文件信息',
+      previewLoadFailed: '预览加载失败',
       filename: '文件名',
       size: '文件大小',
       uploadedAt: '上传时间',
