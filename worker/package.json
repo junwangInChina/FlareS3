@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "wrangler dev --port 18787",
     "deploy": "wrangler deploy",
+    "deploy:full": "wrangler deploy --config wrangler.full.toml",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
