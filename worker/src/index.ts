@@ -30,7 +30,7 @@ import {
   completeMultipart,
   abortMultipart,
 } from './routes/upload'
-import { listFiles, downloadFile, deleteFile } from './routes/files'
+import { listFiles, downloadFile, deleteFile, previewFile } from './routes/files'
 import { shortlink } from './routes/shortlink'
 import { getStats } from './routes/stats'
 import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
@@ -179,6 +179,11 @@ router.delete('/api/files/:id', (request, env: Env) => {
   if (auth) return auth
   return deleteFile(request, env, (request as any).params.id)
 })
+router.get('/api/files/:id/preview', (request, env: Env) => {
+  const auth = requireAuth(request)
+  if (auth) return auth
+  return previewFile(request, env, (request as any).params.id)
+})
 router.get('/api/files/:id/download', (request, env: Env) =>
   downloadFile(request, env, (request as any).params.id)
 )
@@ -285,6 +290,44 @@ router.post('/f/:code', (request, env: Env) =>
 
 router.all('*', () => new Response('Not Found', { status: 404 }))
 
+function isBackendPath(pathname: string): boolean {
+  return (
+    pathname === '/api' ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/s/') ||
+    pathname.startsWith('/t/') ||
+    pathname.startsWith('/f/')
+  )
+}
+
+function isHtmlNavigation(request: Request): boolean {
+  const accept = request.headers.get('Accept') || ''
+  return accept.includes('text/html')
+}
+
+async function handleFrontendRequest(request: Request, env: Env): Promise<Response> {
+  if (!env.ASSETS) {
+    return new Response('Not Found', { status: 404 })
+  }
+
+  const response = await env.ASSETS.fetch(request)
+  if (response.status !== 404) {
+    return response
+  }
+
+  if (request.method.toUpperCase() !== 'GET') {
+    return response
+  }
+
+  if (!isHtmlNavigation(request)) {
+    return response
+  }
+
+  const url = new URL(request.url)
+  url.pathname = '/index.html'
+  return env.ASSETS.fetch(new Request(url.toString(), request))
+}
+
 function withRequestId(request: Request, response: Response): Response {
   const requestId = (request as Request & { requestId?: string }).requestId
   if (!requestId) return response
@@ -299,6 +342,13 @@ function withRequestId(request: Request, response: Response): Response {
 
 async function handleRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   requestIdMiddleware(request)
+  const pathname = new URL(request.url).pathname
+
+  if (!isBackendPath(pathname)) {
+    const response = await handleFrontendRequest(request, env)
+    return withRequestId(request, response)
+  }
+
   let response: Response | undefined = await rateLimitMiddleware(request, env)
   if (!response) {
     response = await bootstrapAdmin(request, env)
