@@ -11,6 +11,12 @@ export function jsonResponse(data: unknown, status = 200): Response {
   })
 }
 
+export function redirect(location: string, status: number = 302): Response {
+  const headers = new Headers()
+  headers.set('Location', location)
+  return new Response(null, { status, headers })
+}
+
 export async function parseJson<T>(request: Request): Promise<T> {
   const text = await request.text()
   if (!text) {
