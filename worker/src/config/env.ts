@@ -1,4 +1,5 @@
 export type Env = {
+  ASSETS?: Fetcher
   DB: D1Database
   MAX_FILE_SIZE?: string
   TOTAL_STORAGE?: string
