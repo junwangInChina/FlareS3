@@ -1,6 +1,5 @@
 import type { Env } from '../config/env'
-import { getUser } from './utils'
-import { jsonResponse } from './utils'
+import { getUser, jsonResponse, redirect } from './utils'
 import { viewTextShare } from './textShares'
 import { tryViewTextOneTimeShare } from './textOneTimeShares'
 
@@ -20,8 +19,8 @@ export async function shortlink(request: Request, env: Env, code: string): Promi
     const user = getUser(request)
     if (!user) {
       const next = encodeURIComponent(`/s/${code}`)
-      return Response.redirect(`/login?next=${next}`, 302)
+      return redirect(`/login?next=${next}`, 302)
     }
   }
-  return Response.redirect(`/api/files/${file.id}/download`, 302)
+  return redirect(`/api/files/${file.id}/download`, 302)
 }
