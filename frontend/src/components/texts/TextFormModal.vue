@@ -11,11 +11,7 @@
 
     <template v-else>
       <FormItem :label="t('texts.form.title')">
-        <Input
-          v-model="form.title"
-          :placeholder="t('texts.form.titlePlaceholder')"
-          clearable
-        />
+        <Input v-model="form.title" :placeholder="t('texts.form.titlePlaceholder')" clearable />
       </FormItem>
 
       <FormItem :label="t('texts.form.content')">
@@ -64,12 +60,7 @@
       <Button type="default" :disabled="submitting" @click="handleCancel">
         {{ t('common.cancel') }}
       </Button>
-      <Button
-        type="primary"
-        :loading="submitting"
-        :disabled="loading"
-        @click="handleSubmit"
-      >
+      <Button type="primary" :loading="submitting" :disabled="loading" @click="handleSubmit">
         {{ mode === 'create' ? t('common.create') : t('common.submit') }}
       </Button>
     </template>
@@ -133,9 +124,7 @@ const loading = ref(false)
 const submitting = ref(false)
 
 const modalTitle = computed(() => {
-  return props.mode === 'create'
-    ? t('texts.modals.createTitle')
-    : t('texts.modals.editTitle')
+  return props.mode === 'create' ? t('texts.modals.createTitle') : t('texts.modals.editTitle')
 })
 
 const markdownHtml = computed(() => {
@@ -215,23 +204,249 @@ const renderMarkdown = (value) => {
   return sanitizeMarkdownHtml(raw)
 }
 
+const AUTO_TITLE_MAX_CHARS = 50
+const AUTO_TITLE_ANALYSIS_MAX_CHARS = 4_000
+
+const AUTO_TITLE_STOP_WORDS = new Set([
+  // English stop words (keep small + practical)
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'but',
+  'by',
+  'for',
+  'from',
+  'has',
+  'have',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'its',
+  'of',
+  'on',
+  'or',
+  'our',
+  'that',
+  'the',
+  'their',
+  'then',
+  'this',
+  'to',
+  'was',
+  'we',
+  'were',
+  'with',
+  'you',
+  'your',
+])
+
+const extractFrontMatterTitle = (source) => {
+  const match = String(source ?? '').match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/)
+  if (!match) return ''
+
+  const frontMatter = match[1]
+  const titleLine = frontMatter
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => /^title\s*:/i.test(line))
+
+  if (!titleLine) return ''
+
+  const raw = titleLine.replace(/^title\s*:\s*/i, '').trim()
+  return raw.replace(/^['"]|['"]$/g, '').trim()
+}
+
+const stripFencedCodeBlocks = (source) => {
+  let text = String(source ?? '')
+  text = text.replace(/```[\s\S]*?```/g, '\n')
+  text = text.replace(/~~~[\s\S]*?~~~/g, '\n')
+  return text
+}
+
+const stripMarkdownForTitle = (source) => {
+  let text = String(source ?? '')
+
+  // 移除 YAML Front Matter（避免干扰摘要/分词）
+  text = text.replace(/^---\s*\n[\s\S]*?\n---\s*(?:\n|$)/, '')
+
+  // 移除 fenced code blocks（避免代码内容干扰标题提取）
+  text = text.replace(/```[\s\S]*?```/g, '\n')
+  text = text.replace(/~~~[\s\S]*?~~~/g, '\n')
+
+  // 处理链接/图片（保留可读文本）
+  text = text.replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+
+  // 移除可能的 HTML 标签
+  text = text.replace(/<\/?[^>]+>/g, ' ')
+
+  // 移除常见 Markdown 行首语法，但保留正文
+  text = text
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/^\s{0,3}>\s+/gm, '')
+    .replace(/^\s{0,3}(?:[-*+]|\d+\.)\s+/gm, '')
+
+  // 行内代码：保留内容
+  text = text.replace(/`([^`]+)`/g, '$1')
+
+  // 清理空白：保留换行用于分句
+  text = text.replace(/[ \t]+/g, ' ')
+  text = text.replace(/\n{3,}/g, '\n\n')
+
+  return text.trim()
+}
+
+const splitSentencesForTitle = (text) => {
+  const normalized = String(text ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+
+  return normalized
+    .split(/\n+/)
+    .flatMap((line) => line.split(/[。！？!?.]+|[;；]+/g))
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
+const tokenizeForTitle = (text) => {
+  const value = String(text ?? '')
+  const tokens = []
+
+  // 英文/数字 token
+  const lower = value.toLowerCase()
+  const words = lower.match(/[a-z0-9]{3,}/g) || []
+  for (const word of words) {
+    if (AUTO_TITLE_STOP_WORDS.has(word)) continue
+    tokens.push(word)
+  }
+
+  // CJK：用 2-gram 近似分词（无需额外依赖）
+  const cjkChunks = value.match(/[\u4e00-\u9fff]{2,}/g) || []
+  for (const chunk of cjkChunks) {
+    const chars = Array.from(chunk)
+    for (let i = 0; i < chars.length - 1; i += 1) {
+      tokens.push(chars[i] + chars[i + 1])
+    }
+  }
+
+  return tokens
+}
+
+const buildTokenFrequency = (tokens) => {
+  const freq = new Map()
+  for (const token of tokens) {
+    freq.set(token, (freq.get(token) || 0) + 1)
+  }
+  return freq
+}
+
+const isCandidateSentence = (sentence) => {
+  const value = String(sentence ?? '').trim()
+  if (!value) return false
+  if (value.length < 6) return false
+  if (/^https?:\/\//i.test(value)) return false
+
+  const meaningfulCount = (value.match(/[A-Za-z0-9\u4e00-\u9fff]/g) || []).length
+  return meaningfulCount / value.length >= 0.4
+}
+
+const summarizeTitleFromContent = (content) => {
+  const stripped = stripMarkdownForTitle(content)
+  if (!stripped) return ''
+
+  // 更稳：只看开头部分，并优先取“第一句有意义的文本”
+  const analysisText =
+    stripped.length > AUTO_TITLE_ANALYSIS_MAX_CHARS
+      ? stripped.slice(0, AUTO_TITLE_ANALYSIS_MAX_CHARS)
+      : stripped
+
+  const isLikelyConfigLine = (value) => {
+    const text = String(value ?? '').trim()
+    if (!text) return false
+
+    // JSON-ish: "key": value
+    if (/^["'][a-zA-Z_][a-zA-Z0-9_-]{0,30}["']\s*:\s*\S/.test(text)) return true
+
+    // YAML-ish: key: value (仅匹配英文 key，避免误伤中文“问题：”这类自然语言)
+    if (/^[a-zA-Z_][a-zA-Z0-9_-]{0,20}\s*:\s*\S/.test(text)) return true
+
+    return false
+  }
+
+  const isCandidateTitleSentence = (sentence) => {
+    const value = String(sentence ?? '').trim()
+    if (!isCandidateSentence(value)) return false
+
+    // 避免过短的标题（常见于列表项、碎片文本）
+    if (value.length < 12) return false
+
+    // 避免把配置/代码行当标题
+    if (isLikelyConfigLine(value)) return false
+
+    return true
+  }
+
+  const paragraphs = analysisText
+    .split(/\n\s*\n/g)
+    .map((block) => block.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+
+  const leadParagraph =
+    paragraphs.find((block) => block.length >= 30 && !isLikelyConfigLine(block)) ||
+    paragraphs.find((block) => block.length >= 12 && !isLikelyConfigLine(block)) ||
+    ''
+
+  const leadText = leadParagraph || analysisText
+
+  const sentences = splitSentencesForTitle(leadText)
+  const firstSentence = sentences.find(isCandidateTitleSentence)
+  if (firstSentence) return firstSentence
+
+  const fallbackLine = leadText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length >= 12 && !isLikelyConfigLine(line) && !/^https?:\/\//i.test(line))
+
+  return fallbackLine || leadParagraph || ''
+}
+
 const buildAutoTitle = (content) => {
   const source = String(content ?? '').trim()
   if (!source) return ''
 
-  // 优先提取 Markdown 一级标题
-  const h1Match = source.match(/^#\s+(.+)$/m)
+  // 0) YAML Front Matter title（Markdown 常见写法）
+  const frontMatterTitle = extractFrontMatterTitle(source)
+  if (frontMatterTitle) {
+    return cleanAndTruncateTitle(frontMatterTitle)
+  }
+
+  const headingSource = stripFencedCodeBlocks(source)
+
+  // 1) 优先提取 Markdown 一级标题（忽略 code block 内的 # 注释）
+  const h1Match = headingSource.match(/^#\s+(.+)$/m)
   if (h1Match) {
     return cleanAndTruncateTitle(h1Match[1])
   }
 
-  // 其次提取任意级别 Markdown 标题
-  const hMatch = source.match(/^#{1,6}\s+(.+)$/m)
+  // 2) 其次提取任意级别 Markdown 标题（忽略 code block 内的 # 注释）
+  const hMatch = headingSource.match(/^#{1,6}\s+(.+)$/m)
   if (hMatch) {
     return cleanAndTruncateTitle(hMatch[1])
   }
 
-  // 否则使用第一行非空内容
+  // 3) 从开头内容提取第一句有意义的文本作为标题（更稳）
+  const summarized = summarizeTitleFromContent(source)
+  if (summarized) {
+    return cleanAndTruncateTitle(summarized)
+  }
+
+  // 4) 兜底：使用第一行非空内容
   const firstNonEmptyLine = source
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -254,20 +469,18 @@ const cleanAndTruncateTitle = (text) => {
     .replace(/\s+/g, ' ') // 多个空格合并为一个
     .trim()
 
-  // 智能截断
-  const maxChars = 50
   const chars = Array.from(cleaned)
 
-  if (chars.length <= maxChars) {
+  if (chars.length <= AUTO_TITLE_MAX_CHARS) {
     return cleaned
   }
 
   // 尝试在单词边界截断（对英文友好）
-  const truncated = chars.slice(0, maxChars).join('')
+  const truncated = chars.slice(0, AUTO_TITLE_MAX_CHARS).join('')
   const lastSpace = truncated.lastIndexOf(' ')
 
   // 如果空格位置在合理范围内（超过70%长度），在空格处截断
-  if (lastSpace > maxChars * 0.7) {
+  if (lastSpace > AUTO_TITLE_MAX_CHARS * 0.7) {
     return truncated.slice(0, lastSpace).trim() + '…'
   }
 
@@ -525,9 +738,7 @@ const handleSubmit = async () => {
     emit('success')
   } catch (error) {
     const errorMsg =
-      props.mode === 'create'
-        ? t('texts.messages.createFailed')
-        : t('texts.messages.updateFailed')
+      props.mode === 'create' ? t('texts.messages.createFailed') : t('texts.messages.updateFailed')
     message.error(error.response?.data?.error || errorMsg)
   } finally {
     submitting.value = false
@@ -601,7 +812,15 @@ onBeforeUnmount(() => {
 }
 
 .markdown-editor-input :deep(textarea) {
-  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --nb-font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   tab-size: 2;
 }
 
@@ -713,7 +932,15 @@ onBeforeUnmount(() => {
 }
 
 .text-viewer-markdown :deep(code) {
-  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --nb-font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   font-size: 0.9em;
 }
 
