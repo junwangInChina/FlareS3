@@ -1,15 +1,9 @@
 import type { AuthUser } from '../middleware/authSession'
+export { jsonResponse } from '../utils/response'
 
 export type AuthedRequest = Request & { user?: AuthUser; sessionId?: string }
 
 export const MAX_PRESIGNED_DOWNLOAD_URL_TTL_SECONDS = 24 * 60 * 60
-
-export function jsonResponse(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
 
 export function redirect(location: string, status: number = 302): Response {
   const headers = new Headers()
