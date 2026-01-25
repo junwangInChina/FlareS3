@@ -1,4 +1,5 @@
 import type { Env } from '../config/env'
+import { jsonResponse } from '../utils/response'
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000
 const RATE_LIMIT_MAX = 300
@@ -30,62 +31,61 @@ async function isBlocked(db: D1Database, ip: string): Promise<boolean> {
 }
 
 async function allowRequest(db: D1Database, ip: string): Promise<boolean> {
-  const row = await db
-    .prepare('SELECT request_count, window_start FROM rate_limits WHERE ip = ?')
-    .bind(ip)
-    .first()
-  const now = new Date()
-  if (!row) {
-    await db
-      .prepare('INSERT INTO rate_limits (ip, request_count, window_start) VALUES (?, 1, ?)')
-      .bind(ip, now.toISOString())
-      .run()
-    return true
-  }
-  const windowStart = new Date(String(row.window_start))
-  if (
-    Number.isNaN(windowStart.getTime()) ||
-    now.getTime() - windowStart.getTime() > RATE_LIMIT_WINDOW_MS
-  ) {
-    await db
-      .prepare('UPDATE rate_limits SET request_count = 1, window_start = ? WHERE ip = ?')
-      .bind(now.toISOString(), ip)
-      .run()
-    return true
-  }
-  const count = Number(row.request_count || 0)
-  if (count >= RATE_LIMIT_MAX) {
-    return false
-  }
-  await db
-    .prepare('UPDATE rate_limits SET request_count = request_count + 1 WHERE ip = ?')
-    .bind(ip)
+  const nowMs = Date.now()
+  const nowIso = new Date(nowMs).toISOString()
+  const nowSeconds = Math.floor(nowMs / 1000)
+  const result = await db
+    .prepare(
+      `INSERT INTO rate_limits (ip, request_count, window_start)
+       VALUES (?, 1, ?)
+       ON CONFLICT(ip) DO UPDATE SET
+         request_count = CASE
+           WHEN strftime('%s', window_start) IS NULL THEN 1
+           WHEN (? - strftime('%s', window_start)) * 1000 > ? THEN 1
+           ELSE request_count + 1
+         END,
+         window_start = CASE
+           WHEN strftime('%s', window_start) IS NULL THEN ?
+           WHEN (? - strftime('%s', window_start)) * 1000 > ? THEN ?
+           ELSE window_start
+         END
+       WHERE
+         strftime('%s', window_start) IS NULL
+         OR (? - strftime('%s', window_start)) * 1000 > ?
+         OR request_count < ?`
+    )
+    .bind(
+      ip,
+      nowIso,
+      nowSeconds,
+      RATE_LIMIT_WINDOW_MS,
+      nowIso,
+      nowSeconds,
+      RATE_LIMIT_WINDOW_MS,
+      nowIso,
+      nowSeconds,
+      RATE_LIMIT_WINDOW_MS,
+      RATE_LIMIT_MAX
+    )
     .run()
-  return true
+  const changes = Number((result as any)?.meta?.changes ?? 0)
+  return !result.error && Number.isFinite(changes) && changes > 0
 }
 
 export async function recordFailedAttempt(env: Env, ip: string): Promise<void> {
-  const row = await env.DB.prepare('SELECT failed_attempts FROM rate_limits WHERE ip = ?')
-    .bind(ip)
-    .first('failed_attempts')
-  if (!row) {
-    await env.DB.prepare('INSERT INTO rate_limits (ip, failed_attempts) VALUES (?, 1)')
-      .bind(ip)
-      .run()
-    return
-  }
-  const failedAttempts = Number(row) + 1
-  if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
-    const blockedUntil = new Date(Date.now() + BLOCK_DURATION_MS).toISOString()
-    await env.DB.prepare(
-      'UPDATE rate_limits SET failed_attempts = ?, blocked_until = ? WHERE ip = ?'
+  const blockedUntil = new Date(Date.now() + BLOCK_DURATION_MS).toISOString()
+  await env.DB
+    .prepare(
+      `INSERT INTO rate_limits (ip, failed_attempts, blocked_until)
+       VALUES (?, 1, NULL)
+       ON CONFLICT(ip) DO UPDATE SET
+         failed_attempts = COALESCE(failed_attempts, 0) + 1,
+         blocked_until = CASE
+           WHEN COALESCE(failed_attempts, 0) + 1 >= ? THEN ?
+           ELSE blocked_until
+         END`
     )
-      .bind(failedAttempts, blockedUntil, ip)
-      .run()
-    return
-  }
-  await env.DB.prepare('UPDATE rate_limits SET failed_attempts = ? WHERE ip = ?')
-    .bind(failedAttempts, ip)
+    .bind(ip, MAX_FAILED_ATTEMPTS, blockedUntil)
     .run()
 }
 
@@ -93,11 +93,16 @@ export async function rateLimitMiddleware(
   request: Request,
   env: Env
 ): Promise<Response | undefined> {
-  const ip = getClientIp(request)
-  if (await isBlocked(env.DB, ip)) {
-    return new Response(JSON.stringify({ error: '请求过于频繁，请稍后再试' }), { status: 429 })
-  }
-  if (!(await allowRequest(env.DB, ip))) {
-    return new Response(JSON.stringify({ error: '请求频率超限' }), { status: 429 })
+  try {
+    const ip = getClientIp(request)
+    if (await isBlocked(env.DB, ip)) {
+      return jsonResponse({ error: '请求过于频繁，请稍后再试' }, 429)
+    }
+    if (!(await allowRequest(env.DB, ip))) {
+      return jsonResponse({ error: '请求频率超限' }, 429)
+    }
+  } catch (error) {
+    console.error('[rateLimitMiddleware] failed', error)
+    return jsonResponse({ error: '服务异常' }, 500)
   }
 }
