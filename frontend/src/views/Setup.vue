@@ -259,13 +259,11 @@ const defaultModalInitialValue = () => ({
 const modalInitialValue = ref(defaultModalInitialValue())
 
 const formatSource = (source) => {
-  if (source === 'env') return 'ENV'
   if (source === 'legacy') return 'LEGACY'
   return 'DB'
 }
 
 const getSourceTagType = (source) => {
-  if (source === 'env') return 'info'
   if (source === 'legacy') return 'warning'
   return 'default'
 }
@@ -422,7 +420,8 @@ const handleSubmit = async (submittedForm) => {
       }
 
       if (submittedForm.access_key_id) payload.access_key_id = submittedForm.access_key_id
-      if (submittedForm.secret_access_key) payload.secret_access_key = submittedForm.secret_access_key
+      if (submittedForm.secret_access_key)
+        payload.secret_access_key = submittedForm.secret_access_key
 
       await api.updateR2Config(editingId.value, payload)
       message.success(t('setup.messages.updateSuccess'))
