@@ -1,22 +1,11 @@
 import type { Env } from '../config/env'
 import { jsonResponse, parseJson, getUser } from './utils'
-import { hasEnvR2Config } from '../config/env'
 import { encryptString, validateBase64KeyLength } from '../services/crypto'
 import { createS3Client, summarizeS3Error, testConnection, type R2Config } from '../services/r2'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 
-export async function status(request: Request, env: Env): Promise<Response> {
-  if (hasEnvR2Config(env)) {
-    return jsonResponse({
-      configured: true,
-      config_source: 'env',
-      config: {
-        endpoint: env.R2_ENDPOINT,
-        bucket_name: env.R2_BUCKET,
-      },
-    })
-  }
+export async function status(_request: Request, env: Env): Promise<Response> {
   const endpoint = await env.DB.prepare('SELECT value FROM system_config WHERE key = ?')
     .bind('r2_endpoint')
     .first('value')
@@ -37,9 +26,6 @@ export async function status(request: Request, env: Env): Promise<Response> {
 }
 
 export async function saveConfig(request: Request, env: Env): Promise<Response> {
-  if (hasEnvR2Config(env)) {
-    return jsonResponse({ error: '已使用环境变量配置，无法修改' }, 400)
-  }
   const masterKey = String(env.R2_MASTER_KEY || '').trim()
   if (!masterKey) {
     return jsonResponse({ error: '缺少 R2_MASTER_KEY' }, 500)
