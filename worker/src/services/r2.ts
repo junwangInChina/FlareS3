@@ -14,6 +14,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { Env } from '../config/env'
 import { DEFAULT_TOTAL_STORAGE } from '../config/env'
 import { decryptString } from './crypto'
+import { ensureR2ConfigsTable } from './dbSchema'
 export const LEGACY_R2_CONFIG_ID = 'legacy'
 export const SYSTEM_DEFAULT_R2_CONFIG_ID_KEY = 'r2_default_config_id'
 export const SYSTEM_LEGACY_FILES_CONFIG_ID_KEY = 'r2_legacy_files_config_id'
@@ -48,40 +49,6 @@ export type R2ConfigSummary = {
   quotaBytes: number
   createdAt?: string
   updatedAt?: string
-}
-
-async function ensureR2ConfigsTable(db: D1Database): Promise<void> {
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS r2_configs (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      endpoint TEXT NOT NULL,
-      bucket_name TEXT NOT NULL,
-      access_key_id_enc TEXT NOT NULL,
-      secret_access_key_enc TEXT NOT NULL,
-      quota_bytes INTEGER NOT NULL DEFAULT ${DEFAULT_TOTAL_STORAGE},
-      created_at DATETIME NOT NULL,
-      updated_at DATETIME NOT NULL
-    )`
-    )
-    .run()
-
-  await db
-    .prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_r2_configs_name ON r2_configs(name)')
-    .run()
-
-  const tableInfo = await db.prepare('PRAGMA table_info(r2_configs)').all<{
-    name: string
-  }>()
-  const hasQuotaBytes = (tableInfo.results || []).some((col) => String(col.name) === 'quota_bytes')
-  if (!hasQuotaBytes) {
-    await db
-      .prepare(
-        `ALTER TABLE r2_configs ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT ${DEFAULT_TOTAL_STORAGE}`
-      )
-      .run()
-  }
 }
 
 export async function ensureR2ConfigStorage(env: Env): Promise<void> {
