@@ -45,6 +45,24 @@ function buildPage({ title, body }: { title: string; body: string }): string {
         const storedUiTheme = window.localStorage.getItem(uiThemeKey)
         const uiTheme = uiThemes.includes(storedUiTheme) ? storedUiTheme : defaultUiTheme
         document.documentElement.dataset.uiTheme = uiTheme
+
+        window.addEventListener('DOMContentLoaded', () => {
+          const toggles = document.querySelectorAll('[data-toggle-password]')
+          toggles.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) return
+            button.addEventListener('click', () => {
+              const targetId = button.dataset.target || 'password'
+              const input = document.getElementById(targetId)
+              if (!(input instanceof HTMLInputElement)) return
+              const nextType = input.type === 'password' ? 'text' : 'password'
+              input.type = nextType
+              const pressed = nextType === 'text'
+              button.setAttribute('aria-pressed', String(pressed))
+              button.textContent = pressed ? '隐藏' : '显示'
+              input.focus()
+            })
+          })
+        })
       } catch {
         // ignore
       }
@@ -163,6 +181,24 @@ function buildPage({ title, body }: { title: string; body: string }): string {
       padding: 20px 24px;
     }
 
+    .centered {
+      max-width: 560px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .centered > * {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .centered > .muted {
+      text-align: center;
+    }
+
     pre {
       margin: 0;
       white-space: pre-wrap;
@@ -191,9 +227,19 @@ function buildPage({ title, body }: { title: string; body: string }): string {
       max-width: 420px;
     }
 
+    .input-group {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .input-group > input {
+      flex: 1;
+    }
+
     label {
       font-size: 13px;
-      color: var(--muted);
+      color: var(--share-muted);
     }
 
     input {
@@ -204,6 +250,10 @@ function buildPage({ title, body }: { title: string; body: string }): string {
       background: var(--share-card);
       color: var(--share-text);
       outline: none;
+    }
+
+    input::placeholder {
+      color: color-mix(in oklab, var(--share-muted) 70%, transparent);
     }
 
     input:focus {
@@ -218,12 +268,67 @@ function buildPage({ title, body }: { title: string; body: string }): string {
       color: var(--share-primary-text);
       font-weight: 700;
       cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    button:hover {
+      filter: brightness(0.98);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--share-primary) 25%, transparent);
+    }
+
+    .toggle-btn {
+      padding: 12px 12px;
+      background: color-mix(in oklab, var(--share-card) 92%, var(--share-primary));
+      color: var(--share-text);
+      font-weight: 600;
+      min-width: 72px;
     }
 
     .error {
       margin: 0;
       color: #fb7185;
       font-size: 13px;
+    }
+
+    .alert {
+      border: var(--share-border-width) solid var(--share-border);
+      border-radius: calc(var(--share-radius) + 2px);
+      background: color-mix(in oklab, var(--share-primary) 7%, var(--share-card));
+      padding: 12px 14px;
+    }
+
+    .alert-error {
+      border-color: color-mix(in oklab, #fb7185 70%, var(--share-border));
+      background: color-mix(in oklab, #fb7185 10%, var(--share-card));
+    }
+
+    .alert-title {
+      margin: 0 0 4px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .alert-message {
+      margin: 0;
+      font-size: 13px;
+      color: var(--share-muted);
+      line-height: 1.5;
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 12px;
+      color: var(--share-muted);
+      line-height: 1.5;
     }
   </style>
 </head>
