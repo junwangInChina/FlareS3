@@ -2,11 +2,6 @@
 BOOTSTRAP_ADMIN_USER=admin
 BOOTSTRAP_ADMIN_PASS=change_me
 
-# R2 配置
-R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET=
-
 # 加密主密钥（32字节 base64，可用：openssl rand -base64 32）
+# 用于加密/解密 UI 保存的 R2 Access Key / Secret Key，需长期保持不变
 R2_MASTER_KEY=
