@@ -139,6 +139,7 @@ export default {
       deleteFailed: 'Failed to delete document',
       shareLoadFailed: 'Failed to load share settings',
       shareSaveSuccess: 'Share settings saved',
+      shareSaveCopied: 'Share settings saved and link copied',
       shareSaveFailed: 'Failed to save share settings',
       shareDisableSuccess: 'Share disabled',
       shareDisableFailed: 'Failed to disable share',
