@@ -4,7 +4,6 @@ import { jsonResponse, parseJson } from './utils'
 import { encryptString, validateBase64KeyLength } from '../services/crypto'
 import { formatBytes } from '../utils/format'
 import {
-  ENV_R2_CONFIG_ID,
   LEGACY_R2_CONFIG_ID,
   SYSTEM_DEFAULT_R2_CONFIG_ID_KEY,
   ensureR2ConfigStorage,
@@ -177,7 +176,7 @@ export async function createConfig(request: Request, env: Env): Promise<Response
 
 export async function updateConfig(request: Request, env: Env, id: string): Promise<Response> {
   if (!id) return jsonResponse({ error: '配置 ID 不能为空' }, 400)
-  if (id === ENV_R2_CONFIG_ID || id === LEGACY_R2_CONFIG_ID) {
+  if (id === LEGACY_R2_CONFIG_ID) {
     return jsonResponse({ error: '该配置不可修改' }, 400)
   }
   const masterKey = String(env.R2_MASTER_KEY || '').trim()
@@ -263,7 +262,7 @@ export async function updateConfig(request: Request, env: Env, id: string): Prom
 
 export async function deleteConfig(_request: Request, env: Env, id: string): Promise<Response> {
   if (!id) return jsonResponse({ error: '配置 ID 不能为空' }, 400)
-  if (id === ENV_R2_CONFIG_ID || id === LEGACY_R2_CONFIG_ID) {
+  if (id === LEGACY_R2_CONFIG_ID) {
     return jsonResponse({ error: '该配置不可删除' }, 400)
   }
 
