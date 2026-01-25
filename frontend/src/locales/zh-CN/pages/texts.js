@@ -139,6 +139,7 @@ export default {
       deleteFailed: '删除失败',
       shareLoadFailed: '获取分享信息失败',
       shareSaveSuccess: '分享设置已保存',
+      shareSaveCopied: '分享设置已保存，链接已复制到剪贴板',
       shareSaveFailed: '保存分享设置失败',
       shareDisableSuccess: '分享已关闭',
       shareDisableFailed: '关闭分享失败',
