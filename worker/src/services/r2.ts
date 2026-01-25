@@ -12,9 +12,8 @@ import {
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { Env } from '../config/env'
-import { DEFAULT_TOTAL_STORAGE, hasEnvR2Config } from '../config/env'
+import { DEFAULT_TOTAL_STORAGE } from '../config/env'
 import { decryptString } from './crypto'
-export const ENV_R2_CONFIG_ID = 'env'
 export const LEGACY_R2_CONFIG_ID = 'legacy'
 export const SYSTEM_DEFAULT_R2_CONFIG_ID_KEY = 'r2_default_config_id'
 export const SYSTEM_LEGACY_FILES_CONFIG_ID_KEY = 'r2_legacy_files_config_id'
@@ -26,7 +25,7 @@ export type R2Config = {
   bucketName: string
 }
 
-export type R2ConfigSource = 'env' | 'legacy' | 'db'
+export type R2ConfigSource = 'legacy' | 'db'
 
 export type LoadedR2Config = {
   id: string
@@ -221,20 +220,6 @@ export async function listDbR2Configs(db: D1Database): Promise<R2ConfigSummary[]
 }
 
 export async function loadR2ConfigById(env: Env, id: string): Promise<LoadedR2Config | null> {
-  if (id === ENV_R2_CONFIG_ID) {
-    if (!hasEnvR2Config(env)) return null
-    return {
-      id: ENV_R2_CONFIG_ID,
-      source: 'env',
-      config: {
-        endpoint: env.R2_ENDPOINT as string,
-        accessKeyId: env.R2_ACCESS_KEY_ID as string,
-        secretAccessKey: env.R2_SECRET_ACCESS_KEY as string,
-        bucketName: env.R2_BUCKET as string,
-      },
-    }
-  }
-
   if (!env.R2_MASTER_KEY) {
     return null
   }
@@ -257,10 +242,6 @@ export async function loadR2Config(env: Env): Promise<LoadedR2Config | null> {
   if (configuredDefault) {
     const loaded = await loadR2ConfigById(env, configuredDefault)
     if (loaded) return loaded
-  }
-
-  if (hasEnvR2Config(env)) {
-    return loadR2ConfigById(env, ENV_R2_CONFIG_ID)
   }
 
   if (!env.R2_MASTER_KEY) {
@@ -290,10 +271,6 @@ export async function listR2ConfigOptions(env: Env): Promise<{
   options: R2ConfigOption[]
 }> {
   const options: R2ConfigOption[] = []
-
-  if (hasEnvR2Config(env)) {
-    options.push({ id: ENV_R2_CONFIG_ID, name: '环境变量', source: 'env' })
-  }
 
   if (env.R2_MASTER_KEY) {
     const legacy = await getLegacyDbConfig(env.DB, env.R2_MASTER_KEY)
