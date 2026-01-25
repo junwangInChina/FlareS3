@@ -43,238 +43,88 @@ import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 
 const router = Router()
 
+type RouteHandler = (request: Request, env: Env) => Response | Promise<Response>
+
+function withAuth(handler: RouteHandler): RouteHandler {
+  return (request, env) => {
+    const auth = requireAuth(request)
+    if (auth) return auth
+    return handler(request, env)
+  }
+}
+
+function withAdmin(handler: RouteHandler): RouteHandler {
+  return (request, env) => {
+    const auth = requireAdmin(request)
+    if (auth) return auth
+    return handler(request, env)
+  }
+}
+
 router.post('/api/auth/login', (request, env: Env) => login(request, env))
-router.post('/api/auth/logout', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return logout(request, env)
-})
-router.get('/api/auth/status', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return authStatus(request)
-})
+router.post('/api/auth/logout', withAuth((request, env: Env) => logout(request, env)))
+router.get('/api/auth/status', withAuth((request, _env: Env) => authStatus(request)))
 
-router.get('/api/users', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return listUsers(request, env)
-})
-router.post('/api/users', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return createUser(request, env)
-})
-router.patch('/api/users/:id', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return updateUser(request, env, (request as any).params.id)
-})
-router.post('/api/users/:id/reset-password', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return resetPassword(request, env, (request as any).params.id)
-})
-router.delete('/api/users/:id', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return deleteUser(request, env, (request as any).params.id)
-})
+router.get('/api/users', withAdmin((request, env: Env) => listUsers(request, env)))
+router.post('/api/users', withAdmin((request, env: Env) => createUser(request, env)))
+router.patch('/api/users/:id', withAdmin((request, env: Env) => updateUser(request, env, (request as any).params.id)))
+router.post(
+  '/api/users/:id/reset-password',
+  withAdmin((request, env: Env) => resetPassword(request, env, (request as any).params.id))
+)
+router.delete('/api/users/:id', withAdmin((request, env: Env) => deleteUser(request, env, (request as any).params.id)))
 
-router.get('/api/setup/status', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return setupStatus(request, env)
-})
-router.post('/api/setup/config', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return saveSetup(request, env)
-})
-router.post('/api/setup/test', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return testSetup(request)
-})
+router.get('/api/setup/status', withAdmin((request, env: Env) => setupStatus(request, env)))
+router.post('/api/setup/config', withAdmin((request, env: Env) => saveSetup(request, env)))
+router.post('/api/setup/test', withAdmin((request, _env: Env) => testSetup(request)))
 
-router.get('/api/r2/options', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return listR2Options(request, env)
-})
-router.get('/api/r2/configs', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return listR2Configs(request, env)
-})
-router.post('/api/r2/configs', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return createR2Config(request, env)
-})
-router.patch('/api/r2/configs/:id', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return updateR2Config(request, env, (request as any).params.id)
-})
-router.delete('/api/r2/configs/:id', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return deleteR2Config(request, env, (request as any).params.id)
-})
-router.post('/api/r2/configs/:id/test', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return testR2Config(request, env, (request as any).params.id)
-})
-router.post('/api/r2/default', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return setDefaultR2Config(request, env)
-})
-router.post('/api/r2/legacy-files', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return setLegacyFilesR2Config(request, env)
-})
+router.get('/api/r2/options', withAuth((request, env: Env) => listR2Options(request, env)))
+router.get('/api/r2/configs', withAdmin((request, env: Env) => listR2Configs(request, env)))
+router.post('/api/r2/configs', withAdmin((request, env: Env) => createR2Config(request, env)))
+router.patch('/api/r2/configs/:id', withAdmin((request, env: Env) => updateR2Config(request, env, (request as any).params.id)))
+router.delete('/api/r2/configs/:id', withAdmin((request, env: Env) => deleteR2Config(request, env, (request as any).params.id)))
+router.post('/api/r2/configs/:id/test', withAdmin((request, env: Env) => testR2Config(request, env, (request as any).params.id)))
+router.post('/api/r2/default', withAdmin((request, env: Env) => setDefaultR2Config(request, env)))
+router.post('/api/r2/legacy-files', withAdmin((request, env: Env) => setLegacyFilesR2Config(request, env)))
 
-router.post('/api/upload/presign', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return presignUpload(request, env)
-})
-router.post('/api/upload/confirm', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return confirmUpload(request, env)
-})
-router.post('/api/upload/multipart/init', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return initMultipart(request, env)
-})
-router.post('/api/upload/multipart/presign', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return presignMultipart(request, env)
-})
-router.post('/api/upload/multipart/complete', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return completeMultipart(request, env)
-})
-router.post('/api/upload/multipart/abort', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return abortMultipart(request, env)
-})
+router.post('/api/upload/presign', withAuth((request, env: Env) => presignUpload(request, env)))
+router.post('/api/upload/confirm', withAuth((request, env: Env) => confirmUpload(request, env)))
+router.post('/api/upload/multipart/init', withAuth((request, env: Env) => initMultipart(request, env)))
+router.post('/api/upload/multipart/presign', withAuth((request, env: Env) => presignMultipart(request, env)))
+router.post('/api/upload/multipart/complete', withAuth((request, env: Env) => completeMultipart(request, env)))
+router.post('/api/upload/multipart/abort', withAuth((request, env: Env) => abortMultipart(request, env)))
 
-router.get('/api/files', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return listFiles(request, env)
-})
-router.delete('/api/files/:id', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return deleteFile(request, env, (request as any).params.id)
-})
-router.get('/api/files/:id/preview', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return previewFile(request, env, (request as any).params.id)
-})
+router.get('/api/files', withAuth((request, env: Env) => listFiles(request, env)))
+router.delete('/api/files/:id', withAuth((request, env: Env) => deleteFile(request, env, (request as any).params.id)))
+router.get('/api/files/:id/preview', withAuth((request, env: Env) => previewFile(request, env, (request as any).params.id)))
 router.get('/api/files/:id/download', (request, env: Env) =>
   downloadFile(request, env, (request as any).params.id)
 )
 
-router.get('/api/files/:id/share', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return getFileShare(request, env, (request as any).params.id)
-})
-router.post('/api/files/:id/share', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return upsertFileShare(request, env, (request as any).params.id)
-})
-router.delete('/api/files/:id/share', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return deleteFileShare(request, env, (request as any).params.id)
-})
+router.get('/api/files/:id/share', withAuth((request, env: Env) => getFileShare(request, env, (request as any).params.id)))
+router.post('/api/files/:id/share', withAuth((request, env: Env) => upsertFileShare(request, env, (request as any).params.id)))
+router.delete('/api/files/:id/share', withAuth((request, env: Env) => deleteFileShare(request, env, (request as any).params.id)))
 
-router.get('/api/stats', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return getStats(request, env)
-})
+router.get('/api/stats', withAuth((request, env: Env) => getStats(request, env)))
 
-router.get('/api/audit', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return listAudit(request, env)
-})
-router.delete('/api/audit/:id', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return deleteAudit(request, env, (request as any).params.id)
-})
-router.post('/api/audit/batch-delete', (request, env: Env) => {
-  const auth = requireAdmin(request)
-  if (auth) return auth
-  return batchDeleteAudit(request, env)
-})
+router.get('/api/audit', withAdmin((request, env: Env) => listAudit(request, env)))
+router.delete('/api/audit/:id', withAdmin((request, env: Env) => deleteAudit(request, env, (request as any).params.id)))
+router.post('/api/audit/batch-delete', withAdmin((request, env: Env) => batchDeleteAudit(request, env)))
 
-router.get('/api/texts', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return listTexts(request, env)
-})
-router.post('/api/texts', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return createText(request, env)
-})
-router.get('/api/texts/:id', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return getText(request, env, (request as any).params.id)
-})
-router.patch('/api/texts/:id', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return updateText(request, env, (request as any).params.id)
-})
-router.delete('/api/texts/:id', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return deleteText(request, env, (request as any).params.id)
-})
+router.get('/api/texts', withAuth((request, env: Env) => listTexts(request, env)))
+router.post('/api/texts', withAuth((request, env: Env) => createText(request, env)))
+router.get('/api/texts/:id', withAuth((request, env: Env) => getText(request, env, (request as any).params.id)))
+router.patch('/api/texts/:id', withAuth((request, env: Env) => updateText(request, env, (request as any).params.id)))
+router.delete('/api/texts/:id', withAuth((request, env: Env) => deleteText(request, env, (request as any).params.id)))
 
-router.get('/api/texts/:id/share', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return getTextShare(request, env, (request as any).params.id)
-})
-router.post('/api/texts/:id/share', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return upsertTextShare(request, env, (request as any).params.id)
-})
-router.delete('/api/texts/:id/share', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return deleteTextShare(request, env, (request as any).params.id)
-})
+router.get('/api/texts/:id/share', withAuth((request, env: Env) => getTextShare(request, env, (request as any).params.id)))
+router.post('/api/texts/:id/share', withAuth((request, env: Env) => upsertTextShare(request, env, (request as any).params.id)))
+router.delete('/api/texts/:id/share', withAuth((request, env: Env) => deleteTextShare(request, env, (request as any).params.id)))
 
-router.post('/api/texts/:id/one-time-share', (request, env: Env) => {
-  const auth = requireAuth(request)
-  if (auth) return auth
-  return createTextOneTimeShare(request, env, (request as any).params.id)
-})
+router.post('/api/texts/:id/one-time-share', withAuth((request, env: Env) => createTextOneTimeShare(request, env, (request as any).params.id)))
 
 router.get('/s/:code', (request, env: Env) => shortlink(request, env, (request as any).params.code))
+router.post('/s/:code', (request, env: Env) => shortlink(request, env, (request as any).params.code))
 router.get('/t/:code', (request, env: Env) =>
   viewTextShare(request, env, (request as any).params.code)
 )
