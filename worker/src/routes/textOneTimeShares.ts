@@ -2,15 +2,7 @@ import type { Env } from '../config/env'
 import { ensureTextsTable, ensureTextOneTimeSharesTable } from '../services/dbSchema'
 import { getUser, jsonResponse } from './utils'
 import { renderContentPage, renderMessagePage } from './textShares'
-
-function generateShareCode(length = 8): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
-  for (let i = 0; i < length; i += 1) {
-    code += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return code
-}
+import { generateRandomCode } from '../utils/random'
 
 function formatDateTimeLocal(isoString: string | null): string {
   if (!isoString) return ''
@@ -65,14 +57,14 @@ export async function createTextOneTimeShare(
     .bind(textId)
     .first()
 
-  if (!existing) {
-    const id = crypto.randomUUID()
-    for (let i = 0; i < 10; i += 1) {
-      const shareCode = generateShareCode(8)
-      const result = await env.DB.prepare(
-        `INSERT INTO text_one_time_shares (id, text_id, owner_id, share_code, expires_at, consumed_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`
-      )
+	  if (!existing) {
+	    const id = crypto.randomUUID()
+	    for (let i = 0; i < 10; i += 1) {
+	      const shareCode = generateRandomCode(8)
+	      const result = await env.DB.prepare(
+	        `INSERT INTO text_one_time_shares (id, text_id, owner_id, share_code, expires_at, consumed_at, created_at, updated_at)
+	         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`
+	      )
         .bind(id, textId, ownerId, shareCode, expiresAtIso, nowIso, nowIso)
         .run()
 
@@ -84,13 +76,13 @@ export async function createTextOneTimeShare(
     return jsonResponse({ error: '生成一次性分享链接失败' }, 500)
   }
 
-  const shareId = String((existing as any).id)
-  for (let i = 0; i < 10; i += 1) {
-    const shareCode = generateShareCode(8)
-    const result = await env.DB.prepare(
-      `UPDATE text_one_time_shares
-       SET share_code = ?, expires_at = ?, consumed_at = NULL, created_at = ?, updated_at = ?
-       WHERE id = ?`
+	  const shareId = String((existing as any).id)
+	  for (let i = 0; i < 10; i += 1) {
+	    const shareCode = generateRandomCode(8)
+	    const result = await env.DB.prepare(
+	      `UPDATE text_one_time_shares
+	       SET share_code = ?, expires_at = ?, consumed_at = NULL, created_at = ?, updated_at = ?
+	       WHERE id = ?`
     )
       .bind(shareCode, expiresAtIso, nowIso, nowIso, shareId)
       .run()
@@ -170,4 +162,3 @@ export async function tryViewTextOneTimeShare(
 
   return renderContentPage({ title, meta: metaParts.join(' · '), content })
 }
-
