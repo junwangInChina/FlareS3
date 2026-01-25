@@ -1,18 +1,19 @@
 import type { AuthUser } from './authSession'
+import { jsonResponse } from '../utils/response'
 
 export function requireAuth(request: Request): Response | void {
   const req = request as Request & { user?: AuthUser }
   if (!req.user) {
-    return new Response(JSON.stringify({ error: '未授权' }), { status: 401 })
+    return jsonResponse({ error: '未授权' }, 401)
   }
 }
 
 export function requireAdmin(request: Request): Response | void {
   const req = request as Request & { user?: AuthUser }
   if (!req.user) {
-    return new Response(JSON.stringify({ error: '未授权' }), { status: 401 })
+    return jsonResponse({ error: '未授权' }, 401)
   }
   if (req.user.role !== 'admin') {
-    return new Response(JSON.stringify({ error: '无权限' }), { status: 403 })
+    return jsonResponse({ error: '无权限' }, 403)
   }
 }
