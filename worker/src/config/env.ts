@@ -5,10 +5,10 @@ export type Env = {
   TOTAL_STORAGE?: string
   BOOTSTRAP_ADMIN_USER?: string
   BOOTSTRAP_ADMIN_PASS?: string
-  R2_ENDPOINT?: string
-  R2_ACCESS_KEY_ID?: string
-  R2_SECRET_ACCESS_KEY?: string
-  R2_BUCKET?: string
+  /**
+   * 用于加密/解密存储在 D1 中的 R2 Access Key / Secret Key（AES-GCM）。
+   * 32 字节 base64；必须长期保持不变，否则历史配置将无法解密。
+   */
   R2_MASTER_KEY?: string
 }
 
@@ -23,10 +23,4 @@ export function getMaxFileSize(env: Env): number {
 export function getTotalStorage(env: Env): number {
   const value = Number(env.TOTAL_STORAGE)
   return Number.isFinite(value) && value > 0 ? value : DEFAULT_TOTAL_STORAGE
-}
-
-export function hasEnvR2Config(env: Env): boolean {
-  return Boolean(
-    env.R2_ENDPOINT && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET
-  )
 }
