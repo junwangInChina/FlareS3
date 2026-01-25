@@ -307,7 +307,7 @@ const buildPayload = ({ regenerate = false } = {}) => {
   return payload
 }
 
-const saveShare = async ({ regenerate = false } = {}) => {
+const saveShare = async ({ regenerate = false, silentSuccess = false } = {}) => {
   const id = resolvedTextId.value
   if (!id) return false
   if (saving.value) return false
@@ -321,7 +321,9 @@ const saveShare = async ({ regenerate = false } = {}) => {
     share.value = result?.share || null
     applyShareToForm(share.value)
     form.value.password = ''
-    message.success(t('texts.messages.shareSaveSuccess'))
+    if (!silentSuccess) {
+      message.success(t('texts.messages.shareSaveSuccess'))
+    }
     return true
   } catch (error) {
     message.error(error.response?.data?.error || t('texts.messages.shareSaveFailed'))
@@ -331,10 +333,122 @@ const saveShare = async ({ regenerate = false } = {}) => {
   }
 }
 
+const queueCopyShareUrlAfterSave = (
+  savePromise,
+  { silentSuccess = false, silentFailure = false } = {}
+) => {
+  try {
+    const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : null
+    if (!clipboard) return null
+
+    const clipboardItem = typeof ClipboardItem !== 'undefined' ? ClipboardItem : null
+
+    let shouldSkipFailure = false
+    const blobPromise = Promise.resolve(savePromise).then((saved) => {
+      if (!saved) {
+        shouldSkipFailure = true
+        throw new Error('skip')
+      }
+
+      const url = shareUrl.value
+      if (!url) {
+        shouldSkipFailure = true
+        throw new Error('missing share url')
+      }
+
+      if (typeof Blob === 'undefined') {
+        shouldSkipFailure = true
+        throw new Error('Blob is not available')
+      }
+
+      return new Blob([url], { type: 'text/plain' })
+    })
+
+    if (clipboardItem && typeof clipboard.write === 'function') {
+      const item = new clipboardItem({ 'text/plain': blobPromise })
+      return clipboard
+        .write([item])
+        .then(() => {
+          if (!silentSuccess) {
+            message.success(t('common.copied'))
+          }
+          return true
+        })
+        .catch(() => {
+          if (shouldSkipFailure) return
+          if (!silentFailure) {
+            message.error(t('texts.messages.shareCopyFailed'))
+          }
+          return false
+        })
+    }
+
+    const urlNow = shareUrl.value
+    if (urlNow && typeof clipboard.writeText === 'function') {
+      return clipboard
+        .writeText(urlNow)
+        .then(() => {
+          if (!silentSuccess) {
+            message.success(t('common.copied'))
+          }
+          return true
+        })
+        .catch(() => {
+          if (!silentFailure) {
+            message.error(t('texts.messages.shareCopyFailed'))
+          }
+          return false
+        })
+    }
+
+    if (typeof clipboard.writeText !== 'function') {
+      return null
+    }
+
+    return blobPromise
+      .then(async (blob) => {
+        const text = await blob.text()
+        if (!text) {
+          shouldSkipFailure = true
+          throw new Error('missing share url')
+        }
+        await clipboard.writeText(text)
+      })
+      .then(() => {
+        if (!silentSuccess) {
+          message.success(t('common.copied'))
+        }
+        return true
+      })
+      .catch(() => {
+        if (shouldSkipFailure) return
+        if (!silentFailure) {
+          message.error(t('texts.messages.shareCopyFailed'))
+        }
+        return false
+      })
+  } catch {
+    // ignore
+  }
+
+  return null
+}
+
 const saveShareAndClose = async () => {
-  const saved = await saveShare()
+  const savePromise = saveShare({ silentSuccess: true })
+  const copyPromise = queueCopyShareUrlAfterSave(savePromise, {
+    silentSuccess: true,
+    silentFailure: true,
+  })
+  const saved = await savePromise
   if (saved) {
     emit('update:show', false)
+    const copied = (await copyPromise) ?? false
+    if (copied) {
+      message.success(t('texts.messages.shareSaveCopied'))
+    } else {
+      message.success(t('texts.messages.shareSaveSuccess'))
+    }
   }
 }
 
