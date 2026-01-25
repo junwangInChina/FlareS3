@@ -5,6 +5,7 @@ import { ensureFilesTable, ensureFileSharesTable } from '../services/dbSchema'
 import { hashPassword, verifyPassword } from '../services/password'
 import { generateDownloadUrl, resolveR2ConfigForKey } from '../services/r2'
 import { buildPage, escapeHtml, htmlResponse } from './sharePage'
+import { generateRandomCode } from '../utils/random'
 
 type LoadFileAuthResult =
   | { response: Response }
@@ -13,15 +14,6 @@ type LoadFileAuthResult =
       file: unknown
       ownerId: string
     }
-
-function generateShareCode(length = 8): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
-  for (let i = 0; i < length; i += 1) {
-    code += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return code
-}
 
 async function loadFileAndAuthorize(
   request: Request,
@@ -156,7 +148,7 @@ export async function upsertFileShare(request: Request, env: Env, fileId: string
     }
 
     for (let i = 0; i < 10; i += 1) {
-      const shareCode = generateShareCode(8)
+      const shareCode = generateRandomCode(8)
       const result = await env.DB.prepare(
         `INSERT INTO file_shares (id, file_id, owner_id, share_code, password_hash, expires_in, expires_at, max_views, views, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
@@ -201,7 +193,7 @@ export async function upsertFileShare(request: Request, env: Env, fileId: string
   const shareId = String((existing as any).id)
   const currentShareCode = String((existing as any).share_code)
 
-  const nextShareCode = regenerate ? generateShareCode(8) : currentShareCode
+  const nextShareCode = regenerate ? generateRandomCode(8) : currentShareCode
 
   const updates: string[] = ['max_views = ?', 'expires_in = ?', 'expires_at = ?', 'updated_at = ?']
   const params: unknown[] = [Math.floor(maxViews), expiresIn, expiresAt, now]
@@ -222,7 +214,7 @@ export async function upsertFileShare(request: Request, env: Env, fileId: string
 
   if (regenerate) {
     for (let i = 0; i < 10; i += 1) {
-      const code = i === 0 ? nextShareCode : generateShareCode(8)
+      const code = i === 0 ? nextShareCode : generateRandomCode(8)
       const loopParams = params.slice()
       ;(loopParams as any)[0] = code
 
@@ -445,7 +437,12 @@ function renderFilePasswordForm({
   meta: string
   error?: string
 }): Response {
-  const errorHtml = error ? `<p class="error">${escapeHtml(error)}</p>` : ''
+  const errorHtml = error
+    ? `<div class="alert alert-error" role="alert">
+  <div class="alert-title">验证失败</div>
+  <p class="alert-message">${escapeHtml(error)}</p>
+</div>`
+    : ''
   const html = buildPage({
     title,
     body: `
@@ -454,13 +451,35 @@ function renderFilePasswordForm({
   <div class="meta">${escapeHtml(meta)}</div>
 </div>
 <div class="body">
-  <p class="muted">该文件需要访问口令。</p>
-  ${errorHtml}
-  <form method="post">
-    <label for="password">访问口令</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" autofocus />
-    <button type="submit">下载文件</button>
-  </form>
+  <div class="centered">
+    <p class="muted">该文件需要访问口令。</p>
+    ${errorHtml}
+    <form method="post">
+      <label for="password">访问口令</label>
+      <div class="input-group">
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="请输入访问口令"
+          required
+          autofocus
+        />
+        <button
+          type="button"
+          class="toggle-btn"
+          data-toggle-password
+          data-target="password"
+          aria-pressed="false"
+        >
+          显示
+        </button>
+      </div>
+      <p class="hint">口令区分大小写；输入后按回车即可。</p>
+      <button type="submit">下载文件</button>
+    </form>
+  </div>
 </div>`,
   })
 
