@@ -20,6 +20,7 @@ import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 import { getUserUsedSpace } from '../services/quota'
 import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
+import { generateRandomCode } from '../utils/random'
 
 const ALLOWED_EXPIRES = new Set([-30, 1, 3, 7, 30])
 const PART_SIZE = 20 * 1024 * 1024
@@ -27,15 +28,6 @@ const PART_SIZE = 20 * 1024 * 1024
 function getFileExtension(filename: string): string {
   const index = filename.lastIndexOf('.')
   return index >= 0 ? filename.slice(index) : ''
-}
-
-function generateShortCode(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
-  for (let i = 0; i < 6; i += 1) {
-    code += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return code
 }
 
 function calcExpiresAt(expiresIn: number): Date {
@@ -61,7 +53,7 @@ async function createFileRecord(
   const expiresAt = calcExpiresAt(expiresIn)
   let shortCode = ''
   for (let i = 0; i < 10; i += 1) {
-    shortCode = generateShortCode()
+    shortCode = generateRandomCode(6)
     const now = new Date().toISOString()
     const result = await env.DB.prepare(
       `INSERT INTO files (id, owner_id, filename, r2_key, size, content_type, expires_in, created_at, expires_at, upload_status, short_code, require_login)
