@@ -43,16 +43,12 @@ npx wrangler d1 execute DB --local --file=src/db/schema.sql
 ### 2) 配置环境变量
 
 - 复制 `worker/.dev.vars.example` 为 `worker/.dev.vars`
-- 设置以下必需变量（默认使用环境变量配置 R2）：
+- 设置以下必需变量：
   - `BOOTSTRAP_ADMIN_USER`
   - `BOOTSTRAP_ADMIN_PASS`
-  - `R2_ENDPOINT`
-  - `R2_ACCESS_KEY_ID`
-  - `R2_SECRET_ACCESS_KEY`
-  - `R2_BUCKET`
-  - `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变）
+  - `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变，用于加密/解密 UI 保存的 R2 访问密钥）
 
-> 如需通过 UI 向导配置 R2：不要设置 `R2_ENDPOINT/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY/R2_BUCKET`，仅保留 `R2_MASTER_KEY`，并在 `/setup` 完成配置。
+> R2 访问配置（Endpoint / Access Key / Secret Key / Bucket）请在管理页 `/setup` 中通过 UI 创建/管理（写入 D1）。
 
 ### 3) 启动服务（分别启动）
 
@@ -125,9 +121,7 @@ npm run format:check
      - `BOOTSTRAP_ADMIN_USER`
      - `BOOTSTRAP_ADMIN_PASS`
      - `R2_MASTER_KEY`（32 字节 base64；需要长期保持不变）
-   - R2 配置方式二选一：
-     - 环境变量直配（推荐自动化）：额外设置 `R2_ENDPOINT`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`、`R2_BUCKET`
-     - UI 向导配置：不设置上述 `R2_*`（保留 `R2_MASTER_KEY`），部署后访问 `/setup` 配置
+   - R2 访问配置（Endpoint / Access Key / Secret Key / Bucket）请部署后访问 `/setup` 在 UI 中创建/管理（写入 D1）。
    - 非敏感配置（可在 `worker/wrangler.toml` 的 `[vars]` 调整）：`MAX_FILE_SIZE`、`TOTAL_STORAGE`
 
 #### 1) GitHub 仓库配置（一次性）
@@ -173,7 +167,7 @@ npm run format:check
   - `/t/*` -> Worker
 - **单 Worker 全栈部署（Worker Only）**：绑定 Worker 路由：
   - `/*` -> Worker
-- 如未配置 `R2_*`，登录后在 `/setup` 完成 R2 配置
+- 登录后在 `/setup` 完成 R2 配置
 
 ### R2 CORS（必须）
 
