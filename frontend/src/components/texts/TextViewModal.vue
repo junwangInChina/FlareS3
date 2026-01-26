@@ -1,5 +1,10 @@
 <template>
-  <Modal :show="show" :title="t('texts.modals.viewTitle')" width="720px" @update:show="handleUpdateShow">
+  <Modal
+    :show="show"
+    :title="t('texts.modals.viewTitle')"
+    width="720px"
+    @update:show="handleUpdateShow"
+  >
     <template v-if="loading">
       <div class="modal-state">{{ t('texts.state.loading') }}</div>
     </template>
@@ -34,6 +39,7 @@ import { computed, ref, watch } from 'vue'
 import { Copy } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 import Modal from '../ui/modal/Modal.vue'
 import Button from '../ui/button/Button.vue'
 import api from '../../services/api'
@@ -80,55 +86,13 @@ const isLikelyMarkdown = (value) => {
 }
 
 const sanitizeMarkdownHtml = (html) => {
-  if (typeof window === 'undefined') return html
   if (!html) return ''
 
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-
-  doc.querySelectorAll('script, iframe, object, embed, style').forEach((el) => el.remove())
-  doc.querySelectorAll('img').forEach((img) => img.remove())
-
-  doc.querySelectorAll('*').forEach((el) => {
-    for (const attr of Array.from(el.attributes)) {
-      if (attr.name.toLowerCase().startsWith('on')) {
-        el.removeAttribute(attr.name)
-      }
-    }
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['img'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[/#.])/i,
   })
-
-  doc.querySelectorAll('a').forEach((anchor) => {
-    const rawHref = anchor.getAttribute('href') || ''
-    const isRelative =
-      rawHref.startsWith('#') ||
-      rawHref.startsWith('/') ||
-      rawHref.startsWith('./') ||
-      rawHref.startsWith('../')
-
-    let isSafe = isRelative
-    let isExternal = false
-
-    if (!isSafe) {
-      try {
-        const url = new URL(rawHref, window.location.origin)
-        isExternal = url.origin !== window.location.origin
-        isSafe = ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)
-      } catch {
-        isSafe = false
-      }
-    }
-
-    if (!isSafe) {
-      anchor.removeAttribute('href')
-      return
-    }
-
-    if (isExternal) {
-      anchor.setAttribute('target', '_blank')
-      anchor.setAttribute('rel', 'noopener noreferrer')
-    }
-  })
-
-  return doc.body.innerHTML
 }
 
 const renderMarkdown = (value) => {
@@ -219,7 +183,15 @@ watch(
 
 .text-viewer-content {
   margin: 0;
-  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --nb-font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   font-size: var(--nb-font-size-sm);
   line-height: 1.6;
   white-space: pre-wrap;
@@ -293,7 +265,15 @@ watch(
 }
 
 .text-viewer-markdown :deep(code) {
-  font-family: var(--nb-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(
+    --nb-font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
   font-size: 0.9em;
 }
 
