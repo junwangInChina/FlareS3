@@ -13,7 +13,7 @@ TOTAL_STORAGE = "10737418240"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "flares3-r2"
+database_name = "flares3-db"
 database_id = "REPLACE_WITH_D1_ID"
 
 [[triggers.crons]]
