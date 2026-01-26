@@ -48,6 +48,7 @@ npx wrangler d1 execute DB --local --file=src/db/schema.sql
   - `BOOTSTRAP_ADMIN_PASS`
   - `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变，用于加密/解密 UI 保存的 R2 访问密钥）
 
+> 注意：`worker/.dev.vars` 仅用于本地 `wrangler dev`；生产环境请在 Cloudflare Dashboard 或 `wrangler secret put` 配置变量与 Secrets（不要提交/分享该文件）。  
 > R2 访问配置（Endpoint / Access Key / Secret Key / Bucket）请在管理页 `/setup` 中通过 UI 创建/管理（写入 D1）。
 
 ### 3) 启动服务（分别启动）
@@ -81,21 +82,29 @@ npm run format:check
 - **拆分部署（Pages + Worker）**：前端用 Cloudflare Pages，后端用 Cloudflare Workers（同域接管 `/api/*`、`/s/*`、`/f/*`、`/t/*`）
 - **单 Worker 全栈部署（Worker Only）**：只部署一个 Worker，同域提供前端静态资源 + 后端 API（Worker 接管 `/*`）
 
+默认命名约定：
+
+- 拆分部署：
+  - Pages 项目名：`flares3-pages`
+  - Worker 名称：`flares3-worker`（见 `worker/wrangler.toml`）
+- 单 Worker 全栈部署：
+  - Worker 名称：`flares3-spa`（见 `worker/wrangler.full.toml`）
+
 ### 手动部署
 
 #### A) 拆分部署（Pages + Worker）
 
-1. 创建/绑定 D1 与 R2（并在 `worker/wrangler.toml` 填写实际 `database_id`）
-2. 设置 Secrets（见 `worker/.dev.vars.example`）
-3. 部署 Worker（`wrangler deploy`）
+1. 创建/绑定 D1（默认配置使用 `flares3-db`）与 R2（并在 `worker/wrangler.toml` 填写实际 `database_id`）
+2. 设置 Worker 运行时变量 / Secrets（生产环境请在 Cloudflare Dashboard 或 `wrangler secret put` 配置；`.dev.vars` 仅本地开发；使用 GitHub Actions 自动创建 D1 时可忽略 `database_id` 占位符）
+3. 部署 Worker（`wrangler deploy`，部署/更新 `flares3-worker`）
 4. Pages 绑定路由：`/api/*`、`/s/*`、`/f/*`、`/t/*`
 
 #### B) 单 Worker 全栈部署（Worker Only）
 
-1. 创建/绑定 D1 与 R2（并在 `worker/wrangler.full.toml` 填写实际 `database_id`）
-2. 设置 Secrets（见 `worker/.dev.vars.example`）
+1. 创建/绑定 D1（默认配置使用 `flares3-db`）与 R2（并在 `worker/wrangler.full.toml` 填写实际 `database_id`）
+2. 设置 Worker 运行时变量 / Secrets（生产环境请在 Cloudflare Dashboard 或 `wrangler secret put` 配置；`.dev.vars` 仅本地开发；使用 GitHub Actions 自动创建 D1 时可忽略 `database_id` 占位符）
 3. 构建前端（生成 `frontend/dist`）：`npm --prefix frontend run build`
-4. 部署 Worker（全栈）：`npm --prefix worker run deploy:full`
+4. 部署 Worker（全栈）：`npm --prefix worker run deploy:full`（部署/更新 `flares3-spa`）
 5. 在 Cloudflare Dashboard 绑定 Worker 路由：`/*` -> Worker（此模式不再需要 Pages 项目）
 
 ### 自动化部署（可选）
@@ -109,18 +118,20 @@ npm run format:check
 
 #### 0) Cloudflare 侧准备（一次性）
 
-1. 创建 D1 数据库
-   - 默认使用 `database_name = "flares3-r2"`（见 `worker/wrangler.toml`，可改但需保持一致）
-   - 将 D1 的 `database_id` 写入 `worker/wrangler.toml`（拆分部署）或 `worker/wrangler.full.toml`（单 Worker 全栈），替换 `REPLACE_WITH_D1_ID`
+1. 准备 D1 数据库（名称：`flares3-db`）
+   - GitHub Actions 部署时会自动：检查是否存在 `flares3-db`，不存在则创建，并自动把 `database_id` 注入到临时 Wrangler 配置中（不会把真实 ID 提交到仓库）。
+   - 因此你**不需要**手动修改 `worker/wrangler*.toml` 里的 `REPLACE_WITH_D1_ID`（CI 会覆盖）。
+   - ⚠️ 前提：`CLOUDFLARE_API_TOKEN` 需要具备 **D1 Edit** 权限，否则无法 list/create/execute。
 2. 创建 Pages 项目（Direct Upload / CLI）
-   - 项目名用于 GitHub Variable：`CLOUDFLARE_PAGES_PROJECT_NAME`
-   - 仅 **拆分部署** 需要
+   - 项目名固定为：`flares3-pages`（`deploy.yml` 已写死）
+   - 仅 **拆分部署（Pages + Worker）** 需要
 3. 配置 Worker 运行时变量 / Secrets（生产环境）
-   - 位置：Cloudflare Dashboard -> Workers & Pages -> Workers -> `flares3` -> Settings/Variables
-   - Secrets（至少需要）：
-     - `BOOTSTRAP_ADMIN_USER`
-     - `BOOTSTRAP_ADMIN_PASS`
-     - `R2_MASTER_KEY`（32 字节 base64；需要长期保持不变）
+   - 位置：Cloudflare Dashboard -> Workers & Pages -> Workers -> `flares3-worker`（拆分部署）/ `flares3-spa`（单 Worker 全栈） -> Settings/Variables
+   - 建议配置：
+     - `BOOTSTRAP_ADMIN_USER`：普通变量（非敏感）
+     - `BOOTSTRAP_ADMIN_PASS`：Secret（敏感，强密码）
+     - `R2_MASTER_KEY`：Secret（32 字节 base64；需要长期保持不变）
+   - ⚠️ `worker/.dev.vars` 仅用于本地 `wrangler dev`；生产环境不要提交/分享该文件。
    - R2 访问配置（Endpoint / Access Key / Secret Key / Bucket）请部署后访问 `/setup` 在 UI 中创建/管理（写入 D1）。
    - 非敏感配置（可在 `worker/wrangler.toml` 的 `[vars]` 调整）：`MAX_FILE_SIZE`、`TOTAL_STORAGE`
 
@@ -131,8 +142,7 @@ npm run format:check
 - Secrets：
   - `CLOUDFLARE_API_TOKEN`（API Token 权限至少包含：Workers 部署、Pages 部署、D1 执行）
   - `CLOUDFLARE_ACCOUNT_ID`
-- Variables：
-  - `CLOUDFLARE_PAGES_PROJECT_NAME`
+- Variables：无（`deploy.yml` 已固定 Pages 项目名为 `flares3-pages`）
 
 > 获取方式：`CLOUDFLARE_API_TOKEN` 在 Cloudflare Dashboard -> My Profile -> API Tokens 创建；`CLOUDFLARE_ACCOUNT_ID` 可在 Cloudflare Dashboard 任意页面的 Account 信息处查看。
 
@@ -147,26 +157,28 @@ npm run format:check
 
 1. 安装依赖（`worker/`、`frontend/`）
 2. `npm run lint` / `npm run typecheck` / `npm run build`
-3. 执行 D1 幂等初始化：`wrangler d1 execute DB --remote --file=src/db/schema.sql --yes`
-4. 部署 Worker：`wrangler deploy`
-5. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=$CLOUDFLARE_PAGES_PROJECT_NAME --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
+3. 确保 D1 数据库 `flares3-db` 存在（不存在则创建），并生成临时 `worker/wrangler.ci.toml`（注入 `database_id`）
+4. 执行 D1 幂等初始化：`wrangler --config wrangler.ci.toml d1 execute DB --remote --file=src/db/schema.sql --yes`
+5. 部署 Worker：`wrangler --config wrangler.ci.toml deploy`
+6. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=flares3-pages --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
 
 `deploy-worker-only.yml` 会依次执行：
 
 1. 安装依赖（`worker/`、`frontend/`）
 2. `npm run lint` / `npm run typecheck` / `npm run build`
-3. 执行 D1 幂等初始化：`wrangler d1 execute DB --remote --file=src/db/schema.sql --yes`
-4. 部署 Worker（全栈）：`wrangler deploy --config wrangler.full.toml`
+3. 确保 D1 数据库 `flares3-db` 存在（不存在则创建），并生成临时 `worker/wrangler.full.ci.toml`（注入 `database_id`）
+4. 执行 D1 幂等初始化：`wrangler --config wrangler.full.ci.toml d1 execute DB --remote --file=src/db/schema.sql --yes`
+5. 部署 Worker（全栈）：`wrangler --config wrangler.full.ci.toml deploy`
 
 ### 部署后操作
 
-- **拆分部署（Pages + Worker）**：在 Cloudflare Dashboard 绑定 Worker 路由：
-  - `/api/*` -> Worker
-  - `/s/*` -> Worker
-  - `/f/*` -> Worker
-  - `/t/*` -> Worker
-- **单 Worker 全栈部署（Worker Only）**：绑定 Worker 路由：
-  - `/*` -> Worker
+- **拆分部署（Pages + Worker）**：在 Cloudflare Dashboard 绑定 Worker 路由（指向 `flares3-worker`）：
+  - `/api/*` -> `flares3-worker`
+  - `/s/*` -> `flares3-worker`
+  - `/f/*` -> `flares3-worker`
+  - `/t/*` -> `flares3-worker`
+- **单 Worker 全栈部署（Worker Only）**：绑定 Worker 路由（指向 `flares3-spa`）：
+  - `/*` -> `flares3-spa`
 - 登录后在 `/setup` 完成 R2 配置
 
 ### R2 CORS（必须）
