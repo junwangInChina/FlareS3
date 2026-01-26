@@ -131,7 +131,7 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
 
 export async function downloadFile(request: Request, env: Env, fileId: string): Promise<Response> {
   const file = await env.DB.prepare(
-    `SELECT id, filename, r2_key, expires_at, upload_status, require_login FROM files WHERE id = ? LIMIT 1`
+    `SELECT id, owner_id, filename, r2_key, expires_at, upload_status, require_login FROM files WHERE id = ? LIMIT 1`
   )
     .bind(fileId)
     .first()
@@ -149,10 +149,17 @@ export async function downloadFile(request: Request, env: Env, fileId: string): 
   if (Date.now() > expiresAtMs) {
     return jsonResponse({ error: '文件已过期' }, 410)
   }
+
   const user = getUser(request)
-  if (Number(file.require_login) === 1 && !user) {
+  const requireLogin = Number(file.require_login) === 1
+  if (requireLogin && !user) {
     const next = encodeURIComponent(`/api/files/${fileId}/download`)
     return redirect(`/login?next=${next}`, 302)
+  }
+
+  // require_login=1：仅允许 owner / admin 直接下载；其他用户必须通过分享链接下载
+  if (requireLogin && user && user.role !== 'admin' && String(file.owner_id) !== user.id) {
+    return jsonResponse({ error: '无权限' }, 403)
   }
 
   const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
