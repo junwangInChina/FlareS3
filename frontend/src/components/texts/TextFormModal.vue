@@ -84,6 +84,7 @@ import {
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 import Modal from '../ui/modal/Modal.vue'
 import FormItem from '../ui/form-item/FormItem.vue'
 import Input from '../ui/input/Input.vue'
@@ -147,55 +148,13 @@ const markdownToolbarActions = computed(() => [
 ])
 
 const sanitizeMarkdownHtml = (html) => {
-  if (typeof window === 'undefined') return html
   if (!html) return ''
 
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-
-  doc.querySelectorAll('script, iframe, object, embed, style').forEach((el) => el.remove())
-  doc.querySelectorAll('img').forEach((img) => img.remove())
-
-  doc.querySelectorAll('*').forEach((el) => {
-    for (const attr of Array.from(el.attributes)) {
-      if (attr.name.toLowerCase().startsWith('on')) {
-        el.removeAttribute(attr.name)
-      }
-    }
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['img'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[/#.])/i,
   })
-
-  doc.querySelectorAll('a').forEach((anchor) => {
-    const rawHref = anchor.getAttribute('href') || ''
-    const isRelative =
-      rawHref.startsWith('#') ||
-      rawHref.startsWith('/') ||
-      rawHref.startsWith('./') ||
-      rawHref.startsWith('../')
-
-    let isSafe = isRelative
-    let isExternal = false
-
-    if (!isSafe) {
-      try {
-        const url = new URL(rawHref, window.location.origin)
-        isExternal = url.origin !== window.location.origin
-        isSafe = ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)
-      } catch {
-        isSafe = false
-      }
-    }
-
-    if (!isSafe) {
-      anchor.removeAttribute('href')
-      return
-    }
-
-    if (isExternal) {
-      anchor.setAttribute('target', '_blank')
-      anchor.setAttribute('rel', 'noopener noreferrer')
-    }
-  })
-
-  return doc.body.innerHTML
 }
 
 const renderMarkdown = (value) => {
