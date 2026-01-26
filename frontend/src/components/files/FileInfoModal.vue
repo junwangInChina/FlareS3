@@ -99,6 +99,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 import Modal from '../ui/modal/Modal.vue'
 import Divider from '../ui/divider/Divider.vue'
 import Input from '../ui/input/Input.vue'
@@ -227,55 +228,15 @@ const setPreviewCache = (key, value) => {
 }
 
 const sanitizeMarkdownHtml = (html) => {
-  if (typeof window === 'undefined') return html
   if (!html) return ''
 
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-
-  doc.querySelectorAll('script, iframe, object, embed, style').forEach((el) => el.remove())
-  doc.querySelectorAll('img').forEach((img) => img.remove())
-
-  doc.querySelectorAll('*').forEach((el) => {
-    for (const attr of Array.from(el.attributes)) {
-      if (attr.name.toLowerCase().startsWith('on')) {
-        el.removeAttribute(attr.name)
-      }
-    }
+  // DOMPurify 默认会移除危险标签/属性（含 on* 事件、javascript: URL 等）
+  // 这里额外禁用 img，避免通过图片进行外联追踪 / 带宽消耗
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['img'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[/#.])/i,
   })
-
-  doc.querySelectorAll('a').forEach((anchor) => {
-    const rawHref = anchor.getAttribute('href') || ''
-    const isRelative =
-      rawHref.startsWith('#') ||
-      rawHref.startsWith('/') ||
-      rawHref.startsWith('./') ||
-      rawHref.startsWith('../')
-
-    let isSafe = isRelative
-    let isExternal = false
-
-    if (!isSafe) {
-      try {
-        const url = new URL(rawHref, window.location.origin)
-        isExternal = url.origin !== window.location.origin
-        isSafe = ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)
-      } catch {
-        isSafe = false
-      }
-    }
-
-    if (!isSafe) {
-      anchor.removeAttribute('href')
-      return
-    }
-
-    if (isExternal) {
-      anchor.setAttribute('target', '_blank')
-      anchor.setAttribute('rel', 'noopener noreferrer')
-    }
-  })
-
-  return doc.body.innerHTML
 }
 
 const md = new MarkdownIt({ html: false, linkify: false, breaks: true })
