@@ -1,8 +1,6 @@
 name: Deploy
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -76,6 +74,22 @@ jobs:
           sed -E "s/^database_id[[:space:]]*=[[:space:]]*\".*\"/database_id = \"${D1_ID}\"/" wrangler.toml > wrangler.ci.toml
 
           echo "WRANGLER_CI_CONFIG=wrangler.ci.toml" >> "${GITHUB_ENV}"
+
+      - name: Ensure Pages project exists (flares3-pages)
+        working-directory: "worker"
+        run: |
+          set -euo pipefail
+
+          PROJECT_NAME="flares3-pages"
+          PRODUCTION_BRANCH="main"
+
+          echo "Ensuring Pages project exists: ${PROJECT_NAME}"
+          if npx wrangler pages project list | grep -Fq "${PROJECT_NAME}"; then
+            echo "Pages project exists: ${PROJECT_NAME}"
+          else
+            echo "Pages project not found, creating: ${PROJECT_NAME}"
+            npx wrangler pages project create "${PROJECT_NAME}" --production-branch "${PRODUCTION_BRANCH}"
+          fi
 
       - name: Install frontend dependencies
         working-directory: "frontend"
