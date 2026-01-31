@@ -111,21 +111,24 @@ npm run format:check
 
 仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖并执行 `lint/typecheck/build`。
 
-如需 CD（由 GitHub Actions 发布），可选两套工作流：
+如需 CD（由 GitHub Actions 发布），仓库提供两套工作流：
 
-- **拆分部署（Pages + Worker）**：`.github/workflows/deploy.yml`
-- **单 Worker 全栈部署（Worker Only）**：`.github/workflows/deploy-worker-only.yml`
+- **单 Worker 全栈部署（默认自动）**：`.github/workflows/deploy-worker-only.yml`
+  - 推送到 `main` 会自动触发（生产发布）
+  - 也可在 GitHub Actions 页面手动触发（`workflow_dispatch`）
+- **拆分部署（Pages + Worker，手动）**：`.github/workflows/deploy.yml`
+  - 仅在 GitHub Actions 页面手动触发（`workflow_dispatch`）
 
 #### 0) Cloudflare 侧准备（一次性）
 
-1. 准备 D1 数据库（名称：`flares3-db`）
-   - GitHub Actions 部署时会自动：检查是否存在 `flares3-db`，不存在则创建，并自动把 `database_id` 注入到临时 Wrangler 配置中（不会把真实 ID 提交到仓库）。
-   - 因此你**不需要**手动修改 `worker/wrangler*.toml` 里的 `REPLACE_WITH_D1_ID`（CI 会覆盖）。
-   - ⚠️ 前提：`CLOUDFLARE_API_TOKEN` 需要具备 **D1 Edit** 权限，否则无法 list/create/execute。
-2. 创建 Pages 项目（Direct Upload / CLI）
-   - 项目名固定为：`flares3-pages`（`deploy.yml` 已写死）
-   - 仅 **拆分部署（Pages + Worker）** 需要
-3. 配置 Worker 运行时变量 / Secrets（生产环境）
+> 说明：工作流会在 CI 中自动确保：
+>
+> - D1 数据库 `flares3-db` 存在（不存在则创建），并把 `database_id` 注入到临时 Wrangler 配置中（不会把真实 ID 提交到仓库）
+> - （仅拆分部署）Pages 项目 `flares3-pages` 存在（不存在则创建）
+>
+> ⚠️ 前提：`CLOUDFLARE_API_TOKEN` 需要具备 **Workers 部署 / Pages 部署 / D1 Edit** 权限，否则无法 list/create/execute。
+
+1. 配置 Worker 运行时变量 / Secrets（生产环境）
    - 位置：Cloudflare Dashboard -> Workers & Pages -> Workers -> `flares3-worker`（拆分部署）/ `flares3-spa`（单 Worker 全栈） -> Settings/Variables
    - 建议配置：
      - `BOOTSTRAP_ADMIN_USER`：普通变量（非敏感）
@@ -148,19 +151,20 @@ npm run format:check
 
 #### 2) 触发部署
 
-- 推送到 `main` 分支会自动触发 `Deploy` 工作流
-- 或在 GitHub Actions 页面手动触发（`workflow_dispatch`）
+- 推送到 `main` 分支会自动触发 **单 Worker 全栈部署**：`deploy-worker-only.yml`
+- **拆分部署（Pages + Worker）**：在 GitHub Actions 页面手动触发 `deploy.yml`（`workflow_dispatch`）
 
 #### 3) 部署流程做了什么
 
 `deploy.yml` 会依次执行：
 
 1. 安装依赖（`worker/`、`frontend/`）
-2. `npm run lint` / `npm run typecheck` / `npm run build`
-3. 确保 D1 数据库 `flares3-db` 存在（不存在则创建），并生成临时 `worker/wrangler.ci.toml`（注入 `database_id`）
-4. 执行 D1 幂等初始化：`wrangler --config wrangler.ci.toml d1 execute DB --remote --file=src/db/schema.sql --yes`
-5. 部署 Worker：`wrangler --config wrangler.ci.toml deploy`
-6. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=flares3-pages --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
+2. 确保 D1 数据库 `flares3-db` 存在（不存在则创建），并生成临时 `worker/wrangler.ci.toml`（注入 `database_id`）
+3. 确保 Pages 项目 `flares3-pages` 存在（不存在则创建；仅拆分部署需要）
+4. `npm run lint` / `npm run typecheck` / `npm run build`
+5. 执行 D1 幂等初始化：`wrangler --config wrangler.ci.toml d1 execute DB --remote --file=src/db/schema.sql --yes`
+6. 部署 Worker：`wrangler --config wrangler.ci.toml deploy`
+7. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=flares3-pages --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
 
 `deploy-worker-only.yml` 会依次执行：
 
