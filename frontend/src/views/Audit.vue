@@ -124,7 +124,7 @@ import Modal from '../components/ui/modal/Modal.vue'
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
-const { t, locale } = useI18n({ useScope: 'global' })
+const { t, locale, te } = useI18n({ useScope: 'global' })
 const themeStore = useThemeStore()
 const logs = ref([])
 const loading = ref(false)
@@ -147,6 +147,11 @@ const knownActions = [
   'LOGIN_FAILED',
   'LOGIN_SUCCESS',
   'R2_CONFIG_UPDATE',
+  'TEXT_CREATE',
+  'TEXT_DELETE',
+  'TEXT_UPDATE',
+  'UPLOAD_ABORT',
+  'UPLOAD_EXPIRE',
   'UPLOAD_PRESIGN',
   'USER_CREATE',
   'USER_DISABLE',
@@ -155,6 +160,15 @@ const knownActions = [
   'USER_RESET_PASSWORD',
   'USER_UPDATE',
 ]
+
+const getActionLabel = (action) => {
+  const normalized = String(action ?? '').trim()
+  if (!normalized) return '-'
+
+  const key = `audit.actionLabels.${normalized}`
+  if (te(key)) return t(key)
+  return normalized
+}
 
 const actionOptions = computed(() => {
   const actionSet = new Set(knownActions)
@@ -169,11 +183,13 @@ const actionOptions = computed(() => {
     actionSet.add(currentAction)
   }
 
+  const sortedActions = Array.from(actionSet).sort((a, b) =>
+    getActionLabel(a).localeCompare(getActionLabel(b), locale.value)
+  )
+
   return [
     { label: t('audit.allActions'), value: '' },
-    ...Array.from(actionSet)
-      .sort((a, b) => a.localeCompare(b, locale.value))
-      .map((action) => ({ label: action, value: action })),
+    ...sortedActions.map((action) => ({ label: getActionLabel(action), value: action })),
   ]
 })
 
