@@ -60,8 +60,18 @@ jobs:
           D1_ID="$(npx wrangler d1 list --json | jq -r --arg name "${DB_NAME}" '.[] | select(.name==$name) | (.uuid // .database_id // .id)' | head -n 1)"
           if [ -z "${D1_ID}" ] || [ "${D1_ID}" = "null" ]; then
             echo "D1 database not found, creating: ${DB_NAME}"
-            CREATE_JSON="$(npx wrangler d1 create "${DB_NAME}" --json)"
-            D1_ID="$(echo "${CREATE_JSON}" | jq -r '(.uuid // .database_id // .id)')"
+            if ! npx wrangler d1 create "${DB_NAME}"; then
+              echo "wrangler d1 create failed (it may already exist); continuing to resolve id via list"
+            fi
+
+            # `wrangler d1 create` does not support --json, so resolve id via list (with retry)
+            for i in 1 2 3 4 5; do
+              D1_ID="$(npx wrangler d1 list --json | jq -r --arg name "${DB_NAME}" '.[] | select(.name==$name) | (.uuid // .database_id // .id)' | head -n 1)"
+              if [ -n "${D1_ID}" ] && [ "${D1_ID}" != "null" ]; then
+                break
+              fi
+              sleep 2
+            done
           fi
 
           if [ -z "${D1_ID}" ] || [ "${D1_ID}" = "null" ]; then
