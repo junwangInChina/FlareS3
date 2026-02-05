@@ -54,18 +54,54 @@ jobs:
             exit 1
           fi
 
+          retry_on_7009() {
+            local max_attempts="$1"
+            shift
+            local attempt=1
+            local delay=2
+            local out
+
+            while true; do
+              if out="$($@ 2>&1)"; then
+                echo "${out}"
+                return 0
+              fi
+
+              if echo "${out}" | grep -q "code: 7009"; then
+                if [ "${attempt}" -ge "${max_attempts}" ]; then
+                  echo "${out}" >&2
+                  return 1
+                fi
+                echo "Wrangler failed with code 7009 (Upstream service unavailable). Retry ${attempt}/${max_attempts} in ${delay}s..." >&2
+                sleep "${delay}"
+                attempt=$((attempt + 1))
+                delay=$((delay * 2))
+                continue
+              fi
+
+              echo "${out}" >&2
+              return 1
+            done
+          }
+
           DB_NAME="flares3-db"
 
-          D1_ID="$(npx wrangler d1 list --json | jq -r --arg name "${DB_NAME}" '.[] | select(.name==$name) | (.uuid // .database_id // .id)' | head -n 1)"
+          # D1 list can intermittently fail with Cloudflare API 7009. Retry with backoff.
+          D1_LIST_JSON="$(retry_on_7009 6 npx wrangler d1 list --json)"
+          D1_ID="$(echo "${D1_LIST_JSON}" | jq -r --arg name "${DB_NAME}" '.[] | select(.name==$name) | (.uuid // .database_id // .id)' | head -n 1)"
+
           if [ -z "${D1_ID}" ] || [ "${D1_ID}" = "null" ]; then
             echo "D1 database not found, creating: ${DB_NAME}"
-            if ! npx wrangler d1 create "${DB_NAME}"; then
-              echo "wrangler d1 create failed (it may already exist); continuing to resolve id via list"
+
+            # D1 create can also intermittently fail with 7009.
+            if ! retry_on_7009 6 npx wrangler d1 create "${DB_NAME}"; then
+              echo "wrangler d1 create failed (it may already exist or be temporarily unavailable); continuing to resolve id via list" >&2
             fi
 
-            # `wrangler d1 create` does not support --json, so resolve id via list (with retry)
+            # Resolve id via list (with retry)
             for i in 1 2 3 4 5; do
-              D1_ID="$(npx wrangler d1 list --json | jq -r --arg name "${DB_NAME}" '.[] | select(.name==$name) | (.uuid // .database_id // .id)' | head -n 1)"
+              D1_LIST_JSON="$(retry_on_7009 6 npx wrangler d1 list --json)"
+              D1_ID="$(echo "${D1_LIST_JSON}" | jq -r --arg name "${DB_NAME}" '.[] | select(.name==$name) | (.uuid // .database_id // .id)' | head -n 1)"
               if [ -n "${D1_ID}" ] && [ "${D1_ID}" != "null" ]; then
                 break
               fi
@@ -74,7 +110,7 @@ jobs:
           fi
 
           if [ -z "${D1_ID}" ] || [ "${D1_ID}" = "null" ]; then
-            echo "Failed to resolve D1 database id for ${DB_NAME}"
+            echo "Failed to resolve D1 database id for ${DB_NAME}" >&2
             exit 1
           fi
 
