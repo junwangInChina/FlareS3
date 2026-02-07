@@ -153,7 +153,16 @@
 
 <script setup>
 import { ref, h, onMounted, computed, watch } from 'vue'
-import { Info, Trash2, RefreshCw, Search, Upload, LayoutGrid, Table2, Share2 } from 'lucide-vue-next'
+import {
+  Info,
+  Trash2,
+  RefreshCw,
+  Search,
+  Upload,
+  LayoutGrid,
+  Table2,
+  Share2,
+} from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
@@ -256,8 +265,8 @@ const getFileStatus = (row) => {
   const text = deleted
     ? t('files.status.invalid')
     : expired
-    ? t('files.status.expired')
-    : t('files.status.valid')
+      ? t('files.status.expired')
+      : t('files.status.valid')
   const tagType = deleted ? 'danger' : expired ? 'warning' : 'success'
 
   return { deleted, expired, text, tagType }
@@ -347,7 +356,14 @@ const columns = computed(() => [
   {
     title: t('files.columns.actions'),
     key: 'actions',
-    width: locale.value === 'zh-CN' ? themeStore.uiTheme === 'shadcn' ? 280 : 330 : themeStore.uiTheme === 'shadcn' ? 330 : 380,
+    width:
+      locale.value === 'zh-CN'
+        ? themeStore.uiTheme === 'shadcn'
+          ? 280
+          : 330
+        : themeStore.uiTheme === 'shadcn'
+          ? 330
+          : 380,
     align: 'center',
     ellipsis: false,
     render: (row) => {
