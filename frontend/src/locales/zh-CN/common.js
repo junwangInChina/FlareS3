@@ -29,6 +29,7 @@ export default {
   },
   nav: {
     files: '文件',
+    mount: '挂载',
     texts: '文档',
     users: '用户',
     audit: '日志',
