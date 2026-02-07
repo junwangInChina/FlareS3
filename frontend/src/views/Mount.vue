@@ -91,8 +91,8 @@
                   <span class="breadcrumb-root" :class="{ clickable: prefix }" @click="goRoot"
                     >/</span
                   >
-                  <template v-for="item in breadcrumbItems" :key="item.prefix">
-                    <span class="breadcrumb-sep">/</span>
+                  <template v-for="(item, index) in breadcrumbItems" :key="item.prefix">
+                    <span v-if="index > 0" class="breadcrumb-sep">/</span>
                     <span class="breadcrumb-item clickable" @click="navigateToPrefix(item.prefix)">
                       {{ item.label }}
                     </span>
@@ -432,7 +432,7 @@ const tableData = computed(() => {
         last_modified: obj?.last_modified,
       }
     })
-    .filter((row) => row.key)
+    .filter((row) => row.key && row.key !== basePrefix)
 
   return [...folderRows, ...objectRows]
 })
@@ -455,7 +455,9 @@ const columns = computed(() => [
             onClick,
           },
           [
-            isFolder ? h('span', { class: 'mount-name-icon' }, [h(FolderOpen, { size: 16 })]) : null,
+            isFolder
+              ? h('span', { class: 'mount-name-icon' }, [h(FolderOpen, { size: 16 })])
+              : null,
             h('span', { class: 'mount-name-text' }, displayName),
           ]
         )
