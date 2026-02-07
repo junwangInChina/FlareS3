@@ -1,10 +1,5 @@
 <template>
-  <Modal
-    :show="show"
-    :title="modalTitle"
-    width="420px"
-    @update:show="handleUpdateShow"
-  >
+  <Modal :show="show" :title="modalTitle" width="420px" @update:show="handleUpdateShow">
     <template v-if="loading">
       <div class="modal-state">{{ t('texts.state.loading') }}</div>
     </template>
@@ -103,7 +98,8 @@ const loadQr = async () => {
     const rawMessage = error?.message ? String(error.message) : ''
     const looksLikeTooLarge = /too (big|large|long)|data.*(too (big|large|long))/i.test(rawMessage)
     const msg =
-      backendError || (looksLikeTooLarge ? t('texts.messages.qrcodeTooLarge') : rawMessage || fallback)
+      backendError ||
+      (looksLikeTooLarge ? t('texts.messages.qrcodeTooLarge') : rawMessage || fallback)
     errorText.value = msg
     message.error(msg)
   } finally {
