@@ -10,6 +10,16 @@
         </div>
 
         <div class="mount-actions">
+          <div class="mount-config-select">
+            <Select
+              v-model="selectedConfigId"
+              :options="configOptions"
+              size="small"
+              :disabled="configsLoading || !configOptions.length"
+              :placeholder="t('mount.state.noConfigSelectedTitle')"
+            />
+          </div>
+
           <Button
             type="default"
             size="small"
@@ -25,26 +35,6 @@
 
       <section class="mount-toolbar">
         <div class="filter-row">
-          <div class="filter-item config">
-            <Select
-              v-model="selectedConfigId"
-              :options="configOptions"
-              size="small"
-              :disabled="configsLoading || !configOptions.length"
-              :placeholder="t('mount.state.noConfigSelectedTitle')"
-            />
-          </div>
-
-          <div class="filter-item limit">
-            <Select
-              v-model="limit"
-              :options="limitOptions"
-              size="small"
-              :disabled="loading"
-              :placeholder="t('mount.filters.limit')"
-            />
-          </div>
-
           <div class="filter-item prefix">
             <Input
               v-model="prefixInput"
@@ -120,20 +110,18 @@
             </div>
           </template>
 
-          <template #header-extra>
-            <div class="mount-pagination">
-              <Button type="default" size="small" :disabled="loading || !canPrev" @click="prevPage">
-                <ChevronLeft :size="16" />
-                <span class="btn-label">{{ t('mount.actions.prevPage') }}</span>
-              </Button>
-              <Button type="default" size="small" :disabled="loading || !canNext" @click="nextPage">
-                <span class="btn-label">{{ t('mount.actions.nextPage') }}</span>
-                <ChevronRight :size="16" />
-              </Button>
-            </div>
-          </template>
-
           <Table :columns="columns" :data="tableData" :loading="loading" />
+
+          <Pagination
+            :page="pageNumber"
+            :page-size="limit"
+            :total="paginationTotal"
+            :display-total="paginationDisplayTotal"
+            :page-size-options="pageSizeOptions"
+            :disabled="loading || !selectedConfigId"
+            @update:page="handlePaginationPageChange"
+            @update:page-size="handlePaginationPageSizeChange"
+          />
         </Card>
       </section>
 
@@ -148,21 +136,13 @@
 
 <script setup>
 import { computed, h, onMounted, ref, watch } from 'vue'
-import {
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Eye,
-  FolderOpen,
-  Home,
-  RefreshCw,
-} from 'lucide-vue-next'
+import { ArrowUp, Download, Eye, FolderOpen, Home, RefreshCw } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
 import Table from '../components/ui/table/Table.vue'
+import Pagination from '../components/ui/pagination/Pagination.vue'
 import Select from '../components/ui/select/Select.vue'
 import Input from '../components/ui/input/Input.vue'
 import Button from '../components/ui/button/Button.vue'
@@ -181,13 +161,8 @@ const selectedConfigId = ref('')
 const prefix = ref('')
 const prefixInput = ref('')
 
-const limit = ref('100')
-const limitOptions = computed(() => [
-  { label: '50', value: '50' },
-  { label: '100', value: '100' },
-  { label: '200', value: '200' },
-  { label: '500', value: '500' },
-])
+const limit = ref(20)
+const pageSizeOptions = [10, 20, 50]
 
 const tokenStack = ref([null])
 const listResult = ref(null)
@@ -208,6 +183,20 @@ const currentToken = computed(() => tokenStack.value[tokenStack.value.length - 1
 const pageNumber = computed(() => tokenStack.value.length)
 const canPrev = computed(() => tokenStack.value.length > 1)
 const canNext = computed(() => Boolean(listResult.value?.next_continuation_token))
+
+const paginationTotal = computed(() => {
+  const pageSize = Number(limit.value || 100)
+  const pages = pageNumber.value + (canNext.value ? 1 : 0)
+  return pageSize * pages
+})
+
+const paginationDisplayTotal = computed(() => {
+  const pageSize = Number(limit.value || 100)
+  const page = pageNumber.value
+  const count = Number(listResult.value?.key_count || 0)
+  const seen = Math.max(0, (page - 1) * pageSize + count)
+  return canNext.value ? `${seen}+` : seen
+})
 
 const normalizePrefix = (value) => {
   const raw = String(value || '').trim()
@@ -368,6 +357,42 @@ const nextPage = async () => {
   if (!ok) {
     tokenStack.value.pop()
   }
+}
+
+const handlePaginationPageChange = async (targetPage) => {
+  if (loading.value) return
+
+  const nextPageNumber = Number(targetPage)
+  if (!Number.isFinite(nextPageNumber) || nextPageNumber < 1) return
+
+  const currentPageNumber = pageNumber.value
+  if (nextPageNumber === currentPageNumber) return
+
+  if (nextPageNumber < currentPageNumber) {
+    if (nextPageNumber === currentPageNumber - 1) {
+      await prevPage()
+      return
+    }
+
+    const previousStack = [...tokenStack.value]
+    tokenStack.value = tokenStack.value.slice(0, nextPageNumber)
+    const ok = await loadObjects()
+    if (!ok) {
+      tokenStack.value = previousStack
+    }
+    return
+  }
+
+  if (nextPageNumber === currentPageNumber + 1) {
+    await nextPage()
+  }
+}
+
+const handlePaginationPageSizeChange = (value) => {
+  const nextSize = Number(value)
+  if (!Number.isFinite(nextSize) || nextSize <= 0) return
+  if (nextSize === Number(limit.value)) return
+  limit.value = nextSize
 }
 
 const openPreview = (key) => {
@@ -579,6 +604,18 @@ onMounted(async () => {
   gap: var(--nb-space-lg);
 }
 
+.mount-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--nb-space-sm);
+  flex-wrap: wrap;
+}
+
+.mount-config-select {
+  width: 280px;
+}
+
 .mount-title {
   margin: 0;
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
@@ -595,7 +632,7 @@ onMounted(async () => {
 
 .mount-toolbar .filter-row {
   display: grid;
-  grid-template-columns: 280px 140px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: var(--nb-space-sm);
   align-items: center;
 }
@@ -603,6 +640,22 @@ onMounted(async () => {
 @media (max-width: 900px) {
   .mount-toolbar .filter-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .mount-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mount-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .mount-config-select {
+    width: 100%;
   }
 }
 
@@ -652,11 +705,6 @@ onMounted(async () => {
   font-size: 0.875rem;
   color: var(--nb-muted-foreground, var(--nb-gray-500));
   white-space: nowrap;
-}
-
-.mount-pagination {
-  display: flex;
-  gap: 10px;
 }
 
 .mount-name {
