@@ -74,9 +74,8 @@ async function allowRequest(db: D1Database, ip: string): Promise<boolean> {
 
 export async function recordFailedAttempt(env: Env, ip: string): Promise<void> {
   const blockedUntil = new Date(Date.now() + BLOCK_DURATION_MS).toISOString()
-  await env.DB
-    .prepare(
-      `INSERT INTO rate_limits (ip, failed_attempts, blocked_until)
+  await env.DB.prepare(
+    `INSERT INTO rate_limits (ip, failed_attempts, blocked_until)
        VALUES (?, 1, NULL)
        ON CONFLICT(ip) DO UPDATE SET
          failed_attempts = COALESCE(failed_attempts, 0) + 1,
@@ -84,7 +83,7 @@ export async function recordFailedAttempt(env: Env, ip: string): Promise<void> {
            WHEN COALESCE(failed_attempts, 0) + 1 >= ? THEN ?
            ELSE blocked_until
          END`
-    )
+  )
     .bind(ip, MAX_FAILED_ATTEMPTS, blockedUntil)
     .run()
 }
