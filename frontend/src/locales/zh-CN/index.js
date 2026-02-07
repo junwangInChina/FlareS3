@@ -8,6 +8,7 @@ import users from './pages/users'
 import files from './pages/files'
 import setup from './pages/setup'
 import texts from './pages/texts'
+import mount from './pages/mount'
 
 export default {
   ...common,
@@ -20,4 +21,5 @@ export default {
   ...files,
   ...setup,
   ...texts,
+  ...mount,
 }
