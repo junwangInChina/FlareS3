@@ -39,6 +39,13 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/mount',
+    alias: '/mount/',
+    name: 'Mount',
+    component: () => import('../views/Mount.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/files',
     redirect: '/',
   },
