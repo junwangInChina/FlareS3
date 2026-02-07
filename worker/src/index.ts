@@ -31,6 +31,7 @@ import {
   abortMultipart,
 } from './routes/upload'
 import { listFiles, downloadFile, deleteFile, previewFile } from './routes/files'
+import { listMountedObjects, downloadMountedObject, previewMountedObject } from './routes/mount'
 import { shortlink } from './routes/shortlink'
 import { getStats } from './routes/stats'
 import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
@@ -177,6 +178,19 @@ router.get(
 )
 router.get('/api/files/:id/download', (request, env: Env) =>
   downloadFile(request, env, (request as any).params.id)
+)
+
+router.get(
+  '/api/mount/objects',
+  withAdmin((request, env: Env) => listMountedObjects(request, env))
+)
+router.get(
+  '/api/mount/download',
+  withAdmin((request, env: Env) => downloadMountedObject(request, env))
+)
+router.get(
+  '/api/mount/preview',
+  withAdmin((request, env: Env) => previewMountedObject(request, env))
 )
 
 router.get(
