@@ -79,7 +79,11 @@ export async function getFileShare(request: Request, env: Env, fileId: string): 
   return jsonResponse({ share: result })
 }
 
-export async function upsertFileShare(request: Request, env: Env, fileId: string): Promise<Response> {
+export async function upsertFileShare(
+  request: Request,
+  env: Env,
+  fileId: string
+): Promise<Response> {
   const auth = await loadFileAndAuthorize(request, env, fileId)
   if ('response' in auth) {
     return auth.response
@@ -276,7 +280,11 @@ export async function upsertFileShare(request: Request, env: Env, fileId: string
   return jsonResponse({ share: responseShare })
 }
 
-export async function deleteFileShare(request: Request, env: Env, fileId: string): Promise<Response> {
+export async function deleteFileShare(
+  request: Request,
+  env: Env,
+  fileId: string
+): Promise<Response> {
   const auth = await loadFileAndAuthorize(request, env, fileId)
   if ('response' in auth) {
     return auth.response
@@ -335,7 +343,10 @@ function formatDateTimeLocal(isoString: string | null): string {
   return `${y}-${m}-${d} ${hh}:${mm}`
 }
 
-async function resolveFileShareRecord(env: Env, code: string): Promise<ResolveFileShareRecordResult> {
+async function resolveFileShareRecord(
+  env: Env,
+  code: string
+): Promise<ResolveFileShareRecordResult> {
   await ensureFilesTable(env.DB)
   await ensureFileSharesTable(env.DB)
 
