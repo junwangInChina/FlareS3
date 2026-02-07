@@ -70,9 +70,7 @@ export function ensureTextSharesTable(db: D1Database): Promise<void> {
       .run()
 
     await db
-      .prepare(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_text_shares_text_id ON text_shares(text_id)'
-      )
+      .prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_text_shares_text_id ON text_shares(text_id)')
       .run()
     await db
       .prepare(
@@ -173,9 +171,7 @@ export function ensureFileSharesTable(db: D1Database): Promise<void> {
       .run()
 
     await db
-      .prepare(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_file_id ON file_shares(file_id)'
-      )
+      .prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_file_id ON file_shares(file_id)')
       .run()
     await db
       .prepare(
