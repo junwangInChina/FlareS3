@@ -606,6 +606,121 @@ export async function deleteObject(config: R2Config, key: string): Promise<void>
   throw buildS3HttpError(response.status, text)
 }
 
+export type ListObjectsV2Content = {
+  key: string
+  size: number
+  last_modified?: string
+  etag?: string
+}
+
+export type ListObjectsV2Result = {
+  is_truncated: boolean
+  key_count: number
+  next_continuation_token?: string
+  common_prefixes: string[]
+  contents: ListObjectsV2Content[]
+}
+
+export async function listObjectsV2(
+  config: R2Config,
+  params: {
+    prefix?: string
+    delimiter?: string
+    continuationToken?: string
+    maxKeys?: number
+  }
+): Promise<ListObjectsV2Result> {
+  const client = createS3Client(config)
+  const maxKeys = Math.min(1000, Math.max(1, Number(params.maxKeys ?? 100)))
+
+  const response = await fetchSigned(
+    client,
+    new ListObjectsV2Command({
+      Bucket: config.bucketName,
+      Prefix: params.prefix || undefined,
+      Delimiter: params.delimiter || undefined,
+      ContinuationToken: params.continuationToken || undefined,
+      MaxKeys: maxKeys,
+    }),
+    { method: 'GET', expiresInSeconds: 60 }
+  )
+
+  const text = await response.text()
+  if (!response.ok) {
+    throw buildS3HttpError(response.status, text)
+  }
+
+  const decodeXmlEntities = (value: string): string => {
+    const input = String(value ?? '')
+    if (!input.includes('&')) return input
+
+    let output = input
+      .replaceAll('&quot;', '"')
+      .replaceAll('&apos;', "'")
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+
+    output = output.replace(/&#(x?[0-9a-fA-F]+);/g, (match, code) => {
+      const raw = String(code || '')
+      const num =
+        raw.startsWith('x') || raw.startsWith('X')
+          ? Number.parseInt(raw.slice(1), 16)
+          : Number.parseInt(raw, 10)
+      if (!Number.isFinite(num)) return match
+      try {
+        return String.fromCodePoint(num)
+      } catch {
+        return match
+      }
+    })
+
+    output = output.replaceAll('&amp;', '&')
+    return output
+  }
+
+  const keyCount = Number(decodeXmlEntities(extractXmlValue(text, 'KeyCount') || '0') || 0)
+  const isTruncated =
+    String(extractXmlValue(text, 'IsTruncated') || '')
+      .trim()
+      .toLowerCase() === 'true'
+
+  const nextContinuationTokenRaw = extractXmlValue(text, 'NextContinuationToken')
+  const nextContinuationToken = nextContinuationTokenRaw
+    ? decodeXmlEntities(nextContinuationTokenRaw)
+    : undefined
+
+  const commonPrefixes = extractXmlBlocks(text, 'CommonPrefixes')
+    .map((block) => extractXmlValue(block, 'Prefix'))
+    .filter(Boolean)
+    .map((value) => decodeXmlEntities(String(value)))
+
+  const contents = extractXmlBlocks(text, 'Contents')
+    .map((block) => {
+      const keyRaw = extractXmlValue(block, 'Key')
+      const key = keyRaw ? decodeXmlEntities(keyRaw) : ''
+      const size = Number(extractXmlValue(block, 'Size') || 0)
+      const lastModifiedRaw = extractXmlValue(block, 'LastModified')
+      const etagRaw = extractXmlValue(block, 'ETag')
+
+      const item: ListObjectsV2Content = {
+        key,
+        size: Number.isFinite(size) ? size : 0,
+      }
+      if (lastModifiedRaw) item.last_modified = decodeXmlEntities(lastModifiedRaw)
+      if (etagRaw) item.etag = decodeXmlEntities(etagRaw)
+      return item
+    })
+    .filter((item) => item.key)
+
+  return {
+    is_truncated: isTruncated,
+    key_count: Number.isFinite(keyCount) ? keyCount : 0,
+    next_continuation_token: nextContinuationToken,
+    common_prefixes: commonPrefixes,
+    contents,
+  }
+}
+
 export async function testConnection(config: R2Config): Promise<void> {
   const client = createS3Client(config)
   const response = await fetchSigned(
