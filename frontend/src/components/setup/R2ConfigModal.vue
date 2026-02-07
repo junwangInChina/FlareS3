@@ -14,7 +14,11 @@
       </FormItem>
 
       <FormItem :label="t('setup.labels.quotaGb')">
-        <Input v-model="form.quota_gb" type="number" :placeholder="t('setup.placeholders.quotaGb')" />
+        <Input
+          v-model="form.quota_gb"
+          type="number"
+          :placeholder="t('setup.placeholders.quotaGb')"
+        />
       </FormItem>
 
       <FormItem
