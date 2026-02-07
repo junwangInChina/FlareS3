@@ -101,10 +101,20 @@ export default {
   confirmUpload(fileId) {
     return api.post('/upload/confirm', { file_id: fileId })
   },
-
   // 文件管理
   getFiles(page = 1, limit = 20, filters = {}) {
     return api.get('/files', { params: { page, limit, ...(filters || {}) } })
+  },
+
+  // 挂载
+  listMountedObjects({ configId, prefix = '', continuationToken, limit } = {}) {
+    const params = {
+      config_id: configId,
+      prefix,
+      continuation_token: continuationToken,
+      limit,
+    }
+    return api.get('/mount/objects', { params })
   },
 
   deleteFile(fileId) {
