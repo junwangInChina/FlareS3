@@ -30,4 +30,3 @@ const handleUploaded = (payload) => {
   emit('uploaded', payload)
 }
 </script>
-
