@@ -53,18 +53,20 @@ export async function createTextOneTimeShare(
   const nowIso = now.toISOString()
   const expiresAtIso = new Date(now.getTime() + 60 * 60 * 1000).toISOString()
 
-  const existing = await env.DB.prepare('SELECT id FROM text_one_time_shares WHERE text_id = ? LIMIT 1')
+  const existing = await env.DB.prepare(
+    'SELECT id FROM text_one_time_shares WHERE text_id = ? LIMIT 1'
+  )
     .bind(textId)
     .first()
 
-	  if (!existing) {
-	    const id = crypto.randomUUID()
-	    for (let i = 0; i < 10; i += 1) {
-	      const shareCode = generateRandomCode(8)
-	      const result = await env.DB.prepare(
-	        `INSERT INTO text_one_time_shares (id, text_id, owner_id, share_code, expires_at, consumed_at, created_at, updated_at)
+  if (!existing) {
+    const id = crypto.randomUUID()
+    for (let i = 0; i < 10; i += 1) {
+      const shareCode = generateRandomCode(8)
+      const result = await env.DB.prepare(
+        `INSERT INTO text_one_time_shares (id, text_id, owner_id, share_code, expires_at, consumed_at, created_at, updated_at)
 	         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`
-	      )
+      )
         .bind(id, textId, ownerId, shareCode, expiresAtIso, nowIso, nowIso)
         .run()
 
@@ -76,11 +78,11 @@ export async function createTextOneTimeShare(
     return jsonResponse({ error: '生成一次性分享链接失败' }, 500)
   }
 
-	  const shareId = String((existing as any).id)
-	  for (let i = 0; i < 10; i += 1) {
-	    const shareCode = generateRandomCode(8)
-	    const result = await env.DB.prepare(
-	      `UPDATE text_one_time_shares
+  const shareId = String((existing as any).id)
+  for (let i = 0; i < 10; i += 1) {
+    const shareCode = generateRandomCode(8)
+    const result = await env.DB.prepare(
+      `UPDATE text_one_time_shares
 	       SET share_code = ?, expires_at = ?, consumed_at = NULL, created_at = ?, updated_at = ?
 	       WHERE id = ?`
     )
