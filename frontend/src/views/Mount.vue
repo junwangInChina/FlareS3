@@ -82,11 +82,6 @@
                   <span class="btn-label">{{ t('mount.actions.root') }}</span>
                 </Button>
 
-                <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goUp">
-                  <ArrowUp :size="16" />
-                  <span class="btn-label">{{ t('mount.actions.up') }}</span>
-                </Button>
-
                 <div class="breadcrumb">
                   <span class="breadcrumb-root" :class="{ clickable: prefix }" @click="goRoot"
                     >/</span
@@ -98,6 +93,11 @@
                     </span>
                   </template>
                 </div>
+
+                <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goUp">
+                  <ArrowUp :size="16" />
+                  <span class="btn-label">{{ t('mount.actions.up') }}</span>
+                </Button>
               </div>
             </div>
           </template>
@@ -160,6 +160,7 @@ const tokenStack = ref([null])
 const listResult = ref(null)
 const loading = ref(false)
 const activeAction = ref('')
+const loadRequestSerial = ref(0)
 
 const previewModalVisible = ref(false)
 const previewKey = ref('')
@@ -289,7 +290,9 @@ const loadObjects = async () => {
   const configId = String(selectedConfigId.value || '').trim()
   if (!configId) return false
 
+  const requestSerial = ++loadRequestSerial.value
   loading.value = true
+
   try {
     const result = await api.listMountedObjects({
       configId,
@@ -297,14 +300,21 @@ const loadObjects = async () => {
       continuationToken: currentToken.value || undefined,
       limit: Number(limit.value || 100),
     })
+
+    if (requestSerial !== loadRequestSerial.value) return false
+
     listResult.value = result
     return true
   } catch (error) {
-    message.error(error.response?.data?.error || t('mount.messages.loadObjectsFailed'))
+    if (requestSerial === loadRequestSerial.value) {
+      message.error(error.response?.data?.error || t('mount.messages.loadObjectsFailed'))
+    }
     return false
   } finally {
-    loading.value = false
-    activeAction.value = ''
+    if (requestSerial === loadRequestSerial.value) {
+      loading.value = false
+      activeAction.value = ''
+    }
   }
 }
 
@@ -562,6 +572,22 @@ watch(
     prefixInput.value = ''
     tokenStack.value = [null]
     await loadObjects()
+  }
+)
+
+watch(
+  () => prefixInput.value,
+  async (value, previousValue) => {
+    if (loading.value) return
+
+    const normalizedValue = normalizePrefix(value)
+    const normalizedPreviousValue = normalizePrefix(previousValue)
+
+    if (normalizedValue) return
+    if (!normalizedPreviousValue) return
+    if (!prefix.value) return
+
+    await navigateToPrefix('')
   }
 )
 
