@@ -29,7 +29,10 @@ async function doBootstrap(request: Request, env: Env): Promise<Response | undef
 
   if (!env.BOOTSTRAP_ADMIN_USER || !env.BOOTSTRAP_ADMIN_PASS) {
     bootstrapState = 'blocked'
-    return jsonResponse({ error: '管理员未初始化，请设置 BOOTSTRAP_ADMIN_USER/BOOTSTRAP_ADMIN_PASS' }, 500)
+    return jsonResponse(
+      { error: '管理员未初始化，请设置 BOOTSTRAP_ADMIN_USER/BOOTSTRAP_ADMIN_PASS' },
+      500
+    )
   }
 
   const now = new Date().toISOString()
@@ -64,7 +67,10 @@ async function doBootstrap(request: Request, env: Env): Promise<Response | undef
 export async function bootstrapAdmin(request: Request, env: Env): Promise<Response | undefined> {
   if (bootstrapState === 'ready') return
   if (bootstrapState === 'blocked') {
-    return jsonResponse({ error: '管理员未初始化，请设置 BOOTSTRAP_ADMIN_USER/BOOTSTRAP_ADMIN_PASS' }, 500)
+    return jsonResponse(
+      { error: '管理员未初始化，请设置 BOOTSTRAP_ADMIN_USER/BOOTSTRAP_ADMIN_PASS' },
+      500
+    )
   }
 
   if (bootstrapPromise) return bootstrapPromise
