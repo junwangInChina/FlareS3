@@ -93,10 +93,13 @@ onBeforeUnmount(() => {
 })
 
 const menuItems = computed(() => {
-  const items = [
-    { key: '/', icon: 'folder', label: t('nav.files'), path: '/' },
-    { key: '/texts', icon: 'file-text', label: t('nav.texts'), path: '/texts' },
-  ]
+  const items = [{ key: '/', icon: 'folder', label: t('nav.files'), path: '/' }]
+
+  if (authStore.isAdmin) {
+    items.push({ key: '/mount', icon: 'mount', label: t('nav.mount'), path: '/mount' })
+  }
+
+  items.push({ key: '/texts', icon: 'file-text', label: t('nav.texts'), path: '/texts' })
 
   if (authStore.isAdmin) {
     items.push(
@@ -268,6 +271,11 @@ const logoLetters = computed(() => logoText.split(''))
           <svg v-else-if="item.icon === 'file-text'" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm1 7V3.5L19.5 9H15zM8 13h8v2H8v-2zm0 4h8v2H8v-2zm0-8h4v2H8V9z"
+            />
+          </svg>
+          <svg v-else-if="item.icon === 'mount'" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M3 6c0-1.1.9-2 2-2h4l2 2h6c1.1 0 2 .9 2 2v1H3V6zm0 4h20v8c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-8zm4 2v6h2v-6H7zm4 0v6h2v-6h-2zm4 0v6h2v-6h-2z"
             />
           </svg>
           <svg v-else-if="item.icon === 'settings'" viewBox="0 0 24 24" fill="currentColor">
