@@ -1,0 +1,52 @@
+export default {
+  mount: {
+    title: '挂载',
+    subtitle: '直接浏览指定 R2 Bucket 中的对象（不依赖数据库记录）',
+    filters: {
+      config: 'R2 配置',
+      prefix: '目录前缀（prefix）',
+      limit: '每页数量',
+    },
+    actions: {
+      go: '跳转',
+      root: '根目录',
+      up: '上一级',
+      refresh: '刷新',
+      prevPage: '上一页',
+      nextPage: '下一页',
+      open: '打开',
+      preview: '预览',
+      download: '下载',
+      copyKey: '复制 Key',
+    },
+    table: {
+      name: '名称',
+      size: '大小',
+      lastModified: '更新时间',
+      actions: '操作',
+    },
+    pagination: {
+      page: '第 {page} 页',
+    },
+    state: {
+      loading: '加载中...',
+      empty: '暂无对象',
+      noConfigsTitle: '暂无 R2 配置',
+      noConfigsContent: '请先在「管理」页面添加并测试 R2 配置。',
+      noConfigSelectedTitle: '请选择一个 R2 配置',
+      noConfigSelectedContent: '选择配置后即可浏览该 Bucket 的对象列表。',
+    },
+    preview: {
+      title: '预览',
+      titleWithName: '预览：{name}',
+      loadFailed: '预览加载失败',
+      unsupportedTitle: '不支持预览',
+      unsupportedContent: '该文件类型暂不支持在线预览，请直接下载。',
+      unsupported: '不支持预览该文件类型',
+    },
+    messages: {
+      loadConfigsFailed: '加载 R2 配置失败',
+      loadObjectsFailed: '加载对象列表失败',
+    },
+  },
+}
