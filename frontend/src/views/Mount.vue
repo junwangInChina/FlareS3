@@ -10,52 +10,51 @@
         </div>
 
         <div class="mount-actions">
-          <div class="mount-config-select">
-            <Select
-              v-model="selectedConfigId"
-              :options="configOptions"
-              size="small"
-              :disabled="configsLoading || !configOptions.length"
-              :placeholder="t('mount.state.noConfigSelectedTitle')"
-            />
-          </div>
+          <div class="filter-row">
+            <div class="filter-item owner">
+              <Select
+                v-model="selectedConfigId"
+                :options="configOptions"
+                size="small"
+                :disabled="configsLoading || !configOptions.length"
+                :placeholder="t('mount.state.noConfigSelectedTitle')"
+              />
+            </div>
 
-          <Button
-            type="default"
-            size="small"
-            :loading="loading && activeAction === 'refresh'"
-            :disabled="loading || !selectedConfigId"
-            @click="handleRefresh"
-          >
-            <RefreshCw :size="16" style="margin-right: 6px" />
-            {{ t('common.refresh') }}
-          </Button>
+            <div class="filter-item query">
+              <Input
+                v-model="prefixInput"
+                :placeholder="t('mount.filters.prefix')"
+                size="small"
+                clearable
+                :disabled="loading || !selectedConfigId"
+                @keyup.enter="handleApplyPrefix"
+              />
+            </div>
+
+            <Button
+              type="default"
+              size="small"
+              :disabled="loading || !selectedConfigId"
+              @click="handleApplyPrefix"
+            >
+              <Search :size="16" style="margin-right: 6px" />
+              {{ t('mount.actions.go') }}
+            </Button>
+
+            <Button
+              type="default"
+              size="small"
+              :loading="loading && activeAction === 'refresh'"
+              :disabled="loading || !selectedConfigId"
+              @click="handleRefresh"
+            >
+              <RefreshCw :size="16" style="margin-right: 6px" />
+              {{ t('common.refresh') }}
+            </Button>
+          </div>
         </div>
       </header>
-
-      <section class="mount-toolbar">
-        <div class="filter-row">
-          <div class="filter-item prefix">
-            <Input
-              v-model="prefixInput"
-              :placeholder="t('mount.filters.prefix')"
-              size="small"
-              clearable
-              :disabled="loading || !selectedConfigId"
-              @keyup.enter="handleApplyPrefix"
-            />
-          </div>
-
-          <Button
-            type="default"
-            size="small"
-            :disabled="loading || !selectedConfigId"
-            @click="handleApplyPrefix"
-          >
-            {{ t('mount.actions.go') }}
-          </Button>
-        </div>
-      </section>
 
       <section class="mount-content">
         <Alert
@@ -100,13 +99,6 @@
                   </template>
                 </div>
               </div>
-
-              <div class="mount-page-info">
-                {{ t('mount.pagination.page', { page: pageNumber }) }}
-                <span v-if="Number(listResult?.key_count || 0)" class="mount-page-count">
-                  ({{ listResult.key_count }})
-                </span>
-              </div>
             </div>
           </template>
 
@@ -136,7 +128,7 @@
 
 <script setup>
 import { computed, h, onMounted, ref, watch } from 'vue'
-import { ArrowUp, Download, Eye, FolderOpen, Home, RefreshCw } from 'lucide-vue-next'
+import { ArrowUp, Download, Eye, FolderOpen, Home, RefreshCw, Search } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
@@ -463,8 +455,8 @@ const columns = computed(() => [
             onClick,
           },
           [
-            isFolder ? h(FolderOpen, { size: 16, style: 'margin-right: 6px' }) : null,
-            h('span', displayName),
+            isFolder ? h('span', { class: 'mount-name-icon' }, [h(FolderOpen, { size: 16 })]) : null,
+            h('span', { class: 'mount-name-text' }, displayName),
           ]
         )
       )
@@ -612,10 +604,6 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.mount-config-select {
-  width: 280px;
-}
-
 .mount-title {
   margin: 0;
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
@@ -630,17 +618,20 @@ onMounted(async () => {
   font-size: 0.95rem;
 }
 
-.mount-toolbar .filter-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
+.filter-row {
+  display: flex;
   gap: var(--nb-space-sm);
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
-@media (max-width: 900px) {
-  .mount-toolbar .filter-row {
-    grid-template-columns: 1fr;
-  }
+.filter-item.query {
+  width: 180px;
+}
+
+.filter-item.owner {
+  width: 160px;
 }
 
 @media (max-width: 720px) {
@@ -654,7 +645,12 @@ onMounted(async () => {
     width: 100%;
   }
 
-  .mount-config-select {
+  .filter-row {
+    justify-content: flex-start;
+  }
+
+  .filter-item.query,
+  .filter-item.owner {
     width: 100%;
   }
 }
@@ -701,20 +697,28 @@ onMounted(async () => {
   opacity: 0.6;
 }
 
-.mount-page-info {
-  font-size: 0.875rem;
-  color: var(--nb-muted-foreground, var(--nb-gray-500));
-  white-space: nowrap;
-}
-
-.mount-name {
+:deep(.mount-name) {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-width: 0;
   max-width: 100%;
+  vertical-align: middle;
 }
 
-.mount-name.is-folder {
+:deep(.mount-name-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+:deep(.mount-name-text) {
+  display: inline-flex;
+  align-items: center;
+}
+
+:deep(.mount-name.is-folder) {
   cursor: pointer;
   color: var(--nb-link-color, var(--nb-primary));
 }
