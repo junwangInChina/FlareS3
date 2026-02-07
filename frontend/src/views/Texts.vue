@@ -342,7 +342,14 @@ const columns = computed(() => {
     {
       title: t('texts.columns.actions'),
       key: 'actions',
-      width: locale.value === 'zh-CN' ? themeStore.uiTheme === 'shadcn' ? 380 : 420 : themeStore.uiTheme === 'shadcn' ? 400 : 460,
+      width:
+        locale.value === 'zh-CN'
+          ? themeStore.uiTheme === 'shadcn'
+            ? 380
+            : 420
+          : themeStore.uiTheme === 'shadcn'
+            ? 400
+            : 460,
       align: 'center',
       ellipsis: false,
       render: (row) => {
