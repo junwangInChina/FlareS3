@@ -14,9 +14,7 @@ type LoadTextAuthResult =
       ownerId: string
     }
 
-type ResolveShareRecordResult =
-  | { error: { status: number; message: string } }
-  | { share: unknown }
+type ResolveShareRecordResult = { error: { status: number; message: string } } | { share: unknown }
 
 async function loadTextAndAuthorize(
   request: Request,
@@ -82,7 +80,11 @@ export async function getTextShare(request: Request, env: Env, textId: string): 
   return jsonResponse({ share: result })
 }
 
-export async function upsertTextShare(request: Request, env: Env, textId: string): Promise<Response> {
+export async function upsertTextShare(
+  request: Request,
+  env: Env,
+  textId: string
+): Promise<Response> {
   const auth = await loadTextAndAuthorize(request, env, textId)
   if ('response' in auth) {
     return auth.response
@@ -284,7 +286,11 @@ export async function upsertTextShare(request: Request, env: Env, textId: string
   return jsonResponse({ share: responseShare })
 }
 
-export async function deleteTextShare(request: Request, env: Env, textId: string): Promise<Response> {
+export async function deleteTextShare(
+  request: Request,
+  env: Env,
+  textId: string
+): Promise<Response> {
   const auth = await loadTextAndAuthorize(request, env, textId)
   if ('response' in auth) {
     return auth.response
