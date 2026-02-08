@@ -117,6 +117,14 @@ export default {
     return api.get('/mount/objects', { params })
   },
 
+  deleteMountedObject({ configId, key } = {}) {
+    const params = {
+      config_id: configId,
+      key,
+    }
+    return api.delete('/mount/object', { params })
+  },
+
   deleteFile(fileId) {
     return api.delete(`/files/${fileId}`)
   },
