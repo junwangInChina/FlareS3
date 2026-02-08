@@ -22,6 +22,7 @@ export default {
       open: '打开',
       preview: '预览',
       download: '下载',
+      delete: '删除',
       copyKey: '复制 Key',
     },
     table: {
@@ -49,9 +50,19 @@ export default {
       unsupportedContent: '该文件类型暂不支持在线预览，请直接下载。',
       unsupported: '不支持预览该文件类型',
     },
+    modals: {
+      deleteTitle: '确认删除对象',
+      deleteFolderTitle: '确认删除目录',
+    },
+    confirmDelete: '确定删除对象「{name}」吗？',
+    confirmDeleteFolder: '确定递归删除目录「{name}」及其全部内容吗？此操作不可恢复。',
     messages: {
       loadConfigsFailed: '加载 R2 配置失败',
       loadObjectsFailed: '加载对象列表失败',
+      deleteSuccess: '对象已删除',
+      deleteFailed: '删除对象失败',
+      deleteFolderSuccess: '目录及其内容已删除（共 {count} 个对象）',
+      deleteFolderFailed: '删除目录失败',
     },
   },
 }

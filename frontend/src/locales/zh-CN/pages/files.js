@@ -44,6 +44,7 @@ export default {
       infoTitle: '文件信息',
       uploadTitle: '上传文件',
       shareTitle: '分享',
+      deleteTitle: '确认删除文件',
     },
     share: {
       notCreated: '尚未创建分享链接',

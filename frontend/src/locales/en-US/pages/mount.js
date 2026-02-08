@@ -22,6 +22,7 @@ export default {
       open: 'Open',
       preview: 'Preview',
       download: 'Download',
+      delete: 'Delete',
       copyKey: 'Copy key',
     },
     table: {
@@ -50,9 +51,20 @@ export default {
         'This file type is not supported for preview. Please download it instead.',
       unsupported: 'Preview not supported for this file type',
     },
+    modals: {
+      deleteTitle: 'Confirm object deletion',
+      deleteFolderTitle: 'Confirm folder deletion',
+    },
+    confirmDelete: 'Delete object "{name}"?',
+    confirmDeleteFolder:
+      'Delete folder "{name}" recursively with all contents? This action cannot be undone.',
     messages: {
       loadConfigsFailed: 'Failed to load R2 configs',
       loadObjectsFailed: 'Failed to load objects',
+      deleteSuccess: 'Object deleted',
+      deleteFailed: 'Failed to delete object',
+      deleteFolderSuccess: 'Folder and contents deleted ({count} objects)',
+      deleteFolderFailed: 'Failed to delete folder',
     },
   },
 }

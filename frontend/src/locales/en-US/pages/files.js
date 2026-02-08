@@ -44,6 +44,7 @@ export default {
       infoTitle: 'File info',
       uploadTitle: 'Upload',
       shareTitle: 'Share',
+      deleteTitle: 'Confirm file deletion',
     },
     share: {
       notCreated: 'Share link has not been created yet',
