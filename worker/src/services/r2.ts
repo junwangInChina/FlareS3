@@ -613,6 +613,77 @@ export async function deleteObject(config: R2Config, key: string): Promise<void>
   throw buildS3HttpError(response.status, text)
 }
 
+const DELETE_BY_PREFIX_PAGE_SIZE = 1000
+const DELETE_BY_PREFIX_CONCURRENCY = 20
+
+export type DeleteByPrefixResult = {
+  deleted_count: number
+}
+
+export async function deleteObjectsByPrefix(
+  config: R2Config,
+  prefix: string
+): Promise<DeleteByPrefixResult> {
+  const normalizedPrefix = String(prefix || '').trim()
+  if (!normalizedPrefix) {
+    return { deleted_count: 0 }
+  }
+
+  const collectedKeys: string[] = []
+  let continuationToken: string | undefined = undefined
+
+  for (;;) {
+    const listed = await listObjectsV2(config, {
+      prefix: normalizedPrefix,
+      maxKeys: DELETE_BY_PREFIX_PAGE_SIZE,
+      continuationToken,
+    })
+
+    const keys = (listed.contents || [])
+      .map((item) => String(item.key || '').trim())
+      .filter(Boolean)
+
+    if (keys.length) {
+      collectedKeys.push(...keys)
+    }
+
+    if (!listed.is_truncated) {
+      break
+    }
+
+    const nextToken = String(listed.next_continuation_token || '').trim()
+    if (!nextToken) {
+      break
+    }
+
+    continuationToken = nextToken
+  }
+
+  const uniqueKeys = Array.from(new Set(collectedKeys))
+  if (!uniqueKeys.length) {
+    return { deleted_count: 0 }
+  }
+
+  for (let i = 0; i < uniqueKeys.length; i += DELETE_BY_PREFIX_CONCURRENCY) {
+    const chunk = uniqueKeys.slice(i, i + DELETE_BY_PREFIX_CONCURRENCY)
+    await Promise.all(
+      chunk.map(async (keyItem) => {
+        try {
+          await deleteObject(config, keyItem)
+        } catch (error) {
+          const summary = summarizeS3Error(error)
+          if (summary.httpStatusCode === 404 || summary.code === 'NoSuchKey') {
+            return
+          }
+          throw error
+        }
+      })
+    )
+  }
+
+  return { deleted_count: uniqueKeys.length }
+}
+
 export type ListObjectsV2Content = {
   key: string
   size: number
