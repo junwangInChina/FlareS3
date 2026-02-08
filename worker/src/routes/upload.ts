@@ -22,15 +22,50 @@ import { getUserUsedSpace } from '../services/quota'
 import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { generateRandomCode } from '../utils/random'
 
-const ALLOWED_EXPIRES = new Set([-30, 1, 3, 7, 30])
+const ALLOWED_EXPIRES = new Set([-30, 0, 1, 3, 7, 30])
 const PART_SIZE = 20 * 1024 * 1024
+const NEVER_EXPIRES_AT_ISO = '9999-12-31T23:59:59.999Z'
+
+function normalizeExpiresIn(value: unknown): number {
+  const expiresIn = Number(value)
+  if (!Number.isFinite(expiresIn)) return 7
+  return ALLOWED_EXPIRES.has(expiresIn) ? expiresIn : 7
+}
 
 function calcExpiresAt(expiresIn: number): Date {
   const now = new Date()
   if (expiresIn === -30) {
     return new Date(now.getTime() + 30 * 1000)
   }
+  if (expiresIn === 0) {
+    return new Date(NEVER_EXPIRES_AT_ISO)
+  }
   return new Date(now.getTime() + expiresIn * 24 * 60 * 60 * 1000)
+}
+
+function isNeverExpires(expiresAt: unknown): boolean {
+  const value = String(expiresAt || '').trim()
+  if (!value) return false
+  return value === NEVER_EXPIRES_AT_ISO
+}
+
+function isExpired(expiresAt: unknown): boolean {
+  if (isNeverExpires(expiresAt)) return false
+  const expiresAtMs = new Date(String(expiresAt)).getTime()
+  if (Number.isNaN(expiresAtMs)) return true
+  return Date.now() > expiresAtMs
+}
+
+function calcDownloadTtlSeconds(expiresAt: unknown): number {
+  if (isNeverExpires(expiresAt)) {
+    return 24 * 60 * 60
+  }
+  const parsed = new Date(String(expiresAt))
+  const parsedMs = parsed.getTime()
+  if (Number.isNaN(parsedMs)) {
+    return 24 * 60 * 60
+  }
+  return calcPresignedDownloadUrlTtlSeconds(parsed)
 }
 
 async function createFileRecord(
@@ -92,10 +127,7 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
     if (!body.filename || !body.size) {
       return jsonResponse({ error: '无效的请求' }, 400)
     }
-
-    if (!ALLOWED_EXPIRES.has(body.expires_in)) {
-      body.expires_in = 7
-    }
+    const expiresIn = normalizeExpiresIn(body.expires_in)
 
     const maxSize = getMaxFileSize(env)
     if (body.size > maxSize) {
@@ -123,7 +155,7 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
       body.filename,
       body.size,
       contentType,
-      body.expires_in,
+      expiresIn,
       requireLogin,
       loaded.id
     )
@@ -180,9 +212,8 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
     const allowDirect = Number(file.require_login) === 0
     if (allowDirect) {
       try {
-        const expiresAt = new Date(String(file.expires_at))
-        if (Date.now() < expiresAt.getTime()) {
-          const ttl = calcPresignedDownloadUrlTtlSeconds(expiresAt)
+        if (!isExpired(file.expires_at)) {
+          const ttl = calcDownloadTtlSeconds(file.expires_at)
           downloadUrl = await generateDownloadUrl(
             loaded.config,
             String(file.r2_key),
@@ -223,10 +254,7 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
     if (!body.filename || !body.size) {
       return jsonResponse({ error: '无效的请求' }, 400)
     }
-
-    if (!ALLOWED_EXPIRES.has(body.expires_in)) {
-      body.expires_in = 7
-    }
+    const expiresIn = normalizeExpiresIn(body.expires_in)
 
     const maxSize = getMaxFileSize(env)
     if (body.size > maxSize) {
@@ -254,7 +282,7 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       body.filename,
       body.size,
       contentType,
-      body.expires_in,
+      expiresIn,
       requireLogin,
       loaded.id
     )
@@ -300,12 +328,7 @@ export async function presignMultipart(request: Request, env: Env): Promise<Resp
       return jsonResponse({ error: '文件不存在' }, 404)
     }
 
-    const expiresAt = new Date(String(file.expires_at))
-    const expiresAtMs = expiresAt.getTime()
-    if (Number.isNaN(expiresAtMs)) {
-      return jsonResponse({ error: '文件过期时间无效' }, 500)
-    }
-    if (Date.now() > expiresAtMs) {
+    if (isExpired(file.expires_at)) {
       return jsonResponse({ error: '文件已过期' }, 410)
     }
 
@@ -420,9 +443,8 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
     const allowDirect = Number(file.require_login) === 0
     if (allowDirect) {
       try {
-        const expiresAt = new Date(String(file.expires_at))
-        if (Date.now() < expiresAt.getTime()) {
-          const ttl = calcPresignedDownloadUrlTtlSeconds(expiresAt)
+        if (!isExpired(file.expires_at)) {
+          const ttl = calcDownloadTtlSeconds(file.expires_at)
           downloadUrl = await generateDownloadUrl(
             loaded.config,
             String(file.r2_key),
