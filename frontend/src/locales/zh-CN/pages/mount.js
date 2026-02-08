@@ -7,6 +7,11 @@ export default {
       prefix: '目录前缀（prefix）',
       limit: '每页数量',
     },
+    viewMode: {
+      ariaLabel: '视图模式',
+      table: '表格视图',
+      card: '卡片视图',
+    },
     actions: {
       go: '跳转',
       root: '根目录',

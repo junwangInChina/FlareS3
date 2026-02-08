@@ -7,6 +7,11 @@ export default {
       prefix: 'Prefix',
       limit: 'Per page',
     },
+    viewMode: {
+      ariaLabel: 'View mode',
+      table: 'Table view',
+      card: 'Card view',
+    },
     actions: {
       go: 'Go',
       root: 'Root',
