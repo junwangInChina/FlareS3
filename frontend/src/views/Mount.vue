@@ -141,7 +141,7 @@
               </div>
             </template>
 
-            <MountTableView :columns="columns" :data="tableData" :loading="loading" />
+            <MountTableView :columns="columns" :data="tableData" :loading="loading || deleting" />
 
             <Pagination
               :page="pageNumber"
@@ -149,7 +149,7 @@
               :total="paginationTotal"
               :display-total="paginationDisplayTotal"
               :page-size-options="pageSizeOptions"
-              :disabled="loading || !selectedConfigId"
+              :disabled="loading || deleting || !selectedConfigId"
               @update:page="handlePaginationPageChange"
               @update:page-size="handlePaginationPageSizeChange"
             />
@@ -187,12 +187,15 @@
               :loading="loading"
               :has-more="canNext"
               :active-action="activeAction"
+              :deleting="deleting"
+              :deleting-key="deletingKey"
               :is-preview-supported="isPreviewSupported"
               :format-bytes="formatBytes"
               :format-date-time="formatDateTime"
               @open-folder="openFolder"
               @preview="openPreview"
               @download="downloadObject"
+              @delete="handleDeleteObject"
               @load-more="nextPage"
             />
           </div>
@@ -204,6 +207,26 @@
         :config-id="selectedConfigId"
         :object-key="previewKey"
       />
+
+      <Modal
+        :show="showDeleteModal"
+        :title="deleteModalTitle"
+        width="420px"
+        @update:show="handleDeleteModalUpdate"
+      >
+        <p class="mount-delete-confirm">
+          {{ deleteConfirmText }}
+        </p>
+
+        <template #footer>
+          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">
+            {{ t('common.cancel') }}
+          </Button>
+          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">
+            {{ t('mount.actions.delete') }}
+          </Button>
+        </template>
+      </Modal>
     </div>
   </AppLayout>
 </template>
@@ -220,6 +243,7 @@ import {
   RefreshCw,
   Search,
   Table2,
+  Trash2,
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
@@ -231,6 +255,7 @@ import Input from '../components/ui/input/Input.vue'
 import Button from '../components/ui/button/Button.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import Alert from '../components/ui/alert/Alert.vue'
+import Modal from '../components/ui/modal/Modal.vue'
 import { useMessage } from '../composables/useMessage'
 import MountTableView from '../components/mount/MountTableView.vue'
 import MountCardView from '../components/mount/MountCardView.vue'
@@ -260,6 +285,23 @@ const viewMode = ref('table')
 
 const previewModalVisible = ref(false)
 const previewKey = ref('')
+const deleting = ref(false)
+const deletingKey = ref('')
+
+const showDeleteModal = ref(false)
+const pendingDeleteConfigId = ref('')
+const pendingDeleteKey = ref('')
+const pendingDeleteName = ref('')
+const pendingDeleteIsFolder = ref(false)
+
+const deleteModalTitle = computed(() =>
+  pendingDeleteIsFolder.value ? t('mount.modals.deleteFolderTitle') : t('mount.modals.deleteTitle')
+)
+
+const deleteConfirmText = computed(() => {
+  const key = pendingDeleteIsFolder.value ? 'mount.confirmDeleteFolder' : 'mount.confirmDelete'
+  return t(key, { name: pendingDeleteName.value })
+})
 
 const setViewMode = (mode) => {
   if (mode !== 'table' && mode !== 'card') {
@@ -517,6 +559,96 @@ const downloadObject = (key) => {
   window.open(url, '_blank')
 }
 
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  pendingDeleteConfigId.value = ''
+  pendingDeleteKey.value = ''
+  pendingDeleteName.value = ''
+  pendingDeleteIsFolder.value = false
+}
+
+const handleDeleteModalUpdate = (nextValue) => {
+  if (deleting.value) return
+  if (!nextValue) {
+    closeDeleteModal()
+    return
+  }
+  showDeleteModal.value = true
+}
+
+const handleDeleteCancel = () => {
+  if (deleting.value) return
+  closeDeleteModal()
+}
+
+const handleDeleteObject = (key) => {
+  const configId = String(selectedConfigId.value || '').trim()
+  const objectKey = String(key || '').trim()
+
+  if (!configId || !objectKey) return
+  if (loading.value || deleting.value) return
+
+  const isFolder = objectKey.endsWith('/')
+  const folderKey = isFolder ? objectKey.slice(0, -1) : objectKey
+  const displayNameBase = getBasename(folderKey) || folderKey || objectKey
+  const displayName = isFolder ? `${displayNameBase}/` : displayNameBase
+
+  pendingDeleteConfigId.value = configId
+  pendingDeleteKey.value = objectKey
+  pendingDeleteName.value = displayName
+  pendingDeleteIsFolder.value = isFolder
+  showDeleteModal.value = true
+}
+
+const handleDeleteConfirm = async () => {
+  if (deleting.value) return
+
+  const configId = String(pendingDeleteConfigId.value || '').trim()
+  const objectKey = String(pendingDeleteKey.value || '').trim()
+  const isFolder = pendingDeleteIsFolder.value
+
+  if (!configId || !objectKey) return
+
+  deleting.value = true
+  deletingKey.value = objectKey
+
+  try {
+    const result = await api.deleteMountedObject({ configId, key: objectKey })
+
+    if (previewModalVisible.value && previewKey.value === objectKey) {
+      previewModalVisible.value = false
+      previewKey.value = ''
+    }
+
+    const previousStack = [...tokenStack.value]
+    if (tokenStack.value.length > 1 && tableData.value.length <= 1) {
+      tokenStack.value.pop()
+    }
+
+    const ok = await loadObjects()
+    if (!ok) {
+      tokenStack.value = previousStack
+    }
+
+    if (isFolder) {
+      const deletedCount = Number(result?.deleted_count || 0)
+      message.success(t('mount.messages.deleteFolderSuccess', { count: deletedCount }))
+    } else {
+      message.success(t('mount.messages.deleteSuccess'))
+    }
+
+    closeDeleteModal()
+  } catch (error) {
+    const fallbackKey = isFolder
+      ? 'mount.messages.deleteFolderFailed'
+      : 'mount.messages.deleteFailed'
+    message.error(error.response?.data?.error || t(fallbackKey))
+  } finally {
+    deleting.value = false
+    deletingKey.value = ''
+  }
+}
+
 const tableData = computed(() => {
   const basePrefix = String(prefix.value || '')
   const folders = Array.isArray(listResult.value?.folders) ? listResult.value.folders : []
@@ -598,32 +730,48 @@ const columns = computed(() => [
   {
     title: t('mount.table.actions'),
     key: 'actions',
-    width: locale.value === 'zh-CN' ? 260 : 300,
+    width: locale.value === 'zh-CN' ? 360 : 420,
     align: 'center',
     ellipsis: false,
     render: (row) => {
       const isFolder = row.kind === 'folder'
+      const isDeleting = deleting.value && deletingKey.value === row.key
+
       if (isFolder) {
-        return h(
-          Button,
-          {
-            size: 'small',
-            type: 'default',
-            disabled: loading.value,
-            onClick: () => openFolder(row.key),
-          },
-          () => [h(FolderOpen, { size: 16, style: 'margin-right: 4px' }), t('mount.actions.open')]
-        )
+        return h('div', { class: 'action-buttons' }, [
+          h(
+            Button,
+            {
+              size: 'small',
+              type: 'default',
+              disabled: loading.value || deleting.value,
+              onClick: () => openFolder(row.key),
+            },
+            () => [h(FolderOpen, { size: 16, style: 'margin-right: 4px' }), t('mount.actions.open')]
+          ),
+          h(
+            Button,
+            {
+              size: 'small',
+              type: 'danger',
+              disabled: loading.value || deleting.value,
+              loading: isDeleting,
+              onClick: () => handleDeleteObject(row.key),
+            },
+            () => [h(Trash2, { size: 16, style: 'margin-right: 4px' }), t('mount.actions.delete')]
+          ),
+        ])
       }
 
       const canPreview = isPreviewSupported(row.key)
+
       return h('div', { class: 'action-buttons' }, [
         h(
           Button,
           {
             size: 'small',
             type: 'default',
-            disabled: loading.value || !canPreview,
+            disabled: loading.value || deleting.value || !canPreview,
             onClick: () => openPreview(row.key),
           },
           () => [h(Eye, { size: 16, style: 'margin-right: 4px' }), t('mount.actions.preview')]
@@ -633,10 +781,21 @@ const columns = computed(() => [
           {
             size: 'small',
             type: 'primary',
-            disabled: loading.value,
+            disabled: loading.value || deleting.value,
             onClick: () => downloadObject(row.key),
           },
           () => [h(Download, { size: 16, style: 'margin-right: 4px' }), t('mount.actions.download')]
+        ),
+        h(
+          Button,
+          {
+            size: 'small',
+            type: 'danger',
+            disabled: loading.value || deleting.value,
+            loading: isDeleting,
+            onClick: () => handleDeleteObject(row.key),
+          },
+          () => [h(Trash2, { size: 16, style: 'margin-right: 4px' }), t('mount.actions.delete')]
         ),
       ])
     },
@@ -665,6 +824,7 @@ watch(
   async (value) => {
     previewModalVisible.value = false
     previewKey.value = ''
+    closeDeleteModal()
 
     if (!value) {
       listResult.value = null
@@ -841,6 +1001,13 @@ onMounted(async () => {
   .filter-item.owner {
     width: 100%;
   }
+}
+
+.mount-delete-confirm {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--nb-ink);
+  word-break: break-word;
 }
 
 .mount-browser-panel {
