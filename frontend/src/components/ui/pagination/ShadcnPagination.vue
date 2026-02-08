@@ -9,6 +9,7 @@ const props = defineProps({
   page: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
   total: { type: Number, default: 0 },
+  displayTotal: { type: [Number, String], default: undefined },
   siblingCount: { type: Number, default: 1 },
   showTotal: { type: Boolean, default: true },
   showPageSize: { type: Boolean, default: true },
@@ -20,6 +21,8 @@ const emit = defineEmits(['update:page', 'update:pageSize'])
 const { t } = useI18n({ useScope: 'global' })
 
 const totalPages = computed(() => getTotalPages(props.total, props.pageSize))
+const displayTotal = computed(() => props.displayTotal ?? props.total)
+
 const pageItems = computed(() =>
   getPaginationItems({
     page: props.page,
@@ -66,7 +69,7 @@ const changePageSize = (value) => {
     <nav class="nav" :aria-label="t('pagination.ariaLabel')">
       <ul class="list">
         <li v-if="showTotal" class="total-item">
-          <span class="total">{{ t('pagination.total', { total }) }}</span>
+          <span class="total">{{ t('pagination.total', { total: displayTotal }) }}</span>
         </li>
 
         <li>
