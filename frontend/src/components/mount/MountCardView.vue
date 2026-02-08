@@ -28,7 +28,7 @@
                     v-if="row.kind === 'folder'"
                     type="button"
                     class="mount-card-title mount-card-title-btn"
-                    :disabled="loading"
+                    :disabled="loading || deleting"
                     @click.stop="emit('open-folder', row.key)"
                   >
                     {{ `${row.name}/` }}
@@ -41,17 +41,31 @@
 
           <template #header-extra>
             <div class="mount-card-actions">
-              <Tooltip v-if="row.kind === 'folder'" :content="t('mount.actions.open')">
-                <Button
-                  type="ghost"
-                  size="small"
-                  class="icon-btn"
-                  :disabled="loading"
-                  @click.stop="emit('open-folder', row.key)"
-                >
-                  <FolderOpen :size="18" />
-                </Button>
-              </Tooltip>
+              <template v-if="row.kind === 'folder'">
+                <Tooltip :content="t('mount.actions.open')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="icon-btn"
+                    :disabled="loading || deleting"
+                    @click.stop="emit('open-folder', row.key)"
+                  >
+                    <FolderOpen :size="18" />
+                  </Button>
+                </Tooltip>
+                <Tooltip :content="t('mount.actions.delete')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="icon-btn danger-icon-btn"
+                    :disabled="loading || deleting"
+                    :loading="deleting && deletingKey === row.key"
+                    @click.stop="emit('delete', row.key)"
+                  >
+                    <Trash2 :size="18" />
+                  </Button>
+                </Tooltip>
+              </template>
 
               <template v-else>
                 <Tooltip :content="t('mount.actions.preview')">
@@ -59,7 +73,7 @@
                     type="ghost"
                     size="small"
                     class="icon-btn"
-                    :disabled="loading || !isPreviewSupported(row.key)"
+                    :disabled="loading || deleting || !isPreviewSupported(row.key)"
                     @click.stop="emit('preview', row.key)"
                   >
                     <Eye :size="18" />
@@ -70,10 +84,22 @@
                     type="ghost"
                     size="small"
                     class="icon-btn"
-                    :disabled="loading"
+                    :disabled="loading || deleting"
                     @click.stop="emit('download', row.key)"
                   >
                     <Download :size="18" />
+                  </Button>
+                </Tooltip>
+                <Tooltip :content="t('mount.actions.delete')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="icon-btn danger-icon-btn"
+                    :disabled="loading || deleting"
+                    :loading="deleting && deletingKey === row.key"
+                    @click.stop="emit('delete', row.key)"
+                  >
+                    <Trash2 :size="18" />
                   </Button>
                 </Tooltip>
               </template>
@@ -105,7 +131,7 @@
           size="small"
           class="load-more-btn"
           :loading="loading && activeAction === 'loadMore'"
-          :disabled="loading"
+          :disabled="loading || deleting"
           @click="emit('load-more')"
         >
           {{ t('common.loadMore') }}
@@ -116,7 +142,7 @@
 </template>
 
 <script setup>
-import { Download, Eye, File, FolderOpen } from 'lucide-vue-next'
+import { Download, Eye, File, FolderOpen, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import Button from '../ui/button/Button.vue'
 import Card from '../ui/card/Card.vue'
@@ -139,6 +165,14 @@ defineProps({
     type: String,
     default: '',
   },
+  deleting: {
+    type: Boolean,
+    default: false,
+  },
+  deletingKey: {
+    type: String,
+    default: '',
+  },
   isPreviewSupported: {
     type: Function,
     required: true,
@@ -153,7 +187,7 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['open-folder', 'preview', 'download', 'load-more'])
+const emit = defineEmits(['open-folder', 'preview', 'download', 'delete', 'load-more'])
 const { t } = useI18n({ useScope: 'global' })
 </script>
 
@@ -211,10 +245,15 @@ const { t } = useI18n({ useScope: 'global' })
 
 .mount-card:hover :deep(.header-extra),
 .mount-card:focus-within :deep(.header-extra) {
-  max-width: 74px;
+  max-width: 124px;
   margin-left: var(--nb-space-xs);
   opacity: 1;
   pointer-events: auto;
+}
+
+.mount-card:has(.mount-card-actions > :nth-child(2)):hover :deep(.header-extra),
+.mount-card:has(.mount-card-actions > :nth-child(2)):focus-within :deep(.header-extra) {
+  max-width: 84px;
 }
 
 .mount-card-header {
@@ -300,6 +339,15 @@ const { t } = useI18n({ useScope: 'global' })
   padding: 0;
 }
 
+.danger-icon-btn {
+  color: var(--destructive, var(--nb-danger));
+}
+
+.danger-icon-btn:hover:not(:disabled),
+.danger-icon-btn:focus-visible:not(:disabled) {
+  color: var(--destructive, var(--nb-danger));
+}
+
 .mount-card-body {
   display: flex;
   flex-direction: column;
@@ -349,7 +397,7 @@ const { t } = useI18n({ useScope: 'global' })
   }
 
   .mount-card :deep(.header-extra) {
-    max-width: 74px;
+    max-width: 110px;
     margin-left: var(--nb-space-xs);
     opacity: 1;
     pointer-events: auto;
