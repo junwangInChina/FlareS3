@@ -52,6 +52,41 @@
               <RefreshCw :size="16" style="margin-right: 6px" />
               {{ t('common.refresh') }}
             </Button>
+
+            <div class="filter-item view-mode">
+              <div
+                class="view-mode-toggle"
+                role="group"
+                :aria-label="t('mount.viewMode.ariaLabel')"
+              >
+                <Tooltip :content="t('mount.viewMode.table')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="view-mode-btn"
+                    :class="{ 'is-active': viewMode === 'table' }"
+                    :disabled="loading || !selectedConfigId"
+                    :aria-label="t('mount.viewMode.table')"
+                    @click="setViewMode('table')"
+                  >
+                    <Table2 :size="18" />
+                  </Button>
+                </Tooltip>
+                <Tooltip :content="t('mount.viewMode.card')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="view-mode-btn"
+                    :class="{ 'is-active': viewMode === 'card' }"
+                    :disabled="loading || !selectedConfigId"
+                    :aria-label="t('mount.viewMode.card')"
+                    @click="setViewMode('card')"
+                  >
+                    <LayoutGrid :size="18" />
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -73,8 +108,54 @@
           {{ t('mount.state.noConfigSelectedContent') }}
         </Alert>
 
-        <Card v-else class="mount-browser-card">
-          <template #header>
+        <template v-else>
+          <Card v-if="viewMode === 'table'" class="mount-browser-card">
+            <template #header>
+              <div class="mount-browser-header">
+                <div class="mount-path">
+                  <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goRoot">
+                    <Home :size="16" />
+                    <span class="btn-label">{{ t('mount.actions.root') }}</span>
+                  </Button>
+
+                  <div class="breadcrumb">
+                    <span class="breadcrumb-root" :class="{ clickable: prefix }" @click="goRoot"
+                      >/</span
+                    >
+                    <template v-for="(item, index) in breadcrumbItems" :key="item.prefix">
+                      <span v-if="index > 0" class="breadcrumb-sep">/</span>
+                      <span
+                        class="breadcrumb-item clickable"
+                        @click="navigateToPrefix(item.prefix)"
+                      >
+                        {{ item.label }}
+                      </span>
+                    </template>
+                  </div>
+
+                  <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goUp">
+                    <ArrowUp :size="16" />
+                    <span class="btn-label">{{ t('mount.actions.up') }}</span>
+                  </Button>
+                </div>
+              </div>
+            </template>
+
+            <MountTableView :columns="columns" :data="tableData" :loading="loading" />
+
+            <Pagination
+              :page="pageNumber"
+              :page-size="limit"
+              :total="paginationTotal"
+              :display-total="paginationDisplayTotal"
+              :page-size-options="pageSizeOptions"
+              :disabled="loading || !selectedConfigId"
+              @update:page="handlePaginationPageChange"
+              @update:page-size="handlePaginationPageSizeChange"
+            />
+          </Card>
+
+          <div v-else class="mount-browser-panel">
             <div class="mount-browser-header">
               <div class="mount-path">
                 <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goRoot">
@@ -100,21 +181,22 @@
                 </Button>
               </div>
             </div>
-          </template>
 
-          <Table :columns="columns" :data="tableData" :loading="loading" />
-
-          <Pagination
-            :page="pageNumber"
-            :page-size="limit"
-            :total="paginationTotal"
-            :display-total="paginationDisplayTotal"
-            :page-size-options="pageSizeOptions"
-            :disabled="loading || !selectedConfigId"
-            @update:page="handlePaginationPageChange"
-            @update:page-size="handlePaginationPageSizeChange"
-          />
-        </Card>
+            <MountCardView
+              :rows="tableData"
+              :loading="loading"
+              :has-more="canNext"
+              :active-action="activeAction"
+              :is-preview-supported="isPreviewSupported"
+              :format-bytes="formatBytes"
+              :format-date-time="formatDateTime"
+              @open-folder="openFolder"
+              @preview="openPreview"
+              @download="downloadObject"
+              @load-more="nextPage"
+            />
+          </div>
+        </template>
       </section>
 
       <MountedObjectPreviewModal
@@ -128,12 +210,21 @@
 
 <script setup>
 import { computed, h, onMounted, ref, watch } from 'vue'
-import { ArrowUp, Download, Eye, FolderOpen, Home, RefreshCw, Search } from 'lucide-vue-next'
+import {
+  ArrowUp,
+  Download,
+  Eye,
+  FolderOpen,
+  Home,
+  LayoutGrid,
+  RefreshCw,
+  Search,
+  Table2,
+} from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
-import Table from '../components/ui/table/Table.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
 import Select from '../components/ui/select/Select.vue'
 import Input from '../components/ui/input/Input.vue'
@@ -141,6 +232,8 @@ import Button from '../components/ui/button/Button.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import Alert from '../components/ui/alert/Alert.vue'
 import { useMessage } from '../composables/useMessage'
+import MountTableView from '../components/mount/MountTableView.vue'
+import MountCardView from '../components/mount/MountCardView.vue'
 import MountedObjectPreviewModal from '../components/mount/MountedObjectPreviewModal.vue'
 
 const { t, locale } = useI18n({ useScope: 'global' })
@@ -162,8 +255,18 @@ const loading = ref(false)
 const activeAction = ref('')
 const loadRequestSerial = ref(0)
 
+const viewModeKey = 'flares3:mount-view-mode'
+const viewMode = ref('table')
+
 const previewModalVisible = ref(false)
 const previewKey = ref('')
+
+const setViewMode = (mode) => {
+  if (mode !== 'table' && mode !== 'card') {
+    return
+  }
+  viewMode.value = mode
+}
 
 const configOptions = computed(() =>
   configs.value.map((row) => ({
@@ -354,6 +457,7 @@ const nextPage = async () => {
   const nextToken = String(listResult.value?.next_continuation_token || '').trim()
   if (!nextToken) return
 
+  activeAction.value = 'loadMore'
   tokenStack.value.push(nextToken)
   const ok = await loadObjects()
   if (!ok) {
@@ -600,7 +704,24 @@ watch(
   }
 )
 
+watch(viewMode, (value) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  if (value !== 'table' && value !== 'card') {
+    return
+  }
+  window.localStorage.setItem(viewModeKey, value)
+})
+
 onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem(viewModeKey)
+    if (stored === 'table' || stored === 'card') {
+      viewMode.value = stored
+    }
+  }
+
   prefixInput.value = prefix.value
   await loadConfigs()
 
@@ -662,6 +783,45 @@ onMounted(async () => {
   width: 160px;
 }
 
+.filter-item.view-mode {
+  display: flex;
+  align-items: center;
+}
+
+.view-mode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: var(--nb-border);
+  border-radius: var(--nb-radius-md, var(--nb-radius));
+  background: var(--nb-surface);
+  height: 36px;
+  align-items: center;
+}
+
+:root[data-ui-theme='shadcn'] .view-mode-toggle {
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+
+.view-mode-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-mode-btn.is-active {
+  background: var(--nb-secondary);
+  border-color: var(--nb-border-color);
+}
+
+:root[data-ui-theme='shadcn'] .view-mode-btn.is-active {
+  background: var(--accent);
+}
+
 @media (max-width: 720px) {
   .mount-header {
     flex-direction: column;
@@ -681,6 +841,12 @@ onMounted(async () => {
   .filter-item.owner {
     width: 100%;
   }
+}
+
+.mount-browser-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nb-space-md);
 }
 
 .mount-browser-header {
@@ -723,38 +889,5 @@ onMounted(async () => {
 
 .breadcrumb-sep {
   opacity: 0.6;
-}
-
-:deep(.mount-name) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  vertical-align: middle;
-}
-
-:deep(.mount-name-icon) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-}
-
-:deep(.mount-name-text) {
-  display: inline-flex;
-  align-items: center;
-}
-
-:deep(.mount-name.is-folder) {
-  cursor: pointer;
-  color: var(--nb-link-color, var(--nb-primary));
-}
-
-:deep(.action-buttons) {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
 }
 </style>
