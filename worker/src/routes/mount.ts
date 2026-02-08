@@ -1,12 +1,16 @@
 import type { Env } from '../config/env'
-import { jsonResponse, redirect } from './utils'
+import { jsonResponse, redirect, getUser } from './utils'
 import {
+  deleteObject,
+  deleteObjectsByPrefix,
   generateDownloadUrl,
   generatePreviewUrl,
   listObjectsV2,
   loadR2ConfigById,
   summarizeS3Error,
 } from '../services/r2'
+import { logAudit } from '../services/audit'
+import { getClientIp } from '../middleware/rateLimit'
 
 function normalizePrefix(value: string | null): string {
   const prefix = String(value ?? '').trim()
@@ -238,5 +242,83 @@ export async function previewMountedObject(request: Request, env: Env): Promise<
   return new Response(response.body, {
     status: response.status,
     headers,
+  })
+}
+
+export async function deleteMountedObject(request: Request, env: Env): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const method = request.method.toUpperCase()
+  if (method !== 'DELETE') {
+    return jsonResponse({ error: '方法不允许' }, 405)
+  }
+
+  const url = new URL(request.url)
+  const configId = String(url.searchParams.get('config_id') || '').trim()
+  const key = String(url.searchParams.get('key') || '').trim()
+
+  if (!configId) {
+    return jsonResponse({ error: '缺少 config_id' }, 400)
+  }
+
+  if (!key) {
+    return jsonResponse({ error: '缺少 key' }, 400)
+  }
+
+  const loaded = await loadR2ConfigById(env, configId)
+  if (!loaded) {
+    return jsonResponse({ error: '配置不存在或不可用' }, 404)
+  }
+
+  const isFolder = key.endsWith('/')
+  let deletedCount = 0
+
+  try {
+    if (isFolder) {
+      const result = await deleteObjectsByPrefix(loaded.config, key)
+      deletedCount = Number(result.deleted_count || 0)
+      if (deletedCount <= 0) {
+        return jsonResponse({ error: '目录不存在或已为空' }, 404)
+      }
+    } else {
+      await deleteObject(loaded.config, key)
+      deletedCount = 1
+    }
+  } catch (error) {
+    const summary = summarizeS3Error(error)
+    if (!isFolder && (summary.httpStatusCode === 404 || summary.code === 'NoSuchKey')) {
+      return jsonResponse({ error: '对象不存在' }, 404)
+    }
+
+    const parts = [
+      summary.code,
+      typeof summary.httpStatusCode === 'number' ? `HTTP ${summary.httpStatusCode}` : null,
+      summary.message,
+    ].filter(Boolean)
+    const detail = parts.length ? `（${parts.join(' / ')}）` : ''
+    const errorPrefix = isFolder ? '删除目录失败' : '删除对象失败'
+    return jsonResponse({ error: `${errorPrefix}${detail}` }, 502)
+  }
+
+  await logAudit(env.DB, {
+    actorUserId: user.id,
+    action: 'MOUNT_OBJECT_DELETE',
+    targetType: 'mount_object',
+    targetId: key,
+    ip: getClientIp(request),
+    userAgent: request.headers.get('User-Agent') || undefined,
+    metadata: {
+      configId,
+      key,
+      recursive: isFolder,
+      deletedCount,
+    },
+  })
+
+  return jsonResponse({
+    success: true,
+    recursive: isFolder,
+    deleted_count: deletedCount,
   })
 }
