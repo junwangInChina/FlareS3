@@ -25,11 +25,6 @@ import { generateRandomCode } from '../utils/random'
 const ALLOWED_EXPIRES = new Set([-30, 1, 3, 7, 30])
 const PART_SIZE = 20 * 1024 * 1024
 
-function getFileExtension(filename: string): string {
-  const index = filename.lastIndexOf('.')
-  return index >= 0 ? filename.slice(index) : ''
-}
-
 function calcExpiresAt(expiresIn: number): Date {
   const now = new Date()
   if (expiresIn === -30) {
@@ -49,7 +44,7 @@ async function createFileRecord(
   r2ConfigId: string
 ): Promise<{ id: string; r2Key: string; shortCode: string; expiresAt: Date }> {
   const id = crypto.randomUUID()
-  const r2Key = buildR2Key(r2ConfigId, id, getFileExtension(filename))
+  const r2Key = buildR2Key(r2ConfigId, filename)
   const expiresAt = calcExpiresAt(expiresIn)
   let shortCode = ''
   for (let i = 0; i < 10; i += 1) {
