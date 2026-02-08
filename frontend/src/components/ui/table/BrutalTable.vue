@@ -130,7 +130,8 @@ defineProps({
 
 .cell-ellipsis :deep(.brutal-tooltip-trigger),
 .cell-ellipsis :deep(.tooltip-trigger) {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
