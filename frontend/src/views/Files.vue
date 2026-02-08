@@ -58,7 +58,7 @@
               type="default"
               size="small"
               :loading="filesStore.loading && activeAction === 'search'"
-              :disabled="filesStore.loading"
+              :disabled="filesStore.loading || deleting"
               @click="handleSearch"
             >
               <Search :size="16" style="margin-right: 6px" />
@@ -68,7 +68,7 @@
               type="default"
               size="small"
               :loading="filesStore.loading && activeAction === 'refresh'"
-              :disabled="filesStore.loading"
+              :disabled="filesStore.loading || deleting"
               @click="handleRefresh"
             >
               <RefreshCw :size="16" style="margin-right: 6px" />
@@ -83,7 +83,7 @@
                     size="small"
                     class="view-mode-btn"
                     :class="{ 'is-active': viewMode === 'table' }"
-                    :disabled="filesStore.loading"
+                    :disabled="filesStore.loading || deleting"
                     :aria-label="t('files.viewMode.table')"
                     @click="setViewMode('table')"
                   >
@@ -96,7 +96,7 @@
                     size="small"
                     class="view-mode-btn"
                     :class="{ 'is-active': viewMode === 'card' }"
-                    :disabled="filesStore.loading"
+                    :disabled="filesStore.loading || deleting"
                     :aria-label="t('files.viewMode.card')"
                     @click="setViewMode('card')"
                   >
@@ -118,7 +118,7 @@
           :total="filesStore.total"
           :page="pagination.page"
           :page-size="pagination.pageSize"
-          :disabled="filesStore.loading"
+          :disabled="filesStore.loading || deleting"
           @update:page="changePage"
           @update:page-size="changePageSize"
         />
@@ -126,7 +126,7 @@
         <FilesCardView
           v-else
           :files="filesStore.files"
-          :loading="filesStore.loading"
+          :loading="filesStore.loading || deleting"
           :initial-loading="tableLoading"
           :has-more="hasMore"
           :active-action="activeAction"
@@ -147,6 +147,26 @@
         :file-id="sharingFileId"
         :filename="sharingFilename"
       />
+
+      <Modal
+        :show="showDeleteModal"
+        :title="t('files.modals.deleteTitle')"
+        width="420px"
+        @update:show="handleDeleteModalUpdate"
+      >
+        <p class="files-delete-confirm">
+          {{ deleteConfirmText }}
+        </p>
+
+        <template #footer>
+          <Button type="default" :disabled="deleting" @click="handleDeleteCancel">
+            {{ t('common.cancel') }}
+          </Button>
+          <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">
+            {{ t('files.actions.delete') }}
+          </Button>
+        </template>
+      </Modal>
     </div>
   </AppLayout>
 </template>
@@ -175,6 +195,7 @@ import FileInfoModal from '../components/files/FileInfoModal.vue'
 import FileUploadModal from '../components/files/FileUploadModal.vue'
 import FileShareModal from '../components/files/FileShareModal.vue'
 import Button from '../components/ui/button/Button.vue'
+import Modal from '../components/ui/modal/Modal.vue'
 import Select from '../components/ui/select/Select.vue'
 import Input from '../components/ui/input/Input.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
@@ -194,6 +215,12 @@ const showUploadModal = ref(false)
 const showShareModal = ref(false)
 const sharingFileId = ref('')
 const sharingFilename = ref('')
+
+const showDeleteModal = ref(false)
+const deleting = ref(false)
+const pendingDeleteId = ref('')
+
+const deleteConfirmText = computed(() => t('files.confirmDelete'))
 
 const filters = ref({
   filename: '',
@@ -265,8 +292,8 @@ const getFileStatus = (row) => {
   const text = deleted
     ? t('files.status.invalid')
     : expired
-      ? t('files.status.expired')
-      : t('files.status.valid')
+    ? t('files.status.expired')
+    : t('files.status.valid')
   const tagType = deleted ? 'danger' : expired ? 'warning' : 'success'
 
   return { deleted, expired, text, tagType }
@@ -362,12 +389,12 @@ const columns = computed(() => [
           ? 280
           : 330
         : themeStore.uiTheme === 'shadcn'
-          ? 330
-          : 380,
+        ? 330
+        : 380,
     align: 'center',
     ellipsis: false,
     render: (row) => {
-      const disabled = filesStore.loading || isFileDeleted(row)
+      const disabled = filesStore.loading || deleting.value || isFileDeleted(row)
       return h('div', { class: 'action-buttons' }, [
         h(
           Button,
@@ -514,14 +541,14 @@ const loadFiles = async ({ page = pagination.value.page, append = false } = {}) 
 }
 
 const handleSearch = () => {
-  if (filesStore.loading) return
+  if (filesStore.loading || deleting.value) return
   activeAction.value = 'search'
   pagination.value.page = 1
   loadFiles()
 }
 
 const handleRefresh = () => {
-  if (filesStore.loading) return
+  if (filesStore.loading || deleting.value) return
   activeAction.value = 'refresh'
   if (viewMode.value === 'card') {
     pagination.value.page = 1
@@ -530,11 +557,13 @@ const handleRefresh = () => {
 }
 
 const changePage = (page) => {
+  if (deleting.value) return
   pagination.value.page = page
   loadFiles()
 }
 
 const changePageSize = (pageSize) => {
+  if (deleting.value) return
   const nextSize = Number(pageSize)
   if (!Number.isFinite(nextSize) || nextSize <= 0) return
   pagination.value.pageSize = nextSize
@@ -543,7 +572,7 @@ const changePageSize = (pageSize) => {
 }
 
 const loadMore = async () => {
-  if (filesStore.loading) return
+  if (filesStore.loading || deleting.value) return
   if (!hasMore.value) return
 
   activeAction.value = 'loadMore'
@@ -551,11 +580,47 @@ const loadMore = async () => {
   await loadFiles({ page: nextPage, append: true })
 }
 
-const handleDelete = async (fileId) => {
-  if (!confirm(t('files.confirmDelete'))) return
+const openDeleteModal = (fileId) => {
+  const id = String(fileId ?? '').trim()
+  if (!id) return
+  if (deleting.value) return
+
+  pendingDeleteId.value = id
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  pendingDeleteId.value = ''
+}
+
+const handleDeleteModalUpdate = (nextValue) => {
+  if (deleting.value) return
+  if (!nextValue) {
+    closeDeleteModal()
+    return
+  }
+  showDeleteModal.value = true
+}
+
+const handleDeleteCancel = () => {
+  if (deleting.value) return
+  closeDeleteModal()
+}
+
+const handleDeleteConfirm = async () => {
+  if (deleting.value) return
+
+  const fileId = pendingDeleteId.value
+  if (!fileId) return
+
+  deleting.value = true
+
   try {
     await api.deleteFile(fileId)
     message.success(t('files.messages.deleteSuccess'))
+
+    closeDeleteModal()
 
     if (viewMode.value === 'card') {
       pagination.value.page = 1
@@ -568,8 +633,15 @@ const handleDelete = async (fileId) => {
     }
   } catch (error) {
     message.error(t('files.messages.deleteFailed'))
+  } finally {
+    deleting.value = false
   }
 }
+
+const handleDelete = (fileId) => {
+  openDeleteModal(fileId)
+}
+
 const handleUploaded = () => {
   if (viewMode.value === 'card') {
     pagination.value.page = 1
@@ -723,6 +795,11 @@ watch(viewMode, (value) => {
   display: flex;
   flex-direction: column;
   gap: var(--nb-space-lg);
+}
+
+.files-delete-confirm {
+  margin: 0;
+  color: var(--nb-muted-foreground, var(--nb-gray-600));
 }
 
 @media (max-width: 720px) {
