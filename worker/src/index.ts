@@ -31,7 +31,12 @@ import {
   abortMultipart,
 } from './routes/upload'
 import { listFiles, downloadFile, deleteFile, previewFile } from './routes/files'
-import { listMountedObjects, downloadMountedObject, previewMountedObject } from './routes/mount'
+import {
+  listMountedObjects,
+  downloadMountedObject,
+  previewMountedObject,
+  deleteMountedObject,
+} from './routes/mount'
 import { shortlink } from './routes/shortlink'
 import { getStats } from './routes/stats'
 import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
@@ -191,6 +196,10 @@ router.get(
 router.get(
   '/api/mount/preview',
   withAdmin((request, env: Env) => previewMountedObject(request, env))
+)
+router.delete(
+  '/api/mount/object',
+  withAdmin((request, env: Env) => deleteMountedObject(request, env))
 )
 
 router.get(
