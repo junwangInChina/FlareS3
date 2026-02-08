@@ -295,10 +295,13 @@ export function extractR2ConfigIdFromKey(r2Key: string): string | null {
   return parts[1] || null
 }
 
-export function buildR2Key(configId: string, fileId: string, extension: string): string {
+export function buildR2Key(configId: string, filename: string): string {
   const safeConfigId = String(configId).replaceAll('/', '_')
-  const safeExt = extension || ''
-  return `flares3/${safeConfigId}/${fileId}${safeExt}`
+  const normalizedFilename = String(filename ?? '').replaceAll('\\', '/')
+  const filenameParts = normalizedFilename.split('/').filter(Boolean)
+  const originalFilename = filenameParts.length ? filenameParts[filenameParts.length - 1] : ''
+  const safeFilename = originalFilename.trim() || 'file'
+  return `flares3/${safeConfigId}/${safeFilename}`
 }
 
 export async function resolveR2ConfigForKey(
@@ -332,6 +335,10 @@ export function createS3Client(config: R2Config): S3Client {
       secretAccessKey: config.secretAccessKey,
     },
     forcePathStyle: true,
+    // 避免 PutObject 预签名 URL 自动附带 x-amz-checksum-* 查询参数，
+    // 这会在部分 S3 兼容实现（含 R2 场景）导致浏览器直传校验失败。
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   })
 }
 
