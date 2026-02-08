@@ -60,7 +60,7 @@
               <Tag type="warning">{{ uploadResult.duration }}</Tag>
             </div>
             <p class="expire-note">
-              {{ t('upload.fileExpire', { days: expiresIn }) }}
+              {{ fileExpireText }}
             </p>
 
             <div class="link-group">
@@ -123,15 +123,16 @@ const r2ConfigOptions = ref([])
 const r2OptionsLoading = ref(false)
 
 const expiresOptions = computed(() =>
-  [
-    { days: 1, value: 1 },
-    { days: 3, value: 3 },
-    { days: 7, value: 7 },
-    { days: 30, value: 30 },
-  ].map((item) => ({
-    label: t('upload.expireDays', { days: item.days }),
-    value: item.value,
+  [1, 3, 7, 30, 0].map((value) => ({
+    label: value === 0 ? t('upload.expireNever') : t('upload.expireDays', { days: value }),
+    value,
   }))
+)
+
+const fileExpireText = computed(() =>
+  expiresIn.value === 0
+    ? t('upload.fileNeverExpire')
+    : t('upload.fileExpire', { days: expiresIn.value })
 )
 
 onMounted(async () => {
