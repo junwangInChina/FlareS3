@@ -8,6 +8,7 @@ const props = defineProps({
   page: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
   total: { type: Number, default: 0 },
+  displayTotal: { type: [Number, String], default: undefined },
   siblingCount: { type: Number, default: 1 },
   showTotal: { type: Boolean, default: true },
   showPageSize: { type: Boolean, default: true },
