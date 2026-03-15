@@ -3,6 +3,12 @@ import type { AuthUser } from '../middleware/authSession'
 import { calcPresignedDownloadUrlTtlSeconds, getUser, jsonResponse, parseJson } from './utils'
 import { ensureFilesTable, ensureFileSharesTable } from '../services/dbSchema'
 import { hashPassword, verifyPassword } from '../services/password'
+import {
+  clearSharePasswordFailedAttempts,
+  getClientIp,
+  isSharePasswordBlocked,
+  recordSharePasswordFailedAttempt,
+} from '../middleware/rateLimit'
 import { generateDownloadUrl, resolveR2ConfigForKey } from '../services/r2'
 import { buildPage, escapeHtml, htmlResponse } from './sharePage'
 import { generateRandomCode } from '../utils/random'
@@ -577,6 +583,11 @@ export async function viewFileShare(request: Request, env: Env, code: string): P
       return Response.redirect(presigned.url, 302)
     }
 
+    const ip = getClientIp(request)
+    if (await isSharePasswordBlocked(env, normalized, ip)) {
+      return renderFilePasswordForm({ title, meta, error: '尝试次数过多，请 10 分钟后重试' })
+    }
+
     let password = ''
     try {
       const form = await request.formData()
@@ -590,9 +601,14 @@ export async function viewFileShare(request: Request, env: Env, code: string): P
     }
 
     if (!verifyPassword(password, passwordHash)) {
+      await recordSharePasswordFailedAttempt(env, normalized, ip)
+      if (await isSharePasswordBlocked(env, normalized, ip)) {
+        return renderFilePasswordForm({ title, meta, error: '尝试次数过多，请 10 分钟后重试' })
+      }
       return renderFilePasswordForm({ title, meta, error: '口令不正确' })
     }
 
+    await clearSharePasswordFailedAttempts(env, normalized, ip)
     await incrementFileShareViews(env, share.id)
     const presigned = await buildPresignedDownloadUrl(env, file)
     if (!presigned.ok) {
