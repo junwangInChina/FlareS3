@@ -10,6 +10,7 @@ export default {
     usernamePasswordRequired: '请输入用户名和密码',
     loginFailed: '登录失败',
     errors: {
+      invalidCredentials: '用户名或密码错误',
       userNotFound: '账号不存在',
       passwordIncorrect: '密码错误',
       userDisabled: '账号被禁用',

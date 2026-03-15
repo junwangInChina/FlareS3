@@ -10,6 +10,7 @@ export default {
     usernamePasswordRequired: 'Please enter username and password',
     loginFailed: 'Login failed',
     errors: {
+      invalidCredentials: 'Invalid username or password',
       userNotFound: 'Account does not exist',
       passwordIncorrect: 'Incorrect password',
       userDisabled: 'Account is disabled',
