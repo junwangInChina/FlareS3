@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   AbortMultipartUploadCommand,
   CreateMultipartUploadCommand,
   UploadPartCommand,
@@ -445,6 +446,23 @@ export async function generatePreviewUrl(
     ...(responseContentType ? { ResponseContentType: responseContentType } : {}),
   })
   return getSignedUrl(client, command, { expiresIn: expiresInSeconds })
+}
+
+export async function checkObjectExists(config: R2Config, key: string): Promise<boolean> {
+  const client = createS3Client(config)
+  const response = await fetchSigned(
+    client,
+    new HeadObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+    }),
+    { method: 'HEAD', expiresInSeconds: 60 }
+  )
+
+  if (response.ok) return true
+  if (response.status === 404) return false
+  const text = await response.text()
+  throw buildS3HttpError(response.status, text)
 }
 
 export async function initiateMultipartUpload(
