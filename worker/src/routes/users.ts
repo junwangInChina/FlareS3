@@ -4,6 +4,34 @@ import { hashPassword } from '../services/password'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 
+async function revokeUserSessions(db: D1Database, userId: string): Promise<void> {
+  const now = new Date().toISOString()
+  await db
+    .prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL')
+    .bind(now, userId)
+    .run()
+}
+
+async function countActiveAdmins(db: D1Database): Promise<number> {
+  const total = await db
+    .prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'admin' AND status = 'active'")
+    .first('total')
+  return Number(total || 0)
+}
+
+async function isLastActiveAdmin(db: D1Database, userId: string): Promise<boolean> {
+  const target = await db
+    .prepare('SELECT id, role, status FROM users WHERE id = ? LIMIT 1')
+    .bind(userId)
+    .first<{ id: string; role: string; status: string }>()
+
+  if (!target) return false
+  if (String(target.role) !== 'admin' || String(target.status) !== 'active') return false
+
+  const activeAdmins = await countActiveAdmins(db)
+  return activeAdmins <= 1
+}
+
 export async function listUsers(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   const page = Math.max(1, Number(url.searchParams.get('page') || 1))
@@ -115,15 +143,30 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
       role?: 'admin' | 'user'
       quota_bytes?: number
     }>(request)
-    if (body.status === 'disabled' || body.status === 'deleted') {
-      const target = await env.DB.prepare('SELECT role FROM users WHERE id = ? LIMIT 1')
-        .bind(userId)
-        .first()
-      const targetRole = target ? String((target as { role?: unknown }).role ?? '') : ''
-      if (targetRole === 'admin') {
-        return jsonResponse({ error: '管理员用户不允许禁用或删除' }, 400)
+
+    const target = await env.DB.prepare('SELECT role, status FROM users WHERE id = ? LIMIT 1')
+      .bind(userId)
+      .first<{ role: string; status: string }>()
+    if (!target) {
+      return jsonResponse({ error: '用户不存在' }, 404)
+    }
+
+    const targetRole = String(target.role || '')
+    const targetStatus = String(target.status || '')
+    const nextRole = body.role || (targetRole === 'admin' ? 'admin' : 'user')
+    const nextStatus = body.status || targetStatus
+
+    if (
+      targetRole === 'admin' &&
+      targetStatus === 'active' &&
+      (nextRole !== 'admin' || nextStatus !== 'active')
+    ) {
+      const isLastAdmin = await isLastActiveAdmin(env.DB, userId)
+      if (isLastAdmin) {
+        return jsonResponse({ error: '必须保留至少一个启用中的管理员' }, 400)
       }
     }
+
     const updates: string[] = []
     const params: unknown[] = []
     if (body.status) {
@@ -145,6 +188,10 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
     if (!updates.length) {
       return jsonResponse({ error: '无可更新字段' }, 400)
     }
+
+    const shouldRevokeSessions =
+      nextStatus === 'disabled' || nextStatus === 'deleted' || targetStatus !== nextStatus
+
     updates.push('updated_at = ?')
     params.push(new Date().toISOString())
     params.push(userId)
@@ -152,15 +199,19 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
       .bind(...params)
       .run()
 
+    if (shouldRevokeSessions) {
+      await revokeUserSessions(env.DB, userId)
+    }
+
     const actor = getUser(request)
     const auditAction =
       body.status === 'disabled'
         ? 'USER_DISABLE'
         : body.status === 'active'
-          ? 'USER_ENABLE'
-          : body.status === 'deleted'
-            ? 'USER_DELETE'
-            : 'USER_UPDATE'
+        ? 'USER_ENABLE'
+        : body.status === 'deleted'
+        ? 'USER_DELETE'
+        : 'USER_UPDATE'
     await logAudit(env.DB, {
       actorUserId: actor?.id,
       action: auditAction,
@@ -168,7 +219,10 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
       targetId: userId,
       ip: getClientIp(request),
       userAgent: request.headers.get('User-Agent') || undefined,
-      metadata: body,
+      metadata: {
+        ...body,
+        sessionsRevoked: shouldRevokeSessions,
+      },
     })
 
     return jsonResponse({ success: true })
@@ -187,6 +241,8 @@ export async function resetPassword(request: Request, env: Env, userId: string):
       .bind(hashPassword(body.password), new Date().toISOString(), userId)
       .run()
 
+    await revokeUserSessions(env.DB, userId)
+
     const actor = getUser(request)
     await logAudit(env.DB, {
       actorUserId: actor?.id,
@@ -195,6 +251,9 @@ export async function resetPassword(request: Request, env: Env, userId: string):
       targetId: userId,
       ip: getClientIp(request),
       userAgent: request.headers.get('User-Agent') || undefined,
+      metadata: {
+        sessionsRevoked: true,
+      },
     })
 
     return jsonResponse({ success: true })
@@ -219,6 +278,8 @@ export async function deleteUser(request: Request, env: Env, userId: string): Pr
   await env.DB.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')
     .bind('deleted', now, userId)
     .run()
+
+  await revokeUserSessions(env.DB, userId)
 
   const files = await env.DB.prepare(
     `SELECT id, r2_key FROM files WHERE owner_id = ? AND deleted_at IS NULL`
@@ -250,7 +311,10 @@ export async function deleteUser(request: Request, env: Env, userId: string): Pr
     targetId: userId,
     ip: getClientIp(request),
     userAgent: request.headers.get('User-Agent') || undefined,
-    metadata: { queuedFiles: files.results?.length || 0 },
+    metadata: {
+      queuedFiles: files.results?.length || 0,
+      sessionsRevoked: true,
+    },
   })
 
   return jsonResponse({ success: true, queued: true })
