@@ -43,7 +43,12 @@ export async function login(request: Request, env: Env): Promise<Response> {
       .bind(body.username)
       .first()
 
-    const trackLoginFailure = async (targetId?: string) => {
+    const authFailedResponse = jsonResponse(
+      { error: '用户名或密码错误', code: 'AUTH_INVALID_CREDENTIALS' },
+      401
+    )
+
+    const trackLoginFailure = async (targetId?: string, reason?: string) => {
       await Promise.allSettled([
         recordFailedAttempt(env, ip),
         logAudit(env.DB, {
@@ -52,28 +57,24 @@ export async function login(request: Request, env: Env): Promise<Response> {
           targetId,
           ip,
           userAgent,
+          metadata: reason ? { reason } : undefined,
         }),
       ])
     }
 
     if (!user) {
-      await trackLoginFailure()
-      return jsonResponse({ error: '账号不存在', code: 'USER_NOT_FOUND' }, 401)
+      await trackLoginFailure(undefined, 'USER_NOT_FOUND')
+      return authFailedResponse
     }
 
-    if (user.status === 'disabled') {
-      await trackLoginFailure(String(user.id))
-      return jsonResponse({ error: '账号被禁用', code: 'USER_DISABLED' }, 403)
-    }
-
-    if (user.status !== 'active') {
-      await trackLoginFailure(String(user.id))
-      return jsonResponse({ error: '账号不存在', code: 'USER_NOT_FOUND' }, 401)
+    if (String(user.status) !== 'active') {
+      await trackLoginFailure(String(user.id), `USER_${String(user.status).toUpperCase()}`)
+      return authFailedResponse
     }
 
     if (!verifyPassword(body.password, String(user.password_hash))) {
-      await trackLoginFailure(String(user.id))
-      return jsonResponse({ error: '密码错误', code: 'PASSWORD_INCORRECT' }, 401)
+      await trackLoginFailure(String(user.id), 'PASSWORD_INCORRECT')
+      return authFailedResponse
     }
     const sessionToken = crypto.randomUUID() + crypto.randomUUID()
     const tokenHash = await hashToken(sessionToken)
