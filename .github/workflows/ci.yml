@@ -28,6 +28,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
 
+      - name: Security audit (worker prod deps)
+        run: |
+          set -euo pipefail
+          npm --prefix worker audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
