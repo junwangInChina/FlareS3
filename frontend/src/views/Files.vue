@@ -45,6 +45,33 @@
               <Select v-model="filters.upload_status" :options="statusOptions" size="small" />
             </div>
 
+            <div class="filter-item mode-toggle">
+              <div class="files-mode-toggle" role="group" :aria-label="t('files.filters.mode')">
+                <Button
+                  type="ghost"
+                  size="small"
+                  class="files-mode-btn"
+                  :class="{ 'is-active': !isTrashMode }"
+                  :disabled="filesStore.loading || deleting"
+                  :aria-label="t('files.filters.activeFiles')"
+                  @click="setFilesMode('active')"
+                >
+                  {{ t('files.filters.activeFiles') }}
+                </Button>
+                <Button
+                  type="ghost"
+                  size="small"
+                  class="files-mode-btn"
+                  :class="{ 'is-active': isTrashMode }"
+                  :disabled="filesStore.loading || deleting"
+                  :aria-label="t('files.filters.trashFiles')"
+                  @click="setFilesMode('trash')"
+                >
+                  {{ t('files.filters.trashFiles') }}
+                </Button>
+              </div>
+            </div>
+
             <div class="filter-item created-range">
               <DateRangePicker
                 v-model:startValue="filters.created_from_date"
@@ -131,9 +158,12 @@
           :has-more="hasMore"
           :active-action="activeAction"
           :is-admin="authStore.isAdmin"
+          :is-trash-mode="isTrashMode"
           @show-info="showFileInfo"
           @share="showFileShare"
           @delete="handleDelete"
+          @restore="handleRestore"
+          @delete-permanent="handleDeletePermanent"
           @load-more="loadMore"
         />
       </section>
@@ -150,7 +180,7 @@
 
       <Modal
         :show="showDeleteModal"
-        :title="t('files.modals.deleteTitle')"
+        :title="deleteModalTitle"
         width="420px"
         @update:show="handleDeleteModalUpdate"
       >
@@ -163,7 +193,7 @@
             {{ t('common.cancel') }}
           </Button>
           <Button type="danger" :loading="deleting" @click="handleDeleteConfirm">
-            {{ t('files.actions.delete') }}
+            {{ deleteActionLabel }}
           </Button>
         </template>
       </Modal>
@@ -182,6 +212,8 @@ import {
   LayoutGrid,
   Table2,
   Share2,
+  RotateCcw,
+  Trash,
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
@@ -219,8 +251,24 @@ const sharingFilename = ref('')
 const showDeleteModal = ref(false)
 const deleting = ref(false)
 const pendingDeleteId = ref('')
+const pendingDeleteMode = ref('soft')
 
-const deleteConfirmText = computed(() => t('files.confirmDelete'))
+const isTrashMode = computed(() => filesStore.mode === 'trash')
+const deleteModalTitle = computed(() =>
+  pendingDeleteMode.value === 'permanent'
+    ? t('files.modals.deletePermanentTitle')
+    : t('files.modals.deleteTitle')
+)
+const deleteActionLabel = computed(() =>
+  pendingDeleteMode.value === 'permanent'
+    ? t('files.actions.deletePermanent')
+    : t('files.actions.delete')
+)
+const deleteConfirmText = computed(() =>
+  pendingDeleteMode.value === 'permanent'
+    ? t('files.confirmDeletePermanent')
+    : t('files.confirmDelete')
+)
 
 const filters = ref({
   filename: '',
@@ -247,11 +295,16 @@ const ownerOptions = computed(() => [
   ...users.value.map((u) => ({ label: u.username, value: u.id })),
 ])
 
-const statusOptions = computed(() => [
-  { label: t('files.filters.allStatus'), value: '' },
-  { label: t('files.status.valid'), value: 'completed' },
-  { label: t('files.status.invalid'), value: 'deleted' },
-])
+const statusOptions = computed(() => {
+  if (isTrashMode.value) {
+    return [{ label: t('files.filters.allStatus'), value: 'deleted' }]
+  }
+  return [
+    { label: t('files.filters.allStatus'), value: '' },
+    { label: t('files.status.valid'), value: 'completed' },
+    { label: t('files.status.invalid'), value: 'deleted' },
+  ]
+})
 
 const activeAction = ref('')
 const hasLoadedOnce = ref(false)
@@ -279,7 +332,7 @@ const getExpiresText = (row) => {
 }
 
 const getRemainingText = (row) => {
-  if (isFileDeleted(row)) return '-'
+  if (isFileDeleted(row) || isTrashMode.value) return '-'
   const text = String(row?.remaining_time ?? '').trim()
   return text ? text : '-'
 }
@@ -356,12 +409,12 @@ const columns = computed(() => [
     },
   },
   {
-    title: t('files.columns.uploadedAt'),
-    key: 'created_at',
+    title: isTrashMode.value ? t('files.columns.deletedAt') : t('files.columns.uploadedAt'),
+    key: isTrashMode.value ? 'deleted_at' : 'created_at',
     width: 160,
     align: 'center',
     render: (row) => {
-      const text = formatDateTime(row.created_at)
+      const text = formatDateTime(isTrashMode.value ? row.deleted_at : row.created_at)
       return h(Tooltip, { content: text }, () => text)
     },
   },
@@ -394,14 +447,46 @@ const columns = computed(() => [
     align: 'center',
     ellipsis: false,
     render: (row) => {
-      const disabled = filesStore.loading || deleting.value || isFileDeleted(row)
+      const disabled = filesStore.loading || deleting.value
+      if (isTrashMode.value) {
+        return h('div', { class: 'action-buttons' }, [
+          h(
+            Button,
+            {
+              size: 'small',
+              type: 'default',
+              disabled,
+              onClick: () => handleRestore(row.id),
+            },
+            () => [
+              h(RotateCcw, { size: 16, style: 'margin-right: 4px' }),
+              t('files.actions.restore'),
+            ]
+          ),
+          h(
+            Button,
+            {
+              size: 'small',
+              type: 'danger',
+              disabled,
+              onClick: () => handleDeletePermanent(row.id),
+            },
+            () => [
+              h(Trash, { size: 16, style: 'margin-right: 4px' }),
+              t('files.actions.deletePermanent'),
+            ]
+          ),
+        ])
+      }
+
+      const rowDisabled = disabled || isFileDeleted(row)
       return h('div', { class: 'action-buttons' }, [
         h(
           Button,
           {
             size: 'small',
             type: 'default',
-            disabled,
+            disabled: rowDisabled,
             onClick: () => showFileInfo(row),
           },
           () => [h(Info, { size: 16, style: 'margin-right: 4px' }), t('common.details')]
@@ -411,7 +496,7 @@ const columns = computed(() => [
           {
             size: 'small',
             type: 'default',
-            disabled,
+            disabled: rowDisabled,
             onClick: () => showFileShare(row),
           },
           () => [h(Share2, { size: 16, style: 'margin-right: 4px' }), t('files.actions.share')]
@@ -421,7 +506,7 @@ const columns = computed(() => [
           {
             size: 'small',
             type: 'danger',
-            disabled,
+            disabled: rowDisabled,
             onClick: () => handleDelete(row.id),
           },
           () => [h(Trash2, { size: 16, style: 'margin-right: 4px' }), t('files.actions.delete')]
@@ -467,8 +552,9 @@ const addOneDayIso = (isoString) => {
   return date.toISOString()
 }
 
-const buildQueryParams = () => {
+const buildQueryParams = (mode = filesStore.mode) => {
   const params = {}
+  const isTrash = mode === 'trash'
 
   const filename = filters.value.filename?.trim()
   if (filename) params.filename = filename
@@ -496,18 +582,21 @@ const buildQueryParams = () => {
     const toBaseIso = toDate ? toIsoStartOfDay(toDate) : null
     const toIso = toBaseIso ? addOneDayIso(toBaseIso) : null
 
+    const fromKey = isTrash ? 'deleted_from' : 'created_from'
+    const toKey = isTrash ? 'deleted_to' : 'created_to'
+
     if (fromIso && toIso) {
-      params.created_from = fromIso
-      params.created_to = toIso
+      params[fromKey] = fromIso
+      params[toKey] = toIso
     } else if (fromIso) {
       const singleTo = addOneDayIso(fromIso)
       if (singleTo) {
-        params.created_from = fromIso
-        params.created_to = singleTo
+        params[fromKey] = fromIso
+        params[toKey] = singleTo
       }
     } else if (toIso && toBaseIso) {
-      params.created_from = toBaseIso
-      params.created_to = toIso
+      params[fromKey] = toBaseIso
+      params[toKey] = toIso
     }
   }
 
@@ -528,9 +617,16 @@ const loadUsers = async () => {
   }
 }
 
-const loadFiles = async ({ page = pagination.value.page, append = false } = {}) => {
+const loadFiles = async ({
+  page = pagination.value.page,
+  append = false,
+  mode = filesStore.mode,
+} = {}) => {
   try {
-    await filesStore.fetchFiles(page, pagination.value.pageSize, buildQueryParams(), { append })
+    await filesStore.fetchFiles(page, pagination.value.pageSize, buildQueryParams(mode), {
+      append,
+      mode,
+    })
     hasLoadedOnce.value = true
     pagination.value.page = page
   } catch (error) {
@@ -617,8 +713,13 @@ const handleDeleteConfirm = async () => {
   deleting.value = true
 
   try {
-    await api.deleteFile(fileId)
-    message.success(t('files.messages.deleteSuccess'))
+    if (pendingDeleteMode.value === 'permanent') {
+      await api.permanentlyDeleteFile(fileId)
+      message.success(t('files.messages.deletePermanentSuccess'))
+    } else {
+      await api.deleteFile(fileId)
+      message.success(t('files.messages.deleteSuccess'))
+    }
 
     closeDeleteModal()
 
@@ -632,21 +733,74 @@ const handleDeleteConfirm = async () => {
       await loadFiles()
     }
   } catch (error) {
-    message.error(t('files.messages.deleteFailed'))
+    const messageKey =
+      pendingDeleteMode.value === 'permanent'
+        ? 'files.messages.deletePermanentFailed'
+        : 'files.messages.deleteFailed'
+    message.error(t(messageKey))
   } finally {
     deleting.value = false
   }
 }
 
 const handleDelete = (fileId) => {
+  pendingDeleteMode.value = 'soft'
   openDeleteModal(fileId)
 }
 
+const handleDeletePermanent = (fileId) => {
+  pendingDeleteMode.value = 'permanent'
+  openDeleteModal(fileId)
+}
+
+const handleRestore = async (fileId) => {
+  if (deleting.value) return
+  const id = String(fileId ?? '').trim()
+  if (!id) return
+
+  deleting.value = true
+  try {
+    await api.restoreFile(id)
+    message.success(t('files.messages.restoreSuccess'))
+
+    if (viewMode.value === 'card') {
+      pagination.value.page = 1
+      await loadFiles({ page: 1, mode: 'trash' })
+    } else {
+      if (filesStore.files.length <= 1 && pagination.value.page > 1) {
+        pagination.value.page -= 1
+      }
+      await loadFiles({ mode: 'trash' })
+    }
+  } catch (error) {
+    message.error(t('files.messages.restoreFailed'))
+  } finally {
+    deleting.value = false
+  }
+}
+
+const setFilesMode = async (mode) => {
+  const nextMode = mode === 'trash' ? 'trash' : 'active'
+  if (filesStore.mode === nextMode && pagination.value.page === 1) return
+
+  if (nextMode === 'trash') {
+    filters.value.upload_status = 'deleted'
+  } else if (filters.value.upload_status === 'deleted') {
+    filters.value.upload_status = ''
+  }
+
+  pagination.value.page = 1
+  await loadFiles({ page: 1, mode: nextMode })
+}
+
 const handleUploaded = () => {
+  if (filesStore.mode === 'trash') {
+    return
+  }
   if (viewMode.value === 'card') {
     pagination.value.page = 1
   }
-  loadFiles()
+  loadFiles({ mode: 'active' })
 }
 
 onMounted(() => {
@@ -657,7 +811,7 @@ onMounted(() => {
     }
   }
 
-  loadFiles()
+  loadFiles({ mode: 'active' })
   loadUsers()
 })
 
@@ -670,6 +824,16 @@ watch(viewMode, (value) => {
   }
   window.localStorage.setItem(viewModeKey, value)
 })
+
+watch(
+  () => filesStore.mode,
+  (mode) => {
+    if (mode === 'trash') {
+      filters.value.upload_status = 'deleted'
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -752,11 +916,13 @@ watch(viewMode, (value) => {
   width: 280px;
 }
 
+.filter-item.mode-toggle,
 .filter-item.view-mode {
   display: flex;
   align-items: center;
 }
 
+.files-mode-toggle,
 .view-mode-toggle {
   display: inline-flex;
   gap: 2px;
@@ -768,9 +934,19 @@ watch(viewMode, (value) => {
   align-items: center;
 }
 
+:root[data-ui-theme='shadcn'] .files-mode-toggle,
 :root[data-ui-theme='shadcn'] .view-mode-toggle {
   border: 1px solid var(--border);
   background: var(--background);
+}
+
+.files-mode-btn {
+  height: 32px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .view-mode-btn {
@@ -782,6 +958,7 @@ watch(viewMode, (value) => {
   justify-content: center;
 }
 
+.files-mode-btn.is-active,
 .view-mode-btn.is-active {
   background: var(--nb-secondary);
   border-color: var(--nb-border-color);
@@ -820,6 +997,7 @@ watch(viewMode, (value) => {
   .filter-item.filename,
   .filter-item.owner,
   .filter-item.status,
+  .filter-item.mode-toggle,
   .filter-item.created-range {
     width: 100%;
   }
