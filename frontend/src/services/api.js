@@ -106,6 +106,18 @@ export default {
     return api.get('/files', { params: { page, limit, ...(filters || {}) } })
   },
 
+  getTrashFiles(page = 1, limit = 20, filters = {}) {
+    return api.get('/files/trash', { params: { page, limit, ...(filters || {}) } })
+  },
+
+  restoreFile(fileId) {
+    return api.post(`/files/${fileId}/restore`)
+  },
+
+  permanentlyDeleteFile(fileId) {
+    return api.delete(`/files/${fileId}/permanent`)
+  },
+
   // 挂载
   listMountedObjects({ configId, prefix = '', continuationToken, limit } = {}) {
     const params = {
