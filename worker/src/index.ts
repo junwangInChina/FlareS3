@@ -30,7 +30,15 @@ import {
   completeMultipart,
   abortMultipart,
 } from './routes/upload'
-import { listFiles, downloadFile, deleteFile, previewFile } from './routes/files'
+import {
+  listFiles,
+  listTrashFiles,
+  downloadFile,
+  deleteFile,
+  restoreFile,
+  permanentlyDeleteFile,
+  previewFile,
+} from './routes/files'
 import {
   listMountedObjects,
   downloadMountedObject,
@@ -173,9 +181,21 @@ router.get(
   '/api/files',
   withAuth((request, env: Env) => listFiles(request, env))
 )
+router.get(
+  '/api/files/trash',
+  withAuth((request, env: Env) => listTrashFiles(request, env))
+)
 router.delete(
   '/api/files/:id',
   withAuth((request, env: Env) => deleteFile(request, env, (request as any).params.id))
+)
+router.post(
+  '/api/files/:id/restore',
+  withAuth((request, env: Env) => restoreFile(request, env, (request as any).params.id))
+)
+router.delete(
+  '/api/files/:id/permanent',
+  withAuth((request, env: Env) => permanentlyDeleteFile(request, env, (request as any).params.id))
 )
 router.get(
   '/api/files/:id/preview',
