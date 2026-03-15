@@ -1,6 +1,7 @@
 import type { Env } from '../config/env'
 import { jsonResponse, getUser, calcPresignedDownloadUrlTtlSeconds, redirect } from './utils'
 import {
+  checkObjectExists,
   extractR2ConfigIdFromKey,
   generateDownloadUrl,
   generatePreviewUrl,
@@ -126,6 +127,78 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
     page,
     limit,
     files: filesWithUrl,
+  })
+}
+
+export async function listTrashFiles(request: Request, env: Env): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const url = new URL(request.url)
+  const page = Math.max(1, Number(url.searchParams.get('page') || 1))
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 20)))
+  const scope = url.searchParams.get('scope')
+  const filename = url.searchParams.get('filename')
+  const ownerId = url.searchParams.get('owner_id')
+  const deletedFrom = url.searchParams.get('deleted_from')
+  const deletedTo = url.searchParams.get('deleted_to')
+  const offset = (page - 1) * limit
+
+  const conditions: string[] = ["f.upload_status = 'deleted'", 'f.deleted_at IS NOT NULL']
+  const params: unknown[] = []
+
+  if (user.role !== 'admin' || scope === 'mine') {
+    conditions.push('f.owner_id = ?')
+    params.push(user.id)
+  } else if (ownerId) {
+    conditions.push('f.owner_id = ?')
+    params.push(ownerId)
+  }
+
+  if (filename && filename.trim()) {
+    conditions.push('f.filename LIKE ?')
+    params.push(`%${filename.trim()}%`)
+  }
+
+  if (deletedFrom) {
+    conditions.push('f.deleted_at >= ?')
+    params.push(deletedFrom)
+  }
+  if (deletedTo) {
+    conditions.push('f.deleted_at < ?')
+    params.push(deletedTo)
+  }
+
+  const whereClause = `WHERE ${conditions.join(' AND ')}`
+
+  const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM files f ${whereClause}`)
+    .bind(...params)
+    .first('total')
+  const total = Number(totalRow || 0)
+
+  const rows = await env.DB.prepare(
+    `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.deleted_at
+     FROM files f
+     LEFT JOIN users u ON u.id = f.owner_id
+     ${whereClause}
+     ORDER BY f.deleted_at DESC
+     LIMIT ? OFFSET ?`
+  )
+    .bind(...params, limit, offset)
+    .all()
+
+  const files = (rows.results || []).map((row) => ({
+    ...row,
+    r2_config_id: extractR2ConfigIdFromKey(String(row.r2_key)),
+    remaining_time: '-',
+    download_url: '',
+  }))
+
+  return jsonResponse({
+    total,
+    page,
+    limit,
+    files,
   })
 }
 
@@ -369,26 +442,144 @@ export async function previewFile(request: Request, env: Env, fileId: string): P
   })
 }
 
-export async function deleteFile(request: Request, env: Env, fileId: string): Promise<Response> {
+export async function restoreFile(request: Request, env: Env, fileId: string): Promise<Response> {
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
-  const file = await env.DB.prepare('SELECT id, owner_id, r2_key FROM files WHERE id = ? LIMIT 1')
+
+  const file = await env.DB.prepare(
+    'SELECT id, owner_id, r2_key, expires_at, upload_status, deleted_at FROM files WHERE id = ? LIMIT 1'
+  )
     .bind(fileId)
     .first()
+
   if (!file) {
     return jsonResponse({ error: '文件不存在' }, 404)
   }
   if (user.role !== 'admin' && file.owner_id !== user.id) {
     return jsonResponse({ error: '无权限' }, 403)
   }
+  if (file.upload_status !== 'deleted' || !file.deleted_at) {
+    return jsonResponse({ error: '文件不在回收站' }, 400)
+  }
+
+  const expiresAt = new Date(String(file.expires_at)).getTime()
+  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) {
+    return jsonResponse({ error: '文件已过期，无法恢复' }, 410)
+  }
+
+  const r2Key = String(file.r2_key)
+  const loaded = await resolveR2ConfigForKey(env, r2Key)
+  if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+
+  const objectExists = await checkObjectExists(loaded.config, r2Key)
+  if (!objectExists) {
+    return jsonResponse({ error: '文件对象不存在，无法恢复' }, 409)
+  }
+
   const now = new Date().toISOString()
-  await env.DB.prepare('UPDATE files SET upload_status = ?, deleted_at = ? WHERE id = ?')
-    .bind('deleted', now, fileId)
-    .run()
   await env.DB.prepare(
-    'INSERT INTO delete_queue (id, file_id, r2_key, created_at) VALUES (?, ?, ?, ?)'
+    "UPDATE files SET upload_status = 'completed', deleted_at = NULL, multipart_upload_id = NULL WHERE id = ?"
   )
-    .bind(crypto.randomUUID(), fileId, file.r2_key, now)
+    .bind(fileId)
+    .run()
+
+  await env.DB.prepare(
+    'UPDATE delete_queue SET processed_at = ? WHERE file_id = ? AND processed_at IS NULL'
+  )
+    .bind(now, fileId)
+    .run()
+
+  await logAudit(env.DB, {
+    actorUserId: user.id,
+    action: 'FILE_RESTORE',
+    targetType: 'file',
+    targetId: fileId,
+    ip: getClientIp(request),
+    userAgent: request.headers.get('User-Agent') || undefined,
+  })
+
+  return jsonResponse({ success: true })
+}
+
+export async function permanentlyDeleteFile(
+  request: Request,
+  env: Env,
+  fileId: string
+): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const file = await env.DB.prepare(
+    'SELECT id, owner_id, r2_key, upload_status, deleted_at FROM files WHERE id = ? LIMIT 1'
+  )
+    .bind(fileId)
+    .first()
+
+  if (!file) {
+    return jsonResponse({ error: '文件不存在' }, 404)
+  }
+  if (user.role !== 'admin' && file.owner_id !== user.id) {
+    return jsonResponse({ error: '无权限' }, 403)
+  }
+  if (file.upload_status !== 'deleted' || !file.deleted_at) {
+    return jsonResponse({ error: '请先将文件移入回收站' }, 400)
+  }
+
+  const queuedRow = await env.DB.prepare(
+    'SELECT id FROM delete_queue WHERE file_id = ? AND processed_at IS NULL LIMIT 1'
+  )
+    .bind(fileId)
+    .first('id')
+
+  let queued = false
+  if (!queuedRow) {
+    const now = new Date().toISOString()
+    await env.DB.prepare(
+      'INSERT INTO delete_queue (id, file_id, r2_key, created_at) VALUES (?, ?, ?, ?)'
+    )
+      .bind(crypto.randomUUID(), fileId, file.r2_key, now)
+      .run()
+    queued = true
+  }
+
+  await logAudit(env.DB, {
+    actorUserId: user.id,
+    action: 'FILE_DELETE_PERMANENT',
+    targetType: 'file',
+    targetId: fileId,
+    ip: getClientIp(request),
+    userAgent: request.headers.get('User-Agent') || undefined,
+    metadata: { queued },
+  })
+
+  return jsonResponse({ success: true, queued })
+}
+
+export async function deleteFile(request: Request, env: Env, fileId: string): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const file = await env.DB.prepare(
+    'SELECT id, owner_id, upload_status, deleted_at FROM files WHERE id = ? LIMIT 1'
+  )
+    .bind(fileId)
+    .first()
+
+  if (!file) {
+    return jsonResponse({ error: '文件不存在' }, 404)
+  }
+  if (user.role !== 'admin' && file.owner_id !== user.id) {
+    return jsonResponse({ error: '无权限' }, 403)
+  }
+  if (file.upload_status === 'deleted' || file.deleted_at) {
+    return jsonResponse({ error: '文件已在回收站' }, 400)
+  }
+
+  const now = new Date().toISOString()
+  await env.DB.prepare(
+    "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
+  )
+    .bind(now, fileId)
     .run()
 
   await logAudit(env.DB, {
@@ -398,7 +589,8 @@ export async function deleteFile(request: Request, env: Env, fileId: string): Pr
     targetId: fileId,
     ip: getClientIp(request),
     userAgent: request.headers.get('User-Agent') || undefined,
+    metadata: { recycleBin: true },
   })
 
-  return jsonResponse({ success: true, queued: true })
+  return jsonResponse({ success: true, queued: false, recycled: true })
 }
