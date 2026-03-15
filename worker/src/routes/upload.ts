@@ -6,6 +6,7 @@ import {
   deleteObject,
   buildR2Key,
   completeMultipartUpload,
+  checkObjectExists,
   generateDownloadUrl,
   generateMultipartUploadUrl,
   generateUploadUrl,
@@ -68,6 +69,52 @@ function calcDownloadTtlSeconds(expiresAt: unknown): number {
   return calcPresignedDownloadUrlTtlSeconds(parsed)
 }
 
+const SHORT_CODE_MAX_ATTEMPTS = 10
+const FILENAME_RENAME_MAX_ATTEMPTS = 100
+
+function sanitizeUploadFilename(filename: string): string {
+  const normalized = String(filename ?? '').replaceAll('\\', '/')
+  const parts = normalized.split('/').filter(Boolean)
+  const base = parts.length ? parts[parts.length - 1] : normalized
+  const safe = String(base || '').trim()
+  return safe || 'file'
+}
+
+function splitFilename(filename: string): { stem: string; ext: string } {
+  const safe = String(filename || 'file')
+  const dotIndex = safe.lastIndexOf('.')
+  if (dotIndex <= 0 || dotIndex === safe.length - 1) {
+    return { stem: safe, ext: '' }
+  }
+  return {
+    stem: safe.slice(0, dotIndex),
+    ext: safe.slice(dotIndex),
+  }
+}
+
+function buildRenamedFilename(filename: string, suffix: number): string {
+  if (suffix <= 0) return filename
+  const { stem, ext } = splitFilename(filename)
+  return `${stem}(${suffix})${ext}`
+}
+
+function formatD1ErrorMessage(error: unknown): string {
+  if (!error) return ''
+  if (typeof error === 'string') return error
+  if (error instanceof Error) return error.message
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
+}
+
+function isUniqueConstraintError(errorMessage: string, field: 'r2_key' | 'short_code'): boolean {
+  const normalized = String(errorMessage || '').toLowerCase()
+  if (!normalized.includes('unique constraint failed')) return false
+  return normalized.includes(`files.${field}`) || normalized.includes(field)
+}
+
 async function createFileRecord(
   env: Env,
   userId: string,
@@ -77,37 +124,61 @@ async function createFileRecord(
   expiresIn: number,
   requireLogin: boolean,
   r2ConfigId: string
-): Promise<{ id: string; r2Key: string; shortCode: string; expiresAt: Date }> {
+): Promise<{ id: string; r2Key: string; shortCode: string; expiresAt: Date; filename: string }> {
   const id = crypto.randomUUID()
-  const r2Key = buildR2Key(r2ConfigId, filename)
+  const baseFilename = sanitizeUploadFilename(filename)
   const expiresAt = calcExpiresAt(expiresIn)
-  let shortCode = ''
-  for (let i = 0; i < 10; i += 1) {
-    shortCode = generateRandomCode(6)
-    const now = new Date().toISOString()
-    const result = await env.DB.prepare(
-      `INSERT INTO files (id, owner_id, filename, r2_key, size, content_type, expires_in, created_at, expires_at, upload_status, short_code, require_login)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
-    )
-      .bind(
-        id,
-        userId,
-        filename,
-        r2Key,
-        size,
-        contentType,
-        expiresIn,
-        now,
-        expiresAt.toISOString(),
-        shortCode,
-        requireLogin ? 1 : 0
+
+  for (let suffix = 0; suffix < FILENAME_RENAME_MAX_ATTEMPTS; suffix += 1) {
+    const resolvedFilename = buildRenamedFilename(baseFilename, suffix)
+    const r2Key = buildR2Key(r2ConfigId, resolvedFilename)
+
+    const occupied = await env.DB.prepare('SELECT id FROM files WHERE r2_key = ? LIMIT 1')
+      .bind(r2Key)
+      .first('id')
+    if (occupied) {
+      continue
+    }
+
+    for (let i = 0; i < SHORT_CODE_MAX_ATTEMPTS; i += 1) {
+      const shortCode = generateRandomCode(6)
+      const now = new Date().toISOString()
+      const result = await env.DB.prepare(
+        `INSERT INTO files (id, owner_id, filename, r2_key, size, content_type, expires_in, created_at, expires_at, upload_status, short_code, require_login)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
       )
-      .run()
-    if (!result.error) {
-      return { id, r2Key, shortCode, expiresAt }
+        .bind(
+          id,
+          userId,
+          resolvedFilename,
+          r2Key,
+          size,
+          contentType,
+          expiresIn,
+          now,
+          expiresAt.toISOString(),
+          shortCode,
+          requireLogin ? 1 : 0
+        )
+        .run()
+
+      if (!result.error) {
+        return { id, r2Key, shortCode, expiresAt, filename: resolvedFilename }
+      }
+
+      const errorMessage = formatD1ErrorMessage(result.error)
+      if (isUniqueConstraintError(errorMessage, 'r2_key')) {
+        break
+      }
+      if (isUniqueConstraintError(errorMessage, 'short_code')) {
+        continue
+      }
+
+      throw new Error(errorMessage || 'create_file_record_failed')
     }
   }
-  throw new Error('short_code_generation_failed')
+
+  throw new Error('filename_conflict_unresolved')
 }
 
 export async function presignUpload(request: Request, env: Env): Promise<Response> {
@@ -173,6 +244,7 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
 
     return jsonResponse({
       file_id: file.id,
+      filename: file.filename,
       upload_url: uploadUrl,
       download_url: `/api/files/${file.id}/download`,
       short_url: `/s/${file.shortCode}`,
@@ -201,8 +273,14 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
       return jsonResponse({ error: '文件不存在' }, 404)
     }
 
-    const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
+    const r2Key = String(file.r2_key)
+    const loaded = await resolveR2ConfigForKey(env, r2Key)
     if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+
+    const objectExists = await checkObjectExists(loaded.config, r2Key)
+    if (!objectExists) {
+      return jsonResponse({ error: '上传对象不存在或尚未完成' }, 409)
+    }
 
     await env.DB.prepare('UPDATE files SET upload_status = ? WHERE id = ?')
       .bind('completed', body.file_id)
@@ -214,12 +292,7 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
       try {
         if (!isExpired(file.expires_at)) {
           const ttl = calcDownloadTtlSeconds(file.expires_at)
-          downloadUrl = await generateDownloadUrl(
-            loaded.config,
-            String(file.r2_key),
-            String(file.filename),
-            ttl
-          )
+          downloadUrl = await generateDownloadUrl(loaded.config, r2Key, String(file.filename), ttl)
         }
       } catch (error) {
         downloadUrl = `/api/files/${body.file_id}/download`
@@ -228,6 +301,7 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
 
     return jsonResponse({
       success: true,
+      filename: String(file.filename),
       download_url: downloadUrl,
       short_url: `/s/${file.short_code}`,
       r2_config_id: loaded.id,
@@ -296,6 +370,7 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
 
     return jsonResponse({
       file_id: file.id,
+      filename: file.filename,
       upload_id: uploadId,
       part_size: PART_SIZE,
       total_parts: Math.ceil(body.size / PART_SIZE),
@@ -459,6 +534,7 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
 
     return jsonResponse({
       file_id: file.id,
+      filename: String(file.filename),
       download_url: downloadUrl,
       short_url: `/s/${file.short_code}`,
       expires_at: String(file.expires_at),
