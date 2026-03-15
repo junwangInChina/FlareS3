@@ -3,6 +3,12 @@ import type { AuthUser } from '../middleware/authSession'
 import { getUser, jsonResponse, parseJson } from './utils'
 import { ensureTextsTable, ensureTextSharesTable } from '../services/dbSchema'
 import { hashPassword, verifyPassword } from '../services/password'
+import {
+  clearSharePasswordFailedAttempts,
+  getClientIp,
+  isSharePasswordBlocked,
+  recordSharePasswordFailedAttempt,
+} from '../middleware/rateLimit'
 import { generateRandomCode } from '../utils/random'
 import { buildPage, escapeHtml, htmlResponse } from './sharePage'
 
@@ -476,11 +482,12 @@ export function renderContentPage({
 }
 
 export async function viewTextShare(request: Request, env: Env, code: string): Promise<Response> {
-  if (!code) {
+  const normalizedCode = String(code || '').trim()
+  if (!normalizedCode) {
     return renderMessagePage('分享', '短码不能为空', 400)
   }
 
-  const resolved = await resolveShareRecord(env, code)
+  const resolved = await resolveShareRecord(env, normalizedCode)
   if ('error' in resolved) {
     return renderMessagePage('分享', resolved.error.message, resolved.error.status)
   }
@@ -527,6 +534,11 @@ export async function viewTextShare(request: Request, env: Env, code: string): P
       return renderContentPage({ title, meta, content })
     }
 
+    const ip = getClientIp(request)
+    if (await isSharePasswordBlocked(env, normalizedCode, ip)) {
+      return renderPasswordForm({ title, meta, error: '尝试次数过多，请 10 分钟后重试' })
+    }
+
     let password = ''
     try {
       const form = await request.formData()
@@ -540,9 +552,14 @@ export async function viewTextShare(request: Request, env: Env, code: string): P
     }
 
     if (!verifyPassword(password, passwordHash)) {
+      await recordSharePasswordFailedAttempt(env, normalizedCode, ip)
+      if (await isSharePasswordBlocked(env, normalizedCode, ip)) {
+        return renderPasswordForm({ title, meta, error: '尝试次数过多，请 10 分钟后重试' })
+      }
       return renderPasswordForm({ title, meta, error: '口令不正确' })
     }
 
+    await clearSharePasswordFailedAttempts(env, normalizedCode, ip)
     await incrementShareViews(env, shareId)
     return renderContentPage({ title, meta, content })
   }
