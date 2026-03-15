@@ -9,13 +9,18 @@ export const useFilesStore = defineStore('files', {
     limit: 20,
     loading: false,
     filters: {},
+    mode: 'active',
   }),
 
   actions: {
     async fetchFiles(page = 1, limit = this.limit, filters = this.filters, options = {}) {
       this.loading = true
       try {
-        const response = await api.getFiles(page, limit, filters)
+        const mode = options?.mode === 'trash' ? 'trash' : 'active'
+        const response =
+          mode === 'trash'
+            ? await api.getTrashFiles(page, limit, filters)
+            : await api.getFiles(page, limit, filters)
         const nextFiles = response.files || []
         const shouldAppend = Boolean(options?.append)
 
@@ -24,6 +29,7 @@ export const useFilesStore = defineStore('files', {
         this.page = response.page
         this.limit = response.limit
         this.filters = filters || {}
+        this.mode = mode
       } finally {
         this.loading = false
       }
@@ -31,7 +37,17 @@ export const useFilesStore = defineStore('files', {
 
     async deleteFile(fileId) {
       await api.deleteFile(fileId)
-      await this.fetchFiles(this.page, this.limit, this.filters)
+      await this.fetchFiles(this.page, this.limit, this.filters, { mode: this.mode })
+    },
+
+    async restoreFile(fileId) {
+      await api.restoreFile(fileId)
+      await this.fetchFiles(this.page, this.limit, this.filters, { mode: this.mode })
+    },
+
+    async permanentlyDeleteFile(fileId) {
+      await api.permanentlyDeleteFile(fileId)
+      await this.fetchFiles(this.page, this.limit, this.filters, { mode: this.mode })
     },
   },
 })
