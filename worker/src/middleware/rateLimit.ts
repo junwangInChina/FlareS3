@@ -5,6 +5,9 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000
 const RATE_LIMIT_MAX = 300
 const MAX_FAILED_ATTEMPTS = 10
 const BLOCK_DURATION_MS = 5 * 60 * 1000
+const SHARE_MAX_FAILED_ATTEMPTS = 5
+const SHARE_BLOCK_DURATION_MS = 10 * 60 * 1000
+const SHARE_SCOPE_PREFIX = 'share:'
 
 export function getClientIp(request: Request): string {
   const cfIp = request.headers.get('CF-Connecting-IP')
@@ -86,6 +89,77 @@ export async function recordFailedAttempt(env: Env, ip: string): Promise<void> {
   )
     .bind(ip, MAX_FAILED_ATTEMPTS, blockedUntil)
     .run()
+}
+
+function buildShareRateLimitKey(shareCode: string, ip: string): string {
+  return `${SHARE_SCOPE_PREFIX}${String(shareCode || '').trim()}:${ip}`
+}
+
+export async function recordSharePasswordFailedAttempt(
+  env: Env,
+  shareCode: string,
+  ip: string
+): Promise<void> {
+  const key = buildShareRateLimitKey(shareCode, ip)
+  const blockedUntil = new Date(Date.now() + SHARE_BLOCK_DURATION_MS).toISOString()
+  await env.DB.prepare(
+    `INSERT INTO rate_limits (ip, failed_attempts, blocked_until)
+       VALUES (?, 1, NULL)
+       ON CONFLICT(ip) DO UPDATE SET
+         failed_attempts = COALESCE(failed_attempts, 0) + 1,
+         blocked_until = CASE
+           WHEN COALESCE(failed_attempts, 0) + 1 >= ? THEN ?
+           ELSE blocked_until
+         END`
+  )
+    .bind(key, SHARE_MAX_FAILED_ATTEMPTS, blockedUntil)
+    .run()
+}
+
+export async function clearSharePasswordFailedAttempts(
+  env: Env,
+  shareCode: string,
+  ip: string
+): Promise<void> {
+  const key = buildShareRateLimitKey(shareCode, ip)
+  await env.DB.prepare(
+    'UPDATE rate_limits SET failed_attempts = 0, blocked_until = NULL WHERE ip = ?'
+  )
+    .bind(key)
+    .run()
+}
+
+export async function isSharePasswordBlocked(
+  env: Env,
+  shareCode: string,
+  ip: string
+): Promise<boolean> {
+  const key = buildShareRateLimitKey(shareCode, ip)
+  const row = await env.DB.prepare('SELECT blocked_until FROM rate_limits WHERE ip = ?')
+    .bind(key)
+    .first('blocked_until')
+  if (!row) return false
+
+  const blockedUntil = new Date(String(row))
+  if (Number.isNaN(blockedUntil.getTime())) {
+    await env.DB.prepare(
+      'UPDATE rate_limits SET blocked_until = NULL, failed_attempts = 0 WHERE ip = ?'
+    )
+      .bind(key)
+      .run()
+    return false
+  }
+
+  if (Date.now() < blockedUntil.getTime()) {
+    return true
+  }
+
+  await env.DB.prepare(
+    'UPDATE rate_limits SET blocked_until = NULL, failed_attempts = 0 WHERE ip = ?'
+  )
+    .bind(key)
+    .run()
+  return false
 }
 
 export async function rateLimitMiddleware(
