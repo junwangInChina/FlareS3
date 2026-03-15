@@ -43,10 +43,25 @@ export async function cleanupDeleteQueue(env: Env): Promise<void> {
           if (summary.httpStatusCode !== 404 && summary.code !== 'NoSuchUpload') {
             throw error
           }
-          await deleteObject(loaded.config, r2Key)
+
+          try {
+            await deleteObject(loaded.config, r2Key)
+          } catch (deleteError) {
+            const deleteSummary = summarizeS3Error(deleteError)
+            if (deleteSummary.httpStatusCode !== 404 && deleteSummary.code !== 'NoSuchKey') {
+              throw deleteError
+            }
+          }
         }
       } else {
-        await deleteObject(loaded.config, r2Key)
+        try {
+          await deleteObject(loaded.config, r2Key)
+        } catch (error) {
+          const summary = summarizeS3Error(error)
+          if (summary.httpStatusCode !== 404 && summary.code !== 'NoSuchKey') {
+            throw error
+          }
+        }
       }
     } catch (error) {
       console.error('cleanupDeleteQueue delete failed', error)
