@@ -12,16 +12,19 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.560.0",
-    "@aws-sdk/s3-request-presigner": "^3.560.0",
+    "@aws-sdk/client-s3": "^3.1000.0",
+    "@aws-sdk/s3-request-presigner": "^3.1000.0",
     "bcryptjs": "^2.4.3",
     "itty-router": "^4.0.0"
   },
+  "overrides": {
+    "fast-xml-parser": "5.4.1"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",
+    "@types/bcryptjs": "^2.4.6",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "@types/bcryptjs": "^2.4.6",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",
