@@ -65,9 +65,7 @@ const formValue = ref({
 const loading = ref(false)
 
 const loginErrorKeyByCode = {
-  USER_NOT_FOUND: 'auth.errors.userNotFound',
-  PASSWORD_INCORRECT: 'auth.errors.passwordIncorrect',
-  USER_DISABLED: 'auth.errors.userDisabled',
+  AUTH_INVALID_CREDENTIALS: 'auth.errors.invalidCredentials',
 }
 
 const handleSubmit = async () => {
@@ -89,7 +87,9 @@ const handleSubmit = async () => {
       message.error(key ? t(key) : result.message || t('auth.loginFailed'))
     }
   } catch (error) {
-    message.error(error.response?.data?.error || t('auth.loginFailed'))
+    const code = error.response?.data?.code
+    const key = code ? loginErrorKeyByCode[code] : ''
+    message.error(key ? t(key) : error.response?.data?.error || t('auth.loginFailed'))
   } finally {
     loading.value = false
   }
