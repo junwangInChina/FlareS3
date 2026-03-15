@@ -13,7 +13,7 @@
           :key="row.id"
           header-bg="var(--nb-surface)"
           header-color="var(--nb-ink)"
-          :class="['file-card', { 'is-disabled': isFileDeleted(row) }]"
+          :class="['file-card', { 'is-disabled': isFileCardDisabled(row) }]"
           @click="handleCardClick(row)"
         >
           <template #header>
@@ -29,28 +29,54 @@
 
           <template #header-extra>
             <div class="file-card-actions">
-              <Tooltip :content="t('files.actions.share')">
-                <Button
-                  type="ghost"
-                  size="small"
-                  class="icon-btn"
-                  :disabled="loading || isFileDeleted(row)"
-                  @click.stop="emit('share', row)"
-                >
-                  <Share2 :size="18" />
-                </Button>
-              </Tooltip>
-              <Tooltip :content="t('files.actions.delete')">
-                <Button
-                  type="ghost"
-                  size="small"
-                  class="icon-btn icon-danger"
-                  :disabled="loading || isFileDeleted(row)"
-                  @click.stop="emit('delete', row.id)"
-                >
-                  <Trash2 :size="18" />
-                </Button>
-              </Tooltip>
+              <template v-if="isTrashMode">
+                <Tooltip :content="t('files.actions.restore')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="icon-btn"
+                    :disabled="loading"
+                    @click.stop="emit('restore', row.id)"
+                  >
+                    <RotateCcw :size="18" />
+                  </Button>
+                </Tooltip>
+                <Tooltip :content="t('files.actions.deletePermanent')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="icon-btn icon-danger"
+                    :disabled="loading"
+                    @click.stop="emit('delete-permanent', row.id)"
+                  >
+                    <Trash :size="18" />
+                  </Button>
+                </Tooltip>
+              </template>
+              <template v-else>
+                <Tooltip :content="t('files.actions.share')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="icon-btn"
+                    :disabled="loading || isFileDeleted(row)"
+                    @click.stop="emit('share', row)"
+                  >
+                    <Share2 :size="18" />
+                  </Button>
+                </Tooltip>
+                <Tooltip :content="t('files.actions.delete')">
+                  <Button
+                    type="ghost"
+                    size="small"
+                    class="icon-btn icon-danger"
+                    :disabled="loading || isFileDeleted(row)"
+                    @click.stop="emit('delete', row.id)"
+                  >
+                    <Trash2 :size="18" />
+                  </Button>
+                </Tooltip>
+              </template>
             </div>
           </template>
 
@@ -82,7 +108,9 @@
 
           <template #footer>
             <div class="file-card-footer">
-              <span class="file-card-footer-time">{{ formatDateTime(row.created_at) }}</span>
+              <span class="file-card-footer-time">{{
+                formatDateTime(isTrashMode ? row.deleted_at : row.created_at)
+              }}</span>
               <span class="file-card-footer-code">{{ row.short_code || '-' }}</span>
             </div>
           </template>
@@ -107,7 +135,7 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
-import { Trash2, File, Share2 } from 'lucide-vue-next'
+import { Trash2, Trash, File, Share2, RotateCcw } from 'lucide-vue-next'
 import Card from '../ui/card/Card.vue'
 import Button from '../ui/button/Button.vue'
 import Tooltip from '../ui/tooltip/Tooltip.vue'
@@ -138,13 +166,25 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isTrashMode: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['show-info', 'share', 'delete', 'load-more'])
+const emit = defineEmits([
+  'show-info',
+  'share',
+  'delete',
+  'restore',
+  'delete-permanent',
+  'load-more',
+])
 
 const { t, locale } = useI18n({ useScope: 'global' })
-
 const isFileDeleted = (row) => row?.upload_status === 'deleted'
+
+const isFileCardDisabled = (row) => props.isTrashMode || isFileDeleted(row)
 
 const isCjkChar = (ch) => {
   try {
@@ -194,8 +234,8 @@ const getFileStatus = (row) => {
   const text = deleted
     ? t('files.status.invalid')
     : expired
-      ? t('files.status.expired')
-      : t('files.status.valid')
+    ? t('files.status.expired')
+    : t('files.status.valid')
   const tagType = deleted ? 'danger' : expired ? 'warning' : 'success'
 
   return { deleted, expired, text, tagType }
@@ -218,7 +258,7 @@ const formatBytes = (bytes) => {
 
 const handleCardClick = (row) => {
   if (props.loading) return
-  if (isFileDeleted(row)) return
+  if (isFileCardDisabled(row)) return
   emit('show-info', row)
 }
 </script>
