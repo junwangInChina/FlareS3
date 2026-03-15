@@ -395,13 +395,14 @@ const uploadSmallFile = async (file) => {
   displayProgress.value = 100
 
   const confirmResult = await api.confirmUpload(response.file_id)
+  const resolvedFilename = confirmResult.filename || response.filename || file.name
   const downloadUrl = confirmResult.download_url?.startsWith('http')
     ? confirmResult.download_url
     : window.location.origin + (confirmResult.download_url || response.download_url)
 
   uploadResult.value = {
     success: true,
-    filename: file.name,
+    filename: resolvedFilename,
     downloadUrl: downloadUrl,
     shortUrl: window.location.origin + (confirmResult.short_url || response.short_url),
     fileSize: formatBytes(file.file.size),
@@ -543,6 +544,7 @@ const uploadLargeFile = async (file) => {
       upload_id,
       parts: validParts,
     })
+    const resolvedFilename = completeResponse.filename || initResponse.filename || file.name
 
     const uploadEndTime = Date.now()
     const duration = (uploadEndTime - uploadStartTime) / 1000
@@ -557,7 +559,7 @@ const uploadLargeFile = async (file) => {
 
     uploadResult.value = {
       success: true,
-      filename: file.name,
+      filename: resolvedFilename,
       downloadUrl: downloadUrl,
       shortUrl: window.location.origin + completeResponse.short_url,
       fileSize: formatBytes(file.file.size),
