@@ -10,6 +10,30 @@ import {
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 
+const ALLOWED_SORT_FIELDS: Record<string, string> = {
+  created_at: 'f.created_at',
+  filename: 'f.filename',
+  size: 'f.size',
+  expires_at: 'f.expires_at',
+}
+
+const TRASH_SORT_FIELDS: Record<string, string> = {
+  ...ALLOWED_SORT_FIELDS,
+  deleted_at: 'f.deleted_at',
+}
+
+function parseSortParams(
+  url: URL,
+  fields: Record<string, string>,
+  defaultField: string
+): { sortColumn: string; sortDir: 'ASC' | 'DESC' } {
+  const sortByRaw = url.searchParams.get('sort_by') || defaultField
+  const sortOrderRaw = url.searchParams.get('sort_order') || 'desc'
+  const sortColumn = fields[sortByRaw] || fields[defaultField]
+  const sortDir = sortOrderRaw === 'asc' ? 'ASC' : 'DESC'
+  return { sortColumn, sortDir }
+}
+
 function formatDuration(ms: number): string {
   if (ms < 0) return '已过期'
   const minutes = Math.floor(ms / 60000)
@@ -66,6 +90,7 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
     params.push(createdTo)
   }
   const whereClause = `WHERE ${conditions.join(' AND ')}`
+  const { sortColumn, sortDir } = parseSortParams(url, ALLOWED_SORT_FIELDS, 'created_at')
 
   const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM files f ${whereClause}`)
     .bind(...params)
@@ -77,7 +102,7 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
      FROM files f
      LEFT JOIN users u ON u.id = f.owner_id
      ${whereClause}
-     ORDER BY f.created_at DESC
+     ORDER BY ${sortColumn} ${sortDir}
      LIMIT ? OFFSET ?`
   )
     .bind(...params, limit, offset)
@@ -170,6 +195,7 @@ export async function listTrashFiles(request: Request, env: Env): Promise<Respon
   }
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`
+  const { sortColumn, sortDir } = parseSortParams(url, TRASH_SORT_FIELDS, 'deleted_at')
 
   const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM files f ${whereClause}`)
     .bind(...params)
@@ -181,7 +207,7 @@ export async function listTrashFiles(request: Request, env: Env): Promise<Respon
      FROM files f
      LEFT JOIN users u ON u.id = f.owner_id
      ${whereClause}
-     ORDER BY f.deleted_at DESC
+     ORDER BY ${sortColumn} ${sortDir}
      LIMIT ? OFFSET ?`
   )
     .bind(...params, limit, offset)
