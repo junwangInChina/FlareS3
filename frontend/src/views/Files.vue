@@ -45,6 +45,10 @@
               <Select v-model="filters.upload_status" :options="statusOptions" size="small" />
             </div>
 
+            <div class="filter-item sort">
+              <Select v-model="filters.sort_key" :options="sortOptions" size="small" />
+            </div>
+
             <div class="filter-item mode-toggle">
               <div class="files-mode-toggle" role="group" :aria-label="t('files.filters.mode')">
                 <Button
@@ -276,6 +280,7 @@ const filters = ref({
   upload_status: '',
   created_from_date: '',
   created_to_date: '',
+  sort_key: 'created_at__desc',
 })
 
 const viewModeKey = 'flares3:files-view-mode'
@@ -304,6 +309,24 @@ const statusOptions = computed(() => {
     { label: t('files.status.valid'), value: 'completed' },
     { label: t('files.status.invalid'), value: 'deleted' },
   ]
+})
+
+const sortOptions = computed(() => {
+  const base = [
+    { label: t('files.filters.sortCreatedDesc'), value: 'created_at__desc' },
+    { label: t('files.filters.sortCreatedAsc'), value: 'created_at__asc' },
+    { label: t('files.filters.sortFilenameAsc'), value: 'filename__asc' },
+    { label: t('files.filters.sortFilenameDesc'), value: 'filename__desc' },
+    { label: t('files.filters.sortSizeDesc'), value: 'size__desc' },
+    { label: t('files.filters.sortSizeAsc'), value: 'size__asc' },
+  ]
+  if (isTrashMode.value) {
+    base.unshift(
+      { label: t('files.filters.sortDeletedDesc'), value: 'deleted_at__desc' },
+      { label: t('files.filters.sortDeletedAsc'), value: 'deleted_at__asc' },
+    )
+  }
+  return base
 })
 
 const activeAction = ref('')
@@ -556,6 +579,11 @@ const buildQueryParams = (mode = filesStore.mode) => {
   const params = {}
   const isTrash = mode === 'trash'
 
+  const sortKey = filters.value.sort_key || (isTrash ? 'deleted_at__desc' : 'created_at__desc')
+  const [sortBy, sortOrder] = sortKey.split('__')
+  if (sortBy) params.sort_by = sortBy
+  if (sortOrder) params.sort_order = sortOrder
+
   const filename = filters.value.filename?.trim()
   if (filename) params.filename = filename
 
@@ -785,8 +813,15 @@ const setFilesMode = async (mode) => {
 
   if (nextMode === 'trash') {
     filters.value.upload_status = 'deleted'
-  } else if (filters.value.upload_status === 'deleted') {
-    filters.value.upload_status = ''
+    filters.value.sort_key = 'deleted_at__desc'
+  } else {
+    if (filters.value.upload_status === 'deleted') {
+      filters.value.upload_status = ''
+    }
+    // 从回收站切回活动模式时，若排序字段为 deleted_at 则重置
+    if (filters.value.sort_key.startsWith('deleted_at')) {
+      filters.value.sort_key = 'created_at__desc'
+    }
   }
 
   pagination.value.page = 1
@@ -912,6 +947,10 @@ watch(
   width: 120px;
 }
 
+.filter-item.sort {
+  width: 140px;
+}
+
 .filter-item.created-range {
   width: 280px;
 }
@@ -997,6 +1036,7 @@ watch(
   .filter-item.filename,
   .filter-item.owner,
   .filter-item.status,
+  .filter-item.sort,
   .filter-item.mode-toggle,
   .filter-item.created-range {
     width: 100%;
