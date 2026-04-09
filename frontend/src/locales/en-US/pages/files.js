@@ -10,6 +10,8 @@ export default {
       mode: 'File mode',
       activeFiles: 'Active files',
       trashFiles: 'Trash',
+      moreFilters: 'More filters',
+      lessFilters: 'Hide filters',
       sort: 'Sort',
       sortCreatedDesc: 'Newest first',
       sortCreatedAsc: 'Oldest first',

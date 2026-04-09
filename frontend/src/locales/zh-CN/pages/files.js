@@ -10,6 +10,8 @@ export default {
       mode: '文件模式',
       activeFiles: '活动文件',
       trashFiles: '回收站',
+      moreFilters: '更多筛选',
+      lessFilters: '收起筛选',
       sort: '排序',
       sortCreatedDesc: '最新上传',
       sortCreatedAsc: '最早上传',
