@@ -21,7 +21,7 @@
         </div>
 
         <div class="files-actions">
-          <div class="filter-row">
+          <div class="filter-row main">
             <div class="filter-item filename">
               <Input
                 v-model="filters.filename"
@@ -30,23 +30,6 @@
                 clearable
                 @keyup.enter="handleSearch"
               />
-            </div>
-
-            <div v-if="authStore.isAdmin" class="filter-item owner">
-              <Select
-                v-model="filters.owner_id"
-                :options="ownerOptions"
-                size="small"
-                :disabled="usersLoading"
-              />
-            </div>
-
-            <div class="filter-item status">
-              <Select v-model="filters.upload_status" :options="statusOptions" size="small" />
-            </div>
-
-            <div class="filter-item sort">
-              <Select v-model="filters.sort_key" :options="sortOptions" size="small" />
             </div>
 
             <div class="filter-item mode-toggle">
@@ -106,6 +89,30 @@
               {{ t('common.refresh') }}
             </Button>
 
+            <Tooltip
+              :content="
+                showAdvancedFilters
+                  ? t('files.filters.lessFilters')
+                  : t('files.filters.moreFilters')
+              "
+            >
+              <Button
+                type="ghost"
+                size="small"
+                class="advanced-filters-btn"
+                :class="{ 'is-active': showAdvancedFilters || hasAdvancedFiltersActive }"
+                :disabled="filesStore.loading || deleting"
+                :aria-label="
+                  showAdvancedFilters
+                    ? t('files.filters.lessFilters')
+                    : t('files.filters.moreFilters')
+                "
+                @click="toggleAdvancedFilters"
+              >
+                <SlidersHorizontal :size="18" />
+              </Button>
+            </Tooltip>
+
             <div class="filter-item view-mode">
               <div class="view-mode-toggle" role="group" aria-label="View mode">
                 <Tooltip :content="t('files.viewMode.table')">
@@ -135,6 +142,25 @@
                   </Button>
                 </Tooltip>
               </div>
+            </div>
+          </div>
+
+          <div v-if="showAdvancedFilters" class="filter-row advanced">
+            <div v-if="authStore.isAdmin" class="filter-item owner">
+              <Select
+                v-model="filters.owner_id"
+                :options="ownerOptions"
+                size="small"
+                :disabled="usersLoading"
+              />
+            </div>
+
+            <div v-if="!isTrashMode" class="filter-item status">
+              <Select v-model="filters.upload_status" :options="statusOptions" size="small" />
+            </div>
+
+            <div class="filter-item sort">
+              <Select v-model="filters.sort_key" :options="sortOptions" size="small" />
             </div>
           </div>
         </div>
@@ -218,6 +244,7 @@ import {
   Share2,
   RotateCcw,
   Trash,
+  SlidersHorizontal,
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
@@ -257,7 +284,29 @@ const deleting = ref(false)
 const pendingDeleteId = ref('')
 const pendingDeleteMode = ref('soft')
 
+const filters = ref({
+  filename: '',
+  owner_id: '',
+  upload_status: '',
+  created_from_date: '',
+  created_to_date: '',
+  sort_key: 'created_at__desc',
+})
+
 const isTrashMode = computed(() => filesStore.mode === 'trash')
+const showAdvancedFilters = ref(false)
+const hasAdvancedFiltersActive = computed(() => {
+  const ownerActive = authStore.isAdmin && Boolean(filters.value.owner_id)
+  const statusActive = !isTrashMode.value && Boolean(filters.value.upload_status)
+  const defaultSortKey = isTrashMode.value ? 'deleted_at__desc' : 'created_at__desc'
+  const sortActive = Boolean(filters.value.sort_key && filters.value.sort_key !== defaultSortKey)
+
+  return ownerActive || statusActive || sortActive
+})
+
+const toggleAdvancedFilters = () => {
+  showAdvancedFilters.value = !showAdvancedFilters.value
+}
 const deleteModalTitle = computed(() =>
   pendingDeleteMode.value === 'permanent'
     ? t('files.modals.deletePermanentTitle')
@@ -273,15 +322,6 @@ const deleteConfirmText = computed(() =>
     ? t('files.confirmDeletePermanent')
     : t('files.confirmDelete')
 )
-
-const filters = ref({
-  filename: '',
-  owner_id: '',
-  upload_status: '',
-  created_from_date: '',
-  created_to_date: '',
-  sort_key: 'created_at__desc',
-})
 
 const viewModeKey = 'flares3:files-view-mode'
 const viewMode = ref('table')
@@ -323,7 +363,7 @@ const sortOptions = computed(() => {
   if (isTrashMode.value) {
     base.unshift(
       { label: t('files.filters.sortDeletedDesc'), value: 'deleted_at__desc' },
-      { label: t('files.filters.sortDeletedAsc'), value: 'deleted_at__asc' },
+      { label: t('files.filters.sortDeletedAsc'), value: 'deleted_at__asc' }
     )
   }
   return base
@@ -368,8 +408,8 @@ const getFileStatus = (row) => {
   const text = deleted
     ? t('files.status.invalid')
     : expired
-    ? t('files.status.expired')
-    : t('files.status.valid')
+      ? t('files.status.expired')
+      : t('files.status.valid')
   const tagType = deleted ? 'danger' : expired ? 'warning' : 'success'
 
   return { deleted, expired, text, tagType }
@@ -465,8 +505,8 @@ const columns = computed(() => [
           ? 280
           : 330
         : themeStore.uiTheme === 'shadcn'
-        ? 330
-        : 380,
+          ? 330
+          : 380,
     align: 'center',
     ellipsis: false,
     render: (row) => {
@@ -921,10 +961,9 @@ watch(
 
 .files-actions {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: var(--nb-space-sm);
-  flex-wrap: wrap;
+  align-items: flex-end;
 }
 
 .filter-row {
@@ -932,6 +971,19 @@ watch(
   gap: var(--nb-space-sm);
   align-items: center;
   justify-content: flex-end;
+}
+
+.filter-row.main {
+  align-self: stretch;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.filter-row.advanced {
+  align-self: stretch;
+  justify-content: flex-start;
   flex-wrap: wrap;
 }
 
@@ -1003,7 +1055,25 @@ watch(
   border-color: var(--nb-border-color);
 }
 
+.advanced-filters-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.advanced-filters-btn.is-active {
+  background: var(--nb-secondary);
+  border-color: var(--nb-border-color);
+}
+
 :root[data-ui-theme='shadcn'] .view-mode-btn.is-active {
+  background: var(--accent);
+}
+
+:root[data-ui-theme='shadcn'] .advanced-filters-btn.is-active {
   background: var(--accent);
 }
 
@@ -1027,10 +1097,17 @@ watch(
   .files-actions {
     justify-content: flex-start;
     width: 100%;
+    align-items: flex-start;
   }
 
   .filter-row {
     justify-content: flex-start;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filter-row.main {
+    overflow-x: visible;
   }
 
   .filter-item.filename,
