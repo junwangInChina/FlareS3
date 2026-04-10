@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { buildLoginRouteLocation, resolvePostLoginNavigation } from '../utils/authRedirect.js'
 
 const routes = [
   {
@@ -59,11 +60,21 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
+  if (to.path === '/login' && authStore.isAuthenticated) {
+    const navigation = resolvePostLoginNavigation(to.query.next)
+    if (navigation.type === 'hard') {
+      window.location.assign(navigation.target)
+      return
+    }
+    next(navigation.target)
+    return
+  }
+
   if (to.meta.requiresAuth) {
     if (!authStore.isAuthenticated) {
       const isValid = await authStore.checkAuth()
       if (!isValid) {
-        next('/login')
+        next(buildLoginRouteLocation(to.fullPath))
         return
       }
     }
