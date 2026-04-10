@@ -50,6 +50,7 @@ import { useMessage } from '../composables/useMessage'
 import Input from '../components/ui/input/Input.vue'
 import Button from '../components/ui/button/Button.vue'
 import FormItem from '../components/ui/form-item/FormItem.vue'
+import { resolvePostLoginNavigation } from '../utils/authRedirect.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -79,9 +80,12 @@ const handleSubmit = async () => {
 
     const result = await authStore.login(formValue.value.username, formValue.value.password)
     if (result.success) {
-      const next = typeof route.query.next === 'string' ? route.query.next : '/'
-      const target = next.startsWith('/') ? next : '/'
-      router.push(target)
+      const navigation = resolvePostLoginNavigation(route.query.next)
+      if (navigation.type === 'hard') {
+        window.location.assign(navigation.target)
+        return
+      }
+      router.push(navigation.target)
     } else {
       const key = result.code ? loginErrorKeyByCode[result.code] : ''
       message.error(key ? t(key) : result.message || t('auth.loginFailed'))
