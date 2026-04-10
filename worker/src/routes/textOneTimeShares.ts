@@ -109,9 +109,11 @@ export async function tryViewTextOneTimeShare(
 
   const share = await env.DB.prepare(
     `SELECT s.id, s.text_id, s.share_code, s.expires_at, s.consumed_at,
-            t.title AS text_title, t.content AS text_content, t.deleted_at AS text_deleted_at
+            t.title AS text_title, t.content AS text_content, t.deleted_at AS text_deleted_at,
+            u.status AS owner_status
      FROM text_one_time_shares s
      LEFT JOIN texts t ON t.id = s.text_id
+     LEFT JOIN users u ON u.id = s.owner_id
      WHERE s.share_code = ?
      LIMIT 1`
   )
@@ -121,6 +123,10 @@ export async function tryViewTextOneTimeShare(
   if (!share) return null
 
   if ((share as any).text_deleted_at) {
+    return renderMessagePage('分享', '内容不存在', 404)
+  }
+
+  if (String((share as any).owner_status || '') !== 'active') {
     return renderMessagePage('分享', '内容不存在', 404)
   }
 
