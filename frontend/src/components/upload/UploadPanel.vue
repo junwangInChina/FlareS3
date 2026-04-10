@@ -1,8 +1,20 @@
 <template>
   <div class="upload-panel">
-    <Upload ref="uploadRef" @file-selected="handleUpload" @before-upload="beforeUpload">
-      <p class="upload-hint">{{ t('upload.hint5gb') }}</p>
-    </Upload>
+    <div
+      class="upload-entry"
+      :class="{ 'is-disabled': isUploadEntryDisabled }"
+      :aria-disabled="isUploadEntryDisabled ? 'true' : 'false'"
+    >
+      <Upload ref="uploadRef" @file-selected="handleUpload" @before-upload="beforeUpload">
+        <p class="upload-hint">{{ t('upload.hint5gb') }}</p>
+      </Upload>
+    </div>
+
+    <Alert v-if="uploadConfigAlertMessage" type="warning" class="upload-config-alert">
+      <template #default>
+        {{ uploadConfigAlertMessage }}
+      </template>
+    </Alert>
 
     <Divider />
 
@@ -11,12 +23,15 @@
         <Radio v-model="expiresIn" :options="expiresOptions" name="expires" />
       </FormItem>
 
-      <FormItem :label="t('upload.r2Config')">
+      <FormItem v-if="r2ConfigOptions.length > 1" :label="t('upload.r2Config')">
         <Select
           v-model="selectedR2ConfigId"
           :options="r2ConfigOptions"
           :disabled="isUploading || r2OptionsLoading"
         />
+      </FormItem>
+      <FormItem v-else-if="r2ConfigOptions.length === 1" :label="t('upload.r2Config')">
+        <div class="selected-config-label">{{ selectedR2ConfigLabel }}</div>
       </FormItem>
 
       <FormItem :label="t('upload.downloadPermission')">
@@ -112,7 +127,7 @@ import { useMessage } from '../../composables/useMessage'
 const emit = defineEmits(['uploaded'])
 
 const message = useMessage()
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 
 const uploadRef = ref(null)
 const expiresIn = ref(7)
@@ -121,6 +136,33 @@ const requireLogin = ref(true)
 const selectedR2ConfigId = ref('')
 const r2ConfigOptions = ref([])
 const r2OptionsLoading = ref(false)
+
+const hasAvailableUploadConfig = computed(() => r2ConfigOptions.value.length > 0)
+const isSelectedR2ConfigValid = computed(() =>
+  r2ConfigOptions.value.some((option) => option.value === selectedR2ConfigId.value)
+)
+const selectedR2ConfigLabel = computed(
+  () => r2ConfigOptions.value.find((option) => option.value === selectedR2ConfigId.value)?.label || ''
+)
+const resolvedUploadConfigId = computed(() =>
+  isSelectedR2ConfigValid.value ? selectedR2ConfigId.value : ''
+)
+const isUploadEntryDisabled = computed(
+  () => r2OptionsLoading.value || !hasAvailableUploadConfig.value || isUploading.value
+)
+const uploadConfigAlertMessage = computed(() => {
+  if (!r2OptionsLoading.value && !hasAvailableUploadConfig.value) {
+    return locale.value.startsWith('zh')
+      ? '当前没有可用上传配置，请联系管理员。'
+      : 'No upload configuration is available. Please contact an administrator.'
+  }
+  return ''
+})
+const uploadConfigLoadingMessage = computed(() =>
+  locale.value.startsWith('zh')
+    ? '上传配置加载中，请稍后重试。'
+    : 'Upload configuration is still loading. Please try again later.'
+)
 
 const expiresOptions = computed(() =>
   [1, 3, 7, 30, 0].map((value) => ({
@@ -139,13 +181,20 @@ onMounted(async () => {
   try {
     r2OptionsLoading.value = true
     const result = await api.getR2Options()
-    const opts = result.options || []
+    const opts = Array.isArray(result.options) ? result.options : []
     r2ConfigOptions.value = opts.map((opt) => ({
       label: opt.name,
       value: opt.id,
     }))
-    selectedR2ConfigId.value = result.default_config_id || opts[0]?.id || ''
+    const defaultConfigId =
+      typeof result.default_config_id === 'string' &&
+      opts.some((opt) => opt.id === result.default_config_id)
+        ? result.default_config_id
+        : ''
+    selectedR2ConfigId.value = defaultConfigId || opts[0]?.id || ''
   } catch (error) {
+    r2ConfigOptions.value = []
+    selectedR2ConfigId.value = ''
     console.error('加载 R2 配置选项失败:', error)
     message.error(t('upload.loadR2OptionsFailed'))
   } finally {
@@ -304,6 +353,14 @@ const updateUploadStats = (loaded, total) => {
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024
 
 const beforeUpload = ({ file }) => {
+  if (r2OptionsLoading.value) {
+    message.warning(uploadConfigLoadingMessage.value)
+    return false
+  }
+  if (!hasAvailableUploadConfig.value || !resolvedUploadConfigId.value) {
+    message.error(uploadConfigAlertMessage.value)
+    return false
+  }
   if (file.file.size > MAX_FILE_SIZE) {
     message.error(t('upload.fileTooLarge'))
     return false
@@ -312,6 +369,10 @@ const beforeUpload = ({ file }) => {
 }
 
 const handleUpload = async ({ file }) => {
+  if (!resolvedUploadConfigId.value) {
+    message.error(uploadConfigAlertMessage.value)
+    return
+  }
   currentFile.value = file
   uploadProgress.value = 0
   displayProgress.value = 0
@@ -365,7 +426,7 @@ const uploadSmallFile = async (file) => {
     size: file.file.size,
     expires_in: expiresIn.value,
     require_login: requireLogin.value,
-    config_id: selectedR2ConfigId.value || undefined,
+    config_id: resolvedUploadConfigId.value || undefined,
   })
 
   const controller = registerController()
@@ -422,7 +483,7 @@ const uploadLargeFile = async (file) => {
       size: file.file.size,
       expires_in: expiresIn.value,
       require_login: requireLogin.value,
-      config_id: selectedR2ConfigId.value || undefined,
+      config_id: resolvedUploadConfigId.value || undefined,
     })
 
     const { file_id, upload_id, part_size, total_parts } = initResponse
@@ -604,15 +665,32 @@ const copyDownloadUrl = () => {
 </script>
 
 <style scoped>
+.upload-entry.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .upload-hint {
   color: var(--nb-gray-500);
   font-size: 14px;
   margin-top: var(--nb-space-sm);
 }
 
+.upload-config-alert {
+  margin-top: var(--nb-space-md);
+}
+
 .upload-options {
   display: grid;
   gap: var(--nb-space-md);
+}
+
+.selected-config-label {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  color: var(--nb-text, var(--foreground));
+  word-break: break-all;
 }
 
 .upload-status {
