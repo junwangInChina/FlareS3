@@ -5,6 +5,7 @@
     "dev:worker": "npm --prefix worker run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev": "npm run dev:worker & npm run dev:frontend",
+    "test": "npm --prefix worker run test && node --test frontend/tests/auth-redirect.test.js",
     "lint": "npm --prefix worker run lint && npm --prefix frontend run lint",
     "format:check": "npm --prefix worker run format:check && npm --prefix frontend run format:check",
     "format": "npm --prefix worker run format && npm --prefix frontend run format",
