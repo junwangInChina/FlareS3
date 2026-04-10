@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { buildLoginUrl } from '../utils/authRedirect.js'
 
 const api = axios.create({
   baseURL: '/api',
@@ -11,7 +12,8 @@ api.interceptors.response.use(
   (error) => {
     const isAuthApi = error.config?.url?.includes('/auth/')
     if (error.response?.status === 401 && !isAuthApi) {
-      window.location.href = '/login'
+      const currentTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      window.location.assign(buildLoginUrl(currentTarget))
     }
     return Promise.reject(error)
   }
