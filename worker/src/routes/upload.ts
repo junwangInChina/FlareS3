@@ -1,19 +1,17 @@
 import type { Env } from '../config/env'
-import { getMaxFileSize } from '../config/env'
+import { getMaxFileSize, getTotalStorage } from '../config/env'
 import { jsonResponse, parseJson, getUser, calcPresignedDownloadUrlTtlSeconds } from './utils'
 import {
   abortMultipartUpload,
   deleteObject,
   buildR2Key,
   completeMultipartUpload,
-  checkObjectExists,
   generateDownloadUrl,
   generateMultipartUploadUrl,
   generateUploadUrl,
+  getObjectSize,
   initiateMultipartUpload,
   listParts,
-  loadR2Config,
-  loadR2ConfigById,
   resolveR2ConfigForKey,
   summarizeS3Error,
 } from '../services/r2'
@@ -22,6 +20,11 @@ import { getClientIp } from '../middleware/rateLimit'
 import { getUserUsedSpace } from '../services/quota'
 import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { generateRandomCode } from '../utils/random'
+import {
+  isUploadConfigPolicyError,
+  resolveUploadConfigForUser,
+} from '../services/uploadConfigPolicy'
+import { normalizeDeclaredFileSize, validateUploadedObjectSize } from '../services/uploadValidation'
 
 const ALLOWED_EXPIRES = new Set([-30, 0, 1, 3, 7, 30])
 const PART_SIZE = 20 * 1024 * 1024
@@ -72,6 +75,52 @@ function calcDownloadTtlSeconds(expiresAt: unknown): number {
 const SHORT_CODE_MAX_ATTEMPTS = 10
 const FILENAME_RENAME_MAX_ATTEMPTS = 100
 
+function createUploadConfigPolicyErrorResponse(error: unknown): Response | null {
+  if (!isUploadConfigPolicyError(error)) {
+    return null
+  }
+  return jsonResponse({ error: error.message }, error.status)
+}
+
+async function getUploadConfigQuotaBytes(env: Env, configId: string): Promise<number> {
+  const quota = await env.DB.prepare('SELECT quota_bytes FROM r2_configs WHERE id = ? LIMIT 1')
+    .bind(configId)
+    .first('quota_bytes')
+  const quotaBytes = Number(quota)
+  if (Number.isFinite(quotaBytes) && quotaBytes > 0) {
+    return quotaBytes
+  }
+  return getTotalStorage(env)
+}
+
+async function getUploadConfigUsedSpace(env: Env, configId: string): Promise<number> {
+  const prefix = `flares3/${configId}/%`
+  const usedSpace = await env.DB.prepare(
+    "SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE upload_status IN ('pending','uploading','completed') AND deleted_at IS NULL AND r2_key LIKE ?"
+  )
+    .bind(prefix)
+    .first('usedSpace')
+  const normalized = Number(usedSpace)
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : 0
+}
+
+async function ensureUploadConfigHasCapacity(
+  env: Env,
+  configId: string,
+  declaredSize: number
+): Promise<Response | null> {
+  const [quotaBytes, usedSpace] = await Promise.all([
+    getUploadConfigQuotaBytes(env, configId),
+    getUploadConfigUsedSpace(env, configId),
+  ])
+
+  if (usedSpace + declaredSize > quotaBytes) {
+    return jsonResponse({ error: '所选存储配置空间不足' }, 413)
+  }
+
+  return null
+}
+
 function sanitizeUploadFilename(filename: string): string {
   const normalized = String(filename ?? '').replaceAll('\\', '/')
   const parts = normalized.split('/').filter(Boolean)
@@ -106,6 +155,86 @@ function formatD1ErrorMessage(error: unknown): string {
     return JSON.stringify(error)
   } catch {
     return String(error)
+  }
+}
+
+async function markFileUploadDeleted(env: Env, fileId: string): Promise<void> {
+  const now = new Date().toISOString()
+  await env.DB.prepare(
+    "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
+  )
+    .bind(now, fileId)
+    .run()
+}
+
+async function deleteUploadedObjectIfPresent(
+  loaded: NonNullable<Awaited<ReturnType<typeof resolveR2ConfigForKey>>>,
+  r2Key: string
+): Promise<void> {
+  try {
+    await deleteObject(loaded.config, r2Key)
+  } catch (error) {
+    const summary = summarizeS3Error(error)
+    if (summary.httpStatusCode === 404 || summary.code === 'NoSuchKey') {
+      return
+    }
+    throw error
+  }
+}
+
+async function verifyUploadedObjectSizeOrReject(
+  env: Env,
+  file: { id: string; size: number; r2_key: string },
+  loaded: NonNullable<Awaited<ReturnType<typeof resolveR2ConfigForKey>>>,
+  auditContext?: {
+    actorUserId?: string
+    ip?: string
+    userAgent?: string
+    stage: 'confirm_upload' | 'complete_multipart'
+  }
+): Promise<{ actualSize: number } | { response: Response }> {
+  const actualSize = await getObjectSize(loaded.config, String(file.r2_key))
+  if (actualSize === null) {
+    return {
+      response: jsonResponse({ error: '上传对象不存在或尚未完成' }, 409),
+    }
+  }
+
+  const expectedSize = Number(file.size)
+  const validation = validateUploadedObjectSize(expectedSize, actualSize)
+  if (validation.ok) {
+    return { actualSize }
+  }
+
+  await deleteUploadedObjectIfPresent(loaded, String(file.r2_key))
+  await markFileUploadDeleted(env, String(file.id))
+
+  if (validation.reason === 'SIZE_MISMATCH' && auditContext) {
+    await Promise.allSettled([
+      logAudit(env.DB, {
+        actorUserId: auditContext.actorUserId,
+        action: 'UPLOAD_SIZE_MISMATCH',
+        targetType: 'file',
+        targetId: String(file.id),
+        ip: auditContext.ip,
+        userAgent: auditContext.userAgent,
+        metadata: {
+          stage: auditContext.stage,
+          expected_size: expectedSize,
+          actual_size: actualSize,
+        },
+      }),
+    ])
+  }
+
+  if (validation.reason === 'INVALID_ACTUAL_SIZE') {
+    return {
+      response: jsonResponse({ error: '上传对象大小无效' }, 502),
+    }
+  }
+
+  return {
+    response: jsonResponse({ error: '上传对象大小与声明大小不一致' }, 409),
   }
 }
 
@@ -195,27 +324,39 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
       config_id?: string
     }>(request)
 
-    if (!body.filename || !body.size) {
+    const declaredSize = normalizeDeclaredFileSize(body.size)
+    if (!body.filename || declaredSize === null) {
       return jsonResponse({ error: '无效的请求' }, 400)
     }
     const expiresIn = normalizeExpiresIn(body.expires_in)
 
     const maxSize = getMaxFileSize(env)
-    if (body.size > maxSize) {
+    if (declaredSize > maxSize) {
       return jsonResponse({ error: '文件大小超过限制' }, 413)
     }
 
     const used = await getUserUsedSpace(env.DB, user.id)
-    if (used + body.size > user.quota_bytes) {
+    if (used + declaredSize > user.quota_bytes) {
       return jsonResponse({ error: '超出配额' }, 413)
     }
 
-    const requestedId = body.config_id
-    const loaded = requestedId ? await loadR2ConfigById(env, requestedId) : await loadR2Config(env)
+    let loaded
+    try {
+      loaded = await resolveUploadConfigForUser(env, user, body.config_id)
+    } catch (error) {
+      const response = createUploadConfigPolicyErrorResponse(error)
+      if (response) return response
+      throw error
+    }
 
     if (!loaded) {
-      if (requestedId) return jsonResponse({ error: '配置不存在或不可用' }, 404)
+      if (body.config_id) return jsonResponse({ error: '配置不存在或不可用' }, 404)
       return jsonResponse({ error: 'R2 未配置' }, 503)
+    }
+
+    const quotaResponse = await ensureUploadConfigHasCapacity(env, loaded.id, declaredSize)
+    if (quotaResponse) {
+      return quotaResponse
     }
 
     const contentType = body.content_type || 'application/octet-stream'
@@ -224,7 +365,7 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
       env,
       user.id,
       body.filename,
-      body.size,
+      declaredSize,
       contentType,
       expiresIn,
       requireLogin,
@@ -264,7 +405,7 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
     const body = await parseJson<{ file_id: string }>(request)
 
     const file = await env.DB.prepare(
-      'SELECT id, owner_id, filename, r2_key, expires_at, short_code, require_login FROM files WHERE id = ? LIMIT 1'
+      'SELECT id, owner_id, filename, r2_key, expires_at, short_code, require_login, size FROM files WHERE id = ? LIMIT 1'
     )
       .bind(body.file_id)
       .first()
@@ -277,13 +418,27 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
     const loaded = await resolveR2ConfigForKey(env, r2Key)
     if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
 
-    const objectExists = await checkObjectExists(loaded.config, r2Key)
-    if (!objectExists) {
-      return jsonResponse({ error: '上传对象不存在或尚未完成' }, 409)
+    const sizeValidation = await verifyUploadedObjectSizeOrReject(
+      env,
+      {
+        id: String(file.id),
+        size: Number(file.size),
+        r2_key: r2Key,
+      },
+      loaded,
+      {
+        actorUserId: user.id,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('User-Agent') || undefined,
+        stage: 'confirm_upload',
+      }
+    )
+    if ('response' in sizeValidation) {
+      return sizeValidation.response
     }
 
-    await env.DB.prepare('UPDATE files SET upload_status = ? WHERE id = ?')
-      .bind('completed', body.file_id)
+    await env.DB.prepare('UPDATE files SET size = ?, upload_status = ? WHERE id = ?')
+      .bind(sizeValidation.actualSize, 'completed', body.file_id)
       .run()
 
     let downloadUrl = `/api/files/${body.file_id}/download`
@@ -325,27 +480,39 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       config_id?: string
     }>(request)
 
-    if (!body.filename || !body.size) {
+    const declaredSize = normalizeDeclaredFileSize(body.size)
+    if (!body.filename || declaredSize === null) {
       return jsonResponse({ error: '无效的请求' }, 400)
     }
     const expiresIn = normalizeExpiresIn(body.expires_in)
 
     const maxSize = getMaxFileSize(env)
-    if (body.size > maxSize) {
+    if (declaredSize > maxSize) {
       return jsonResponse({ error: '文件大小超过限制' }, 413)
     }
 
     const used = await getUserUsedSpace(env.DB, user.id)
-    if (used + body.size > user.quota_bytes) {
+    if (used + declaredSize > user.quota_bytes) {
       return jsonResponse({ error: '超出配额' }, 413)
     }
 
-    const requestedId = body.config_id
-    const loaded = requestedId ? await loadR2ConfigById(env, requestedId) : await loadR2Config(env)
+    let loaded
+    try {
+      loaded = await resolveUploadConfigForUser(env, user, body.config_id)
+    } catch (error) {
+      const response = createUploadConfigPolicyErrorResponse(error)
+      if (response) return response
+      throw error
+    }
 
     if (!loaded) {
-      if (requestedId) return jsonResponse({ error: '配置不存在或不可用' }, 404)
+      if (body.config_id) return jsonResponse({ error: '配置不存在或不可用' }, 404)
       return jsonResponse({ error: 'R2 未配置' }, 503)
+    }
+
+    const quotaResponse = await ensureUploadConfigHasCapacity(env, loaded.id, declaredSize)
+    if (quotaResponse) {
+      return quotaResponse
     }
 
     const contentType = body.content_type || 'application/octet-stream'
@@ -354,7 +521,7 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       env,
       user.id,
       body.filename,
-      body.size,
+      declaredSize,
       contentType,
       expiresIn,
       requireLogin,
@@ -373,7 +540,7 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       filename: file.filename,
       upload_id: uploadId,
       part_size: PART_SIZE,
-      total_parts: Math.ceil(body.size / PART_SIZE),
+      total_parts: Math.ceil(declaredSize / PART_SIZE),
       r2_config_id: loaded.id,
     })
   } catch (error) {
@@ -457,7 +624,7 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
 
     await ensureFilesMultipartUploadIdColumn(env.DB)
     const file = await env.DB.prepare(
-      'SELECT id, owner_id, filename, r2_key, expires_at, short_code, require_login, upload_status, multipart_upload_id FROM files WHERE id = ?'
+      'SELECT id, owner_id, filename, r2_key, expires_at, short_code, require_login, upload_status, multipart_upload_id, size FROM files WHERE id = ?'
     )
       .bind(body.file_id)
       .first()
@@ -508,10 +675,29 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
 
     await completeMultipartUpload(loaded.config, String(file.r2_key), storedUploadId, parts)
 
-    await env.DB.prepare(
-      'UPDATE files SET upload_status = ?, multipart_upload_id = NULL WHERE id = ?'
+    const sizeValidation = await verifyUploadedObjectSizeOrReject(
+      env,
+      {
+        id: String(file.id),
+        size: Number(file.size),
+        r2_key: String(file.r2_key),
+      },
+      loaded,
+      {
+        actorUserId: user.id,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('User-Agent') || undefined,
+        stage: 'complete_multipart',
+      }
     )
-      .bind('completed', file.id)
+    if ('response' in sizeValidation) {
+      return sizeValidation.response
+    }
+
+    await env.DB.prepare(
+      'UPDATE files SET size = ?, upload_status = ?, multipart_upload_id = NULL WHERE id = ?'
+    )
+      .bind(sizeValidation.actualSize, 'completed', file.id)
       .run()
 
     let downloadUrl = `/api/files/${file.id}/download`
