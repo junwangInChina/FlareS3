@@ -9,6 +9,10 @@ import {
   isSharePasswordBlocked,
   recordSharePasswordFailedAttempt,
 } from '../middleware/rateLimit'
+import {
+  consumeTextShareViewIfAllowed,
+  SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE,
+} from '../services/shareViewGuard'
 import { generateRandomCode } from '../utils/random'
 import { buildPage, escapeHtml, htmlResponse } from './sharePage'
 
@@ -342,9 +346,11 @@ async function resolveShareRecord(env: Env, code: string): Promise<ResolveShareR
 
   const share = await env.DB.prepare(
     `SELECT s.id, s.text_id, s.share_code, s.password_hash, s.expires_at, s.max_views, s.views,
-            t.title AS text_title, t.content AS text_content, t.deleted_at AS text_deleted_at
+            t.title AS text_title, t.content AS text_content, t.deleted_at AS text_deleted_at,
+            u.status AS owner_status
      FROM text_shares s
      LEFT JOIN texts t ON t.id = s.text_id
+     LEFT JOIN users u ON u.id = s.owner_id
      WHERE s.share_code = ?
      LIMIT 1`
   )
@@ -359,6 +365,10 @@ async function resolveShareRecord(env: Env, code: string): Promise<ResolveShareR
     return { error: { status: 404, message: '内容不存在' } }
   }
 
+  if (String((share as any).owner_status || '') !== 'active') {
+    return { error: { status: 404, message: '内容不存在' } }
+  }
+
   const expiresAt = String((share as any).expires_at || '').trim()
   if (expiresAt) {
     const expiresAtMs = new Date(expiresAt).getTime()
@@ -370,17 +380,10 @@ async function resolveShareRecord(env: Env, code: string): Promise<ResolveShareR
   const maxViews = Number((share as any).max_views || 0)
   const views = Number((share as any).views || 0)
   if (Number.isFinite(maxViews) && maxViews > 0 && views >= maxViews) {
-    return { error: { status: 410, message: '访问次数已用尽' } }
+    return { error: { status: 410, message: SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE } }
   }
 
   return { share }
-}
-
-async function incrementShareViews(env: Env, shareId: string): Promise<void> {
-  const now = new Date().toISOString()
-  await env.DB.prepare('UPDATE text_shares SET views = views + 1, updated_at = ? WHERE id = ?')
-    .bind(now, shareId)
-    .run()
 }
 
 function renderPasswordForm({
@@ -518,20 +521,30 @@ export async function viewTextShare(request: Request, env: Env, code: string): P
 
   const passwordHash = String((share as any).password_hash || '').trim()
   const needsPassword = Boolean(passwordHash)
+  const consumeAndRender = async (): Promise<Response> => {
+    try {
+      const { consumed } = await consumeTextShareViewIfAllowed(env.DB, shareId)
+      if (!consumed) {
+        return renderMessagePage('分享', SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE, 410)
+      }
+
+      return renderContentPage({ title, meta, content })
+    } catch {
+      return renderMessagePage('分享', '访问失败，请稍后重试', 500)
+    }
+  }
 
   if (request.method.toUpperCase() === 'GET') {
     if (needsPassword) {
       return renderPasswordForm({ title, meta })
     }
 
-    await incrementShareViews(env, shareId)
-    return renderContentPage({ title, meta, content })
+    return consumeAndRender()
   }
 
   if (request.method.toUpperCase() === 'POST') {
     if (!needsPassword) {
-      await incrementShareViews(env, shareId)
-      return renderContentPage({ title, meta, content })
+      return consumeAndRender()
     }
 
     const ip = getClientIp(request)
@@ -560,8 +573,7 @@ export async function viewTextShare(request: Request, env: Env, code: string): P
     }
 
     await clearSharePasswordFailedAttempts(env, normalizedCode, ip)
-    await incrementShareViews(env, shareId)
-    return renderContentPage({ title, meta, content })
+    return consumeAndRender()
   }
 
   return new Response('Method Not Allowed', { status: 405 })
