@@ -12,6 +12,39 @@ async function revokeUserSessions(db: D1Database, userId: string): Promise<void>
     .run()
 }
 
+async function deactivateUserPublicResources(
+  db: D1Database,
+  userId: string,
+  now: string
+): Promise<void> {
+  await db
+    .prepare(
+      'UPDATE texts SET deleted_at = ?, updated_at = ? WHERE owner_id = ? AND deleted_at IS NULL'
+    )
+    .bind(now, now, userId)
+    .run()
+  await db.prepare('DELETE FROM text_shares WHERE owner_id = ?').bind(userId).run()
+  await db.prepare('DELETE FROM text_one_time_shares WHERE owner_id = ?').bind(userId).run()
+  await db.prepare('DELETE FROM file_shares WHERE owner_id = ?').bind(userId).run()
+}
+
+async function enqueueFileDeletionIfNeeded(
+  db: D1Database,
+  file: { id: string; r2_key: string },
+  now: string
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO delete_queue (id, file_id, r2_key, created_at)
+       SELECT ?, ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM delete_queue WHERE file_id = ? AND processed_at IS NULL
+       )`
+    )
+    .bind(crypto.randomUUID(), file.id, file.r2_key, now, file.id)
+    .run()
+}
+
 async function countActiveAdmins(db: D1Database): Promise<number> {
   const total = await db
     .prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'admin' AND status = 'active'")
@@ -144,6 +177,10 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
       quota_bytes?: number
     }>(request)
 
+    if (body.status === 'deleted') {
+      return jsonResponse({ error: '请使用专用删除接口删除用户' }, 400)
+    }
+
     const target = await env.DB.prepare('SELECT role, status FROM users WHERE id = ? LIMIT 1')
       .bind(userId)
       .first<{ role: string; status: string }>()
@@ -208,10 +245,10 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
       body.status === 'disabled'
         ? 'USER_DISABLE'
         : body.status === 'active'
-        ? 'USER_ENABLE'
-        : body.status === 'deleted'
-        ? 'USER_DELETE'
-        : 'USER_UPDATE'
+          ? 'USER_ENABLE'
+          : body.status === 'deleted'
+            ? 'USER_DELETE'
+            : 'USER_UPDATE'
     await logAudit(env.DB, {
       actorUserId: actor?.id,
       action: auditAction,
@@ -280,6 +317,7 @@ export async function deleteUser(request: Request, env: Env, userId: string): Pr
     .run()
 
   await revokeUserSessions(env.DB, userId)
+  await deactivateUserPublicResources(env.DB, userId, now)
 
   const files = await env.DB.prepare(
     `SELECT id, r2_key FROM files WHERE owner_id = ? AND deleted_at IS NULL`
@@ -289,17 +327,17 @@ export async function deleteUser(request: Request, env: Env, userId: string): Pr
 
   if (files.results && files.results.length) {
     await env.DB.prepare(
-      `UPDATE files SET upload_status = 'deleted', deleted_at = ? WHERE owner_id = ? AND deleted_at IS NULL`
+      `UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE owner_id = ? AND deleted_at IS NULL`
     )
       .bind(now, userId)
       .run()
 
     for (const file of files.results) {
-      await env.DB.prepare(
-        `INSERT INTO delete_queue (id, file_id, r2_key, created_at) VALUES (?, ?, ?, ?)`
+      await enqueueFileDeletionIfNeeded(
+        env.DB,
+        { id: String(file.id), r2_key: String(file.r2_key) },
+        now
       )
-        .bind(crypto.randomUUID(), file.id, file.r2_key, now)
-        .run()
     }
   }
 
