@@ -12,6 +12,10 @@ import {
 import { generateDownloadUrl, resolveR2ConfigForKey } from '../services/r2'
 import { buildPage, escapeHtml, htmlResponse } from './sharePage'
 import { generateRandomCode } from '../utils/random'
+import {
+  consumeFileShareViewIfAllowed,
+  SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE,
+} from '../services/shareViewGuard'
 
 type LoadFileAuthResult =
   | { response: Response }
@@ -358,9 +362,11 @@ async function resolveFileShareRecord(
 
   const row = await env.DB.prepare(
     `SELECT s.id AS share_id, s.file_id, s.share_code, s.password_hash, s.expires_at AS share_expires_at, s.max_views, s.views,
-            f.filename, f.r2_key, f.expires_at AS file_expires_at, f.upload_status, f.deleted_at
+            f.filename, f.r2_key, f.expires_at AS file_expires_at, f.upload_status, f.deleted_at,
+            u.status AS owner_status
      FROM file_shares s
      LEFT JOIN files f ON f.id = s.file_id
+     LEFT JOIN users u ON u.id = s.owner_id
      WHERE s.share_code = ?
      LIMIT 1`
   )
@@ -372,6 +378,10 @@ async function resolveFileShareRecord(
   }
 
   if (!row.filename || !row.r2_key || row.upload_status !== 'completed' || row.deleted_at) {
+    return { error: { status: 404, message: '文件不存在' } }
+  }
+
+  if (String(row.owner_status || '') !== 'active') {
     return { error: { status: 404, message: '文件不存在' } }
   }
 
@@ -401,7 +411,7 @@ async function resolveFileShareRecord(
   const safeMaxViews = Number.isFinite(maxViews) ? Math.floor(maxViews) : 0
   const safeViews = Number.isFinite(views) ? Math.floor(views) : 0
   if (safeMaxViews > 0 && safeViews >= safeMaxViews) {
-    return { error: { status: 410, message: '可访问次数已用尽' } }
+    return { error: { status: 410, message: SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE } }
   }
 
   return {
@@ -420,13 +430,6 @@ async function resolveFileShareRecord(
       expires_at: String(row.file_expires_at),
     },
   }
-}
-
-async function incrementFileShareViews(env: Env, shareId: string): Promise<void> {
-  const now = new Date().toISOString()
-  await env.DB.prepare('UPDATE file_shares SET views = views + 1, updated_at = ? WHERE id = ?')
-    .bind(now, shareId)
-    .run()
 }
 
 function renderFileMessagePage(title: string, message: string, status = 200): Response {
@@ -560,27 +563,34 @@ export async function viewFileShare(request: Request, env: Env, code: string): P
 
   const method = request.method.toUpperCase()
 
-  if (method === 'GET') {
-    if (needsPassword) {
-      return renderFilePasswordForm({ title, meta })
-    }
+  const consumeAndRedirect = async (): Promise<Response> => {
+    try {
+      const { consumed } = await consumeFileShareViewIfAllowed(env.DB, share.id)
+      if (!consumed) {
+        return renderFileMessagePage('分享', SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE, 410)
+      }
 
-    await incrementFileShareViews(env, share.id)
-    const presigned = await buildPresignedDownloadUrl(env, file)
-    if (!presigned.ok) {
-      return renderFileMessagePage('分享', presigned.error.message, presigned.error.status)
-    }
-    return Response.redirect(presigned.url, 302)
-  }
-
-  if (method === 'POST') {
-    if (!needsPassword) {
-      await incrementFileShareViews(env, share.id)
       const presigned = await buildPresignedDownloadUrl(env, file)
       if (!presigned.ok) {
         return renderFileMessagePage('分享', presigned.error.message, presigned.error.status)
       }
       return Response.redirect(presigned.url, 302)
+    } catch {
+      return renderFileMessagePage('分享', '访问失败，请稍后重试', 500)
+    }
+  }
+
+  if (method === 'GET') {
+    if (needsPassword) {
+      return renderFilePasswordForm({ title, meta })
+    }
+
+    return consumeAndRedirect()
+  }
+
+  if (method === 'POST') {
+    if (!needsPassword) {
+      return consumeAndRedirect()
     }
 
     const ip = getClientIp(request)
@@ -609,12 +619,7 @@ export async function viewFileShare(request: Request, env: Env, code: string): P
     }
 
     await clearSharePasswordFailedAttempts(env, normalized, ip)
-    await incrementFileShareViews(env, share.id)
-    const presigned = await buildPresignedDownloadUrl(env, file)
-    if (!presigned.ok) {
-      return renderFileMessagePage('分享', presigned.error.message, presigned.error.status)
-    }
-    return Response.redirect(presigned.url, 302)
+    return consumeAndRedirect()
   }
 
   return new Response('Method Not Allowed', { status: 405 })
