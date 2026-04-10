@@ -1,6 +1,6 @@
 import type { Env } from '../config/env'
 import { getTotalStorage } from '../config/env'
-import { jsonResponse, parseJson } from './utils'
+import { jsonResponse, parseJson, getUser } from './utils'
 import { encryptString, validateBase64KeyLength } from '../services/crypto'
 import { formatBytes } from '../utils/format'
 import {
@@ -14,6 +14,10 @@ import {
   summarizeS3Error,
   testConnection,
 } from '../services/r2'
+import { listUploadConfigOptionsForUser } from '../services/uploadConfigPolicy'
+
+const ACTIVE_STORAGE_USAGE_WHERE =
+  "upload_status IN ('pending','uploading','completed') AND deleted_at IS NULL"
 
 type R2ConfigInput = {
   name: string
@@ -24,8 +28,11 @@ type R2ConfigInput = {
   quota_bytes: number
 }
 
-export async function listOptions(_request: Request, env: Env): Promise<Response> {
-  const result = await listR2ConfigOptions(env)
+export async function listOptions(request: Request, env: Env): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const result = await listUploadConfigOptionsForUser(env, user)
   return jsonResponse(result)
 }
 
@@ -46,7 +53,7 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
   }> = []
 
   const legacyUsedSpaceRow = await env.DB.prepare(
-    "SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE upload_status = 'completed' AND deleted_at IS NULL AND r2_key NOT LIKE 'flares3/%/%'"
+    `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_STORAGE_USAGE_WHERE} AND r2_key NOT LIKE 'flares3/%/%'`
   ).first('usedSpace')
   const legacyUsedSpace = Number(legacyUsedSpaceRow || 0)
 
@@ -69,7 +76,7 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
 
     const prefix = `flares3/${option.id}/%`
     const usedSpaceRow = await env.DB.prepare(
-      "SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE upload_status = 'completed' AND deleted_at IS NULL AND r2_key LIKE ?"
+      `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_STORAGE_USAGE_WHERE} AND r2_key LIKE ?`
     )
       .bind(prefix)
       .first('usedSpace')
