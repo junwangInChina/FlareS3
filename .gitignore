@@ -11,3 +11,5 @@ scripts/
 .snow
 .ace-tool/
 docs/
+.test-dist/
+*test*
