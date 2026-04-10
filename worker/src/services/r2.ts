@@ -465,6 +465,34 @@ export async function checkObjectExists(config: R2Config, key: string): Promise<
   throw buildS3HttpError(response.status, text)
 }
 
+export async function getObjectSize(config: R2Config, key: string): Promise<number | null> {
+  const client = createS3Client(config)
+  const response = await fetchSigned(
+    client,
+    new HeadObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+    }),
+    { method: 'HEAD', expiresInSeconds: 60 }
+  )
+
+  if (response.status === 404) {
+    return null
+  }
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw buildS3HttpError(response.status, text)
+  }
+
+  const contentLength = Number(response.headers.get('content-length'))
+  if (!Number.isFinite(contentLength) || !Number.isInteger(contentLength) || contentLength < 0) {
+    throw new Error('invalid_content_length')
+  }
+
+  return contentLength
+}
+
 export async function initiateMultipartUpload(
   config: R2Config,
   key: string,
