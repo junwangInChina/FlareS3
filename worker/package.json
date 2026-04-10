@@ -6,6 +6,8 @@
     "dev": "wrangler dev --port 18787",
     "deploy": "wrangler deploy",
     "deploy:full": "wrangler deploy --config wrangler.full.toml",
+    "test:build": "rm -rf .test-dist && tsc -p tsconfig.test.json --outDir .test-dist && node -e \"require('fs').writeFileSync('.test-dist/package.json', '{\\\"type\\\":\\\"commonjs\\\"}\\n')\"",
+    "test": "npm run test:build && WORKER_TEST_OUTDIR=$PWD/.test-dist node --test tests/*.test.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
