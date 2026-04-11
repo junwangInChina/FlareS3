@@ -230,11 +230,19 @@ export async function listTrashFiles(request: Request, env: Env): Promise<Respon
 
 export async function downloadFile(request: Request, env: Env, fileId: string): Promise<Response> {
   const file = await env.DB.prepare(
-    `SELECT id, owner_id, filename, r2_key, expires_at, upload_status, require_login FROM files WHERE id = ? LIMIT 1`
+    `SELECT f.id, f.owner_id, f.filename, f.r2_key, f.expires_at, f.upload_status, f.require_login,
+            u.status AS owner_status
+     FROM files f
+     LEFT JOIN users u ON u.id = f.owner_id
+     WHERE f.id = ?
+     LIMIT 1`
   )
     .bind(fileId)
     .first()
   if (!file) {
+    return jsonResponse({ error: '文件不存在' }, 404)
+  }
+  if (String((file as any).owner_status || '') !== 'active') {
     return jsonResponse({ error: '文件不存在' }, 404)
   }
   if (file.upload_status !== 'completed') {
