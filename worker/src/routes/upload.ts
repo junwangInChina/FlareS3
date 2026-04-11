@@ -13,6 +13,7 @@ import {
   initiateMultipartUpload,
   listParts,
   resolveR2ConfigForKey,
+  sanitizeFilename,
   summarizeS3Error,
 } from '../services/r2'
 import { logAudit } from '../services/audit'
@@ -122,11 +123,7 @@ async function ensureUploadConfigHasCapacity(
 }
 
 function sanitizeUploadFilename(filename: string): string {
-  const normalized = String(filename ?? '').replaceAll('\\', '/')
-  const parts = normalized.split('/').filter(Boolean)
-  const base = parts.length ? parts[parts.length - 1] : normalized
-  const safe = String(base || '').trim()
-  return safe || 'file'
+  return sanitizeFilename(filename)
 }
 
 function splitFilename(filename: string): { stem: string; ext: string } {
