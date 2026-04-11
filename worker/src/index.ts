@@ -54,10 +54,12 @@ import { createTextOneTimeShare } from './routes/textOneTimeShares'
 import { getFileShare, upsertFileShare, deleteFileShare, viewFileShare } from './routes/fileShares'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
+import { cleanupRetention } from './jobs/cleanupRetention'
 
 const router = Router()
 
 type RouteHandler = (request: Request, env: Env) => Response | Promise<Response>
+type StructuredLogLevel = 'info' | 'error'
 
 function withAuth(handler: RouteHandler): RouteHandler {
   return (request, env) => {
@@ -354,6 +356,26 @@ function isHtmlResponse(response: Response): boolean {
   return contentType.toLowerCase().includes('text/html')
 }
 
+function serializeError(error: unknown): string | undefined {
+  if (!error) return
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`
+  }
+  return String(error)
+}
+
+function logStructured(level: StructuredLogLevel, payload: Record<string, unknown>): void {
+  const line = JSON.stringify({
+    timestamp: new Date().toISOString(),
+    ...payload,
+  })
+  if (level === 'error') {
+    console.error(line)
+    return
+  }
+  console.info(line)
+}
+
 function buildHtmlCsp(): string {
   return [
     "default-src 'none'",
@@ -362,12 +384,33 @@ function buildHtmlCsp(): string {
     "frame-ancestors 'none'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https:",
-    "script-src 'self' 'unsafe-inline'",
+    "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "connect-src 'self' https:",
     "frame-src 'self' https:",
     "object-src 'none'",
   ].join('; ')
+}
+
+function isSecureRequest(request: Request): boolean {
+  const url = new URL(request.url)
+  if (url.protocol === 'https:') return true
+  const forwardedProto = request.headers.get('X-Forwarded-Proto')
+  return forwardedProto?.split(',')[0]?.trim() === 'https'
+}
+
+function healthResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    }),
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  )
 }
 
 function withCommonHeaders(request: Request, response: Response): Response {
@@ -387,6 +430,9 @@ function withCommonHeaders(request: Request, response: Response): Response {
   )
   headers.set('Cross-Origin-Opener-Policy', 'same-origin')
   headers.set('Cross-Origin-Resource-Policy', 'same-origin')
+  if (isSecureRequest(request)) {
+    headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
 
   if (isHtmlResponse(response)) {
     headers.set('Content-Security-Policy', buildHtmlCsp())
@@ -399,39 +445,88 @@ function withCommonHeaders(request: Request, response: Response): Response {
   })
 }
 
+function logRequestFailure(request: Request, response: Response, error?: unknown): void {
+  if (response.status < 500) {
+    return
+  }
+
+  const entry: Record<string, unknown> = {
+    event: 'request.error',
+    requestId: (request as Request & { requestId?: string }).requestId ?? null,
+    method: request.method.toUpperCase(),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  }
+
+  const serializedError = serializeError(error)
+  if (serializedError) {
+    entry.error = serializedError
+  }
+
+  logStructured('error', entry)
+}
+
 async function handleRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   requestIdMiddleware(request)
-  const pathname = new URL(request.url).pathname
+  let response: Response | undefined
+  let requestError: unknown
 
-  if (!isBackendPath(pathname)) {
-    const response = await handleFrontendRequest(request, env)
-    return withCommonHeaders(request, response)
-  }
+  try {
+    const pathname = new URL(request.url).pathname
 
-  let response: Response | undefined = await rateLimitMiddleware(request, env)
-  if (!response) {
-    response = await bootstrapAdmin(request, env)
-  }
-  if (!response) {
-    response = await authSessionMiddleware(request, env)
-  }
-  if (!response) {
-    try {
-      response = await router.handle(request, env, ctx)
-    } catch (error) {
-      console.error('router.handle failed', error)
-      response = new Response('Internal Server Error', { status: 500 })
+    if (pathname === '/health' || pathname === '/api/health') {
+      response = healthResponse()
+    } else if (!isBackendPath(pathname)) {
+      response = await handleFrontendRequest(request, env)
+    } else {
+      response = await rateLimitMiddleware(request, env)
+      if (!response) {
+        response = await bootstrapAdmin(request, env)
+      }
+      if (!response) {
+        response = await authSessionMiddleware(request, env)
+      }
+      if (!response) {
+        try {
+          response = await router.handle(request, env, ctx)
+        } catch (error) {
+          requestError = error
+          response = new Response('Internal Server Error', { status: 500 })
+        }
+      }
     }
+  } catch (error) {
+    requestError = error
+    response = new Response('Internal Server Error', { status: 500 })
   }
+
   if (!response) {
     response = new Response('Internal Server Error', { status: 500 })
   }
+
+  logRequestFailure(request, response, requestError)
   return withCommonHeaders(request, response)
 }
 
 async function handleScheduled(env: Env): Promise<void> {
-  await cleanupExpired(env)
-  await cleanupDeleteQueue(env)
+  try {
+    const cleanupExpiredResult = await cleanupExpired(env)
+    const cleanupDeleteQueueResult = await cleanupDeleteQueue(env)
+    const cleanupRetentionResult = await cleanupRetention(env)
+
+    logStructured('info', {
+      event: 'scheduled.cleanup.completed',
+      cleanupExpired: cleanupExpiredResult ?? null,
+      cleanupDeleteQueue: cleanupDeleteQueueResult ?? null,
+      cleanupRetention: cleanupRetentionResult ?? null,
+    })
+  } catch (error) {
+    logStructured('error', {
+      event: 'scheduled.cleanup.failed',
+      error: serializeError(error) ?? 'unknown_error',
+    })
+    throw error
+  }
 }
 
 export default {
