@@ -134,8 +134,8 @@ npm run format:check
      - `BOOTSTRAP_ADMIN_USER`：普通变量（非敏感）
      - `BOOTSTRAP_ADMIN_PASS`：Secret（敏感，强密码）
      - `R2_MASTER_KEY`：Secret（32 字节 base64；需要长期保持不变）。
-     - 现在 GitHub Actions 部署流程会在部署时自动检查该 Secret：若不存在会自动生成并上传；若已存在则复用现有值。
-     - ⚠️ 一旦生成/设置后请勿随意修改，否则历史已保存的 R2 配置（存储在 D1 内的密钥密文）将无法解密。
+     - GitHub Actions 部署流程只会校验该 Secret 是否存在；若不存在会直接失败，不会自动生成。
+     - ⚠️ 请在首次部署前手动配置该值，且一旦生成/设置后请勿随意修改，否则历史已保存的 R2 配置（存储在 D1 内的密钥密文）将无法解密。
    - ⚠️ `worker/.dev.vars` 仅用于本地 `wrangler dev`；生产环境不要提交/分享该文件。
    - R2 访问配置（Endpoint / Access Key / Secret Key / Bucket）请部署后访问 `/setup` 在 UI 中创建/管理（写入 D1）。
    - 非敏感配置（可在 `worker/wrangler.toml` 的 `[vars]` 调整）：`MAX_FILE_SIZE`、`TOTAL_STORAGE`
