@@ -285,6 +285,23 @@ export async function listR2ConfigOptions(env: Env): Promise<{
   }
 }
 
+export function sanitizeFilename(filename: string): string {
+  const normalized = String(filename ?? '').replaceAll('\\', '/')
+  let withoutControls = ''
+  for (const char of normalized) {
+    const code = char.charCodeAt(0)
+    withoutControls += code <= 0x1f || code === 0x7f ? '/' : char
+  }
+  const parts = withoutControls.split('/').filter(Boolean)
+  const base = parts.length ? parts[parts.length - 1] : withoutControls
+  const safe = String(base || '').trim()
+  return safe || 'file'
+}
+
+export function sanitizeContentDispositionFilename(filename: string): string {
+  return sanitizeFilename(filename).replaceAll('"', '')
+}
+
 export function extractR2ConfigIdFromKey(r2Key: string): string | null {
   const parts = r2Key.split('/').filter(Boolean)
   if (parts.length < 3) {
@@ -298,10 +315,7 @@ export function extractR2ConfigIdFromKey(r2Key: string): string | null {
 
 export function buildR2Key(configId: string, filename: string): string {
   const safeConfigId = String(configId).replaceAll('/', '_')
-  const normalizedFilename = String(filename ?? '').replaceAll('\\', '/')
-  const filenameParts = normalizedFilename.split('/').filter(Boolean)
-  const originalFilename = filenameParts.length ? filenameParts[filenameParts.length - 1] : ''
-  const safeFilename = originalFilename.trim() || 'file'
+  const safeFilename = sanitizeFilename(filename)
   return `flares3/${safeConfigId}/${safeFilename}`
 }
 
@@ -420,7 +434,8 @@ export async function generateDownloadUrl(
   expiresInSeconds: number
 ): Promise<string> {
   const client = createS3Client(config)
-  const contentDisposition = `attachment; filename="${filename}"`
+  const safeFilename = sanitizeContentDispositionFilename(filename)
+  const contentDisposition = `attachment; filename="${safeFilename}"`
   const command = new GetObjectCommand({
     Bucket: config.bucketName,
     Key: key,
@@ -437,7 +452,7 @@ export async function generatePreviewUrl(
   responseContentType?: string
 ): Promise<string> {
   const client = createS3Client(config)
-  const safeFilename = String(filename || 'file').replaceAll('"', '')
+  const safeFilename = sanitizeContentDispositionFilename(filename)
   const contentDisposition = `inline; filename="${safeFilename}"`
   const command = new GetObjectCommand({
     Bucket: config.bucketName,
