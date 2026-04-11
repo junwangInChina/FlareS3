@@ -122,7 +122,7 @@ jobs:
 
           echo "WRANGLER_CI_CONFIG=wrangler.full.ci.toml" >> "${GITHUB_ENV}"
 
-      - name: Ensure R2_MASTER_KEY secret exists
+      - name: Verify R2_MASTER_KEY secret exists
         working-directory: "worker"
         run: |
           set -euo pipefail
@@ -134,19 +134,17 @@ jobs:
           KEY_NAME="R2_MASTER_KEY"
 
           # `wrangler secret list` will fail if the Worker doesn't exist yet.
-          # In that case we treat it as empty and create the secret.
+          # In that case we treat it as empty and fail fast so the operator
+          # provisions the secret explicitly before deployment.
           SECRETS_JSON="$(npx wrangler --config "${WRANGLER_CI_CONFIG}" secret list --format json 2>/dev/null || echo '[]')"
           HAS_KEY="$(echo "${SECRETS_JSON}" | jq -r --arg k "${KEY_NAME}" '[.[] | select(.name==$k)] | length')"
 
-          if [ "${HAS_KEY}" != "0" ]; then
-            echo "${KEY_NAME} already exists, skipping"
-            exit 0
+          if [ "${HAS_KEY}" = "0" ]; then
+            echo "::error::${KEY_NAME} is missing. Provision it in Cloudflare before deploying so existing R2 credentials remain decryptable."
+            exit 1
           fi
 
-          echo "${KEY_NAME} not found, generating & uploading (value will NOT be printed)..."
-          GENERATED="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))")"
-          echo "${GENERATED}" | npx wrangler --config "${WRANGLER_CI_CONFIG}" secret put "${KEY_NAME}"
-          echo "${KEY_NAME} uploaded"
+          echo "${KEY_NAME} already exists"
 
       - name: Install frontend dependencies
         working-directory: "frontend"
