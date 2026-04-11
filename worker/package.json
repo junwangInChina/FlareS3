@@ -14,13 +14,13 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1000.0",
-    "@aws-sdk/s3-request-presigner": "^3.1000.0",
+    "@aws-sdk/client-s3": "^3.1029.0",
+    "@aws-sdk/s3-request-presigner": "^3.1029.0",
     "bcryptjs": "^2.4.3",
     "itty-router": "^4.0.0"
   },
   "overrides": {
-    "fast-xml-parser": "5.4.1"
+    "fast-xml-parser": "5.5.11"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",
