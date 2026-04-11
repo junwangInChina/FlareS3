@@ -33,14 +33,29 @@ jobs:
           set -euo pipefail
           npm --prefix worker audit --omit=dev --audit-level=high
 
+      - name: Security audit (frontend prod deps)
+        run: |
+          set -euo pipefail
+          npm --prefix frontend audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Test
+        run: npm run test
+
       - name: Build frontend
         run: npm run build
+
+      - name: Worker bundle dry-run
+        working-directory: "worker"
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --dry-run
+          npx wrangler deploy --config wrangler.full.toml --dry-run
 
       - name: Format check (non-blocking)
         continue-on-error: true
