@@ -3,33 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script>
-    (() => {
-      try {
-        const key = "flares3:theme";
-        const stored = window.localStorage.getItem(key);
-        const mode =
-          stored === "dark" || stored === "light"
-            ? stored
-            : window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
-              ? "dark"
-              : "light";
-
-        document.documentElement.dataset.theme = mode;
-        document.documentElement.style.colorScheme = mode;
-
-        const uiThemeKey = "flares3:ui-theme";
-        const defaultUiTheme = "motherduck-neobrutalism";
-        const uiThemes = [defaultUiTheme, "shadcn"];
-        const storedUiTheme = window.localStorage.getItem(uiThemeKey);
-        const uiTheme =
-          uiThemes.includes(storedUiTheme) ? storedUiTheme : defaultUiTheme;
-        document.documentElement.dataset.uiTheme = uiTheme;
-      } catch {
-        // ignore
-      }
-    })();
-  </script>
+  <script src="/theme-bootstrap.js"></script>
   <link rel="icon" type="image/png" href="/logo.png">
   <title>FlareS3 - 轻量级文件分享</title>
 </head>
