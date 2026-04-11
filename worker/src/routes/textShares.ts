@@ -444,6 +444,27 @@ function renderPasswordForm({
   return htmlResponse(html, 200)
 }
 
+function renderConfirmPage({ title, meta }: { title: string; meta: string }): Response {
+  const html = buildPage({
+    title,
+    body: `
+<div class="header">
+  <h1 class="title">${escapeHtml(title)}</h1>
+  <div class="meta">${escapeHtml(meta)}</div>
+</div>
+<div class="body">
+  <div class="centered">
+    <p class="muted">点击下方按钮查看内容。</p>
+    <form method="post">
+      <button type="submit">查看内容</button>
+    </form>
+  </div>
+</div>`,
+  })
+
+  return htmlResponse(html, 200)
+}
+
 export function renderMessagePage(title: string, message: string, status = 200): Response {
   const html = buildPage({
     title,
@@ -539,7 +560,7 @@ export async function viewTextShare(request: Request, env: Env, code: string): P
       return renderPasswordForm({ title, meta })
     }
 
-    return consumeAndRender()
+    return renderConfirmPage({ title, meta })
   }
 
   if (request.method.toUpperCase() === 'POST') {
