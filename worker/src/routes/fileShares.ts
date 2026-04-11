@@ -506,14 +506,35 @@ function renderFilePasswordForm({
   return htmlResponse(html, 200)
 }
 
-type PresignedDownloadResult =
-  | { ok: true; url: string }
+function renderFileConfirmPage({ title, meta }: { title: string; meta: string }): Response {
+  const html = buildPage({
+    title,
+    body: `
+<div class="header">
+  <h1 class="title">${escapeHtml(title)}</h1>
+  <div class="meta">${escapeHtml(meta)}</div>
+</div>
+<div class="body">
+  <div class="centered">
+    <p class="muted">点击下方按钮开始下载文件。</p>
+    <form method="post">
+      <button type="submit">下载文件</button>
+    </form>
+  </div>
+</div>`,
+  })
+
+  return htmlResponse(html, 200)
+}
+
+type SharedDownloadResult =
+  | { ok: true; response: Response }
   | { ok: false; error: { status: number; message: string } }
 
-async function buildPresignedDownloadUrl(
+async function buildSharedDownloadResponse(
   env: Env,
   file: { r2_key: string; filename: string; expires_at: string }
-): Promise<PresignedDownloadResult> {
+): Promise<SharedDownloadResult> {
   const loaded = await resolveR2ConfigForKey(env, file.r2_key)
   if (!loaded) {
     return { ok: false, error: { status: 503, message: 'R2 未配置' } }
@@ -527,7 +548,42 @@ async function buildPresignedDownloadUrl(
 
   const ttl = calcPresignedDownloadUrlTtlSeconds(expiresAt)
   const url = await generateDownloadUrl(loaded.config, file.r2_key, file.filename, ttl)
-  return { ok: true, url }
+
+  let upstream: Response
+  try {
+    upstream = await fetch(url)
+  } catch {
+    return { ok: false, error: { status: 502, message: '文件下载失败，请稍后重试' } }
+  }
+
+  if (!upstream.ok) {
+    const text = await upstream.text().catch(() => '')
+    return {
+      ok: false,
+      error: { status: upstream.status || 502, message: text || '文件下载失败，请稍后重试' },
+    }
+  }
+
+  const headers = new Headers()
+  headers.set('Cache-Control', 'no-store')
+  headers.set('X-Content-Type-Options', 'nosniff')
+
+  const contentType = upstream.headers.get('Content-Type')
+  if (contentType) headers.set('Content-Type', contentType)
+
+  const contentDisposition = upstream.headers.get('Content-Disposition')
+  if (contentDisposition) headers.set('Content-Disposition', contentDisposition)
+
+  const contentLength = upstream.headers.get('Content-Length')
+  if (contentLength) headers.set('Content-Length', contentLength)
+
+  return {
+    ok: true,
+    response: new Response(upstream.body, {
+      status: upstream.status,
+      headers,
+    }),
+  }
 }
 
 export async function viewFileShare(request: Request, env: Env, code: string): Promise<Response> {
@@ -570,11 +626,11 @@ export async function viewFileShare(request: Request, env: Env, code: string): P
         return renderFileMessagePage('分享', SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE, 410)
       }
 
-      const presigned = await buildPresignedDownloadUrl(env, file)
-      if (!presigned.ok) {
-        return renderFileMessagePage('分享', presigned.error.message, presigned.error.status)
+      const download = await buildSharedDownloadResponse(env, file)
+      if (!download.ok) {
+        return renderFileMessagePage('分享', download.error.message, download.error.status)
       }
-      return Response.redirect(presigned.url, 302)
+      return download.response
     } catch {
       return renderFileMessagePage('分享', '访问失败，请稍后重试', 500)
     }
@@ -585,7 +641,7 @@ export async function viewFileShare(request: Request, env: Env, code: string): P
       return renderFilePasswordForm({ title, meta })
     }
 
-    return consumeAndRedirect()
+    return renderFileConfirmPage({ title, meta })
   }
 
   if (method === 'POST') {
