@@ -95,6 +95,9 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   failed_attempts INTEGER DEFAULT 0
 );
 
+CREATE INDEX IF NOT EXISTS idx_rate_limits_window_start ON rate_limits(window_start);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_blocked_until ON rate_limits(blocked_until);
+
 -- texts
 CREATE TABLE IF NOT EXISTS texts (
   id TEXT PRIMARY KEY,
