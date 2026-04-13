@@ -202,8 +202,8 @@ const applyShareToForm = (record) => {
 const shareUrl = computed(() => {
   const code = String(share.value?.share_code ?? '').trim()
   if (!code) return ''
-  if (typeof window === 'undefined') return `/s/${code}`
-  return `${window.location.origin}/s/${code}`
+  if (typeof window === 'undefined') return `/t/${code}`
+  return `${window.location.origin}/t/${code}`
 })
 
 const expiresPresetOptions = computed(() => [
