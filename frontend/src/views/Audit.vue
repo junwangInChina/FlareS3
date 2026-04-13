@@ -119,8 +119,8 @@ import Table from '../components/ui/table/Table.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
 import Tag from '../components/ui/tag/Tag.vue'
-import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import Modal from '../components/ui/modal/Modal.vue'
+import TableCellText from '../components/ui/table/TableCellText.vue'
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
@@ -374,9 +374,10 @@ const columns = computed(() => [
     key: 'created_at',
     width: 200,
     align: 'center',
+    ellipsis: true,
     render: (row) => {
       const text = row.created_at ? new Date(row.created_at).toLocaleString(locale.value) : '-'
-      return h('span', text)
+      return h(TableCellText, { value: text })
     },
   },
   {
@@ -396,9 +397,10 @@ const columns = computed(() => [
     key: 'actor',
     width: 140,
     align: 'center',
+    ellipsis: true,
     render: (row) => {
       const text = toDisplayText(row.actor_username || row.actor_user_id)
-      return h('span', text)
+      return h(TableCellText, { value: text })
     },
   },
   {
@@ -406,20 +408,20 @@ const columns = computed(() => [
     key: 'ip',
     width: 120,
     align: 'center',
+    ellipsis: true,
     render: (row) => {
       const text = toDisplayText(row.ip)
-      return h('span', text)
+      return h(TableCellText, { value: text })
     },
   },
   {
     title: t('audit.columns.userAgent'),
     key: 'user_agent',
     align: 'center',
+    ellipsis: true,
     render: (row) => {
       const text = toDisplayText(row.user_agent)
-      return h(Tooltip, { content: text }, () =>
-        h('span', { style: 'font-size: 12px; color: var(--nb-gray-500);' }, text)
-      )
+      return h(TableCellText, { value: text, textClass: 'audit-user-agent' })
     },
   },
   {
@@ -639,6 +641,11 @@ onMounted(() => {
   height: 16px;
   cursor: pointer;
   accent-color: var(--nb-primary);
+}
+
+:deep(.audit-user-agent) {
+  font-size: 12px;
+  color: var(--nb-gray-500);
 }
 
 :deep(.action-buttons) {
