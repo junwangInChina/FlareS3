@@ -29,8 +29,10 @@ export default {
   },
   nav: {
     files: 'Files',
+    dashboard: 'Dashboard',
     mount: 'Mount',
     texts: 'Documents',
+    shares: 'Shares',
     users: 'Users',
     audit: 'Audit Logs',
     setup: 'Storage',
