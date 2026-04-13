@@ -1,6 +1,6 @@
 export default {
   upload: {
-    hint5gb: 'Single file upload, up to 5GB',
+    hint5gb: 'Multi-file queue upload, up to 5GB per file',
     expiresIn: 'Expiration',
     r2Config: 'R2 config',
     downloadPermission: 'Download access',
@@ -30,6 +30,21 @@ export default {
     secondsOnly: '{value}s',
     minutesOnly: '{value}m',
     hoursOnly: '{value}h',
+    queue: {
+      title: 'Upload queue',
+      status: {
+        queued: 'Queued',
+        uploading: 'Uploading',
+        success: 'Uploaded',
+        error: 'Failed',
+        cancelled: 'Cancelled',
+      },
+      actions: {
+        cancel: 'Cancel',
+        retry: 'Retry',
+        remove: 'Remove',
+      },
+    },
     errors: {
       partMissingEtag: 'Part {partNumber} did not return an ETag',
       incompleteMultipart: 'Incomplete multipart upload: {uploaded}/{total}',
@@ -37,7 +52,7 @@ export default {
   },
   uiUpload: {
     dropHint: 'Click or drag a file to upload',
-    dropDesc: 'Single file upload',
+    dropDesc: 'Multi-file queue upload',
     brutalDrag: 'Drag file here',
     brutalOrClick: 'or click to upload',
   },
