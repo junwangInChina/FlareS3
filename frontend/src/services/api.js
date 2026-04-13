@@ -46,6 +46,15 @@ export default {
     return api.post('/setup/test', config)
   },
 
+  // 管理员首页
+  getAdminOverview() {
+    return api.get('/admin/overview')
+  },
+
+  getAdminJobRuns(params = {}) {
+    return api.get('/admin/job-runs', { params })
+  },
+
   // R2 配置（多配置）
   getR2Options() {
     return api.get('/r2/options')
@@ -160,6 +169,10 @@ export default {
     return api.delete(`/files/${fileId}/share`)
   },
 
+  listShares(params = {}) {
+    return api.get('/shares', { params })
+  },
+
   // 用户管理
   getUsers(params = {}) {
     return api.get('/users', { params })
@@ -217,6 +230,10 @@ export default {
 
   createTextOneTimeShare(textId) {
     return api.post(`/texts/${textId}/one-time-share`)
+  },
+
+  deleteTextOneTimeShare(textId) {
+    return api.delete(`/texts/${textId}/one-time-share`)
   },
 
   // 文档分享
