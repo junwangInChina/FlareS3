@@ -8,6 +8,33 @@ export default {
       addConfig: 'Add config',
       refreshList: 'Refresh',
     },
+    health: {
+      title: 'Configuration health',
+      labels: {
+        configCount: 'Config count',
+        defaultConfig: 'Default config',
+        uploadReady: 'Upload ready',
+      },
+      values: {
+        yes: 'Yes',
+        no: 'No',
+        notSet: 'Not set',
+      },
+      notices: {
+        missingUploadConfigTitle: 'No upload target configured',
+        missingUploadConfigContent:
+          'Create at least one R2 config first, otherwise users cannot upload files.',
+        missingDefaultConfigTitle: 'Default upload config is missing',
+        missingDefaultConfigContent:
+          'Upload configs already exist, but no default config is selected. Set one to avoid failed upload requests.',
+        invalidDefaultConfigTitle: 'Default config reference is invalid',
+        invalidDefaultConfigContent:
+          'The saved default config no longer exists in the current config list. Please set the default config again.',
+        readyTitle: 'Upload configuration is ready',
+        readyContent:
+          'At least one usable config exists, and a default upload config has been selected.',
+      },
+    },
     state: {
       loading: 'Loading...',
       emptyTitle: 'No configs',
