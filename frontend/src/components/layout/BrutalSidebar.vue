@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../../stores/auth'
 import { useThemeStore } from '../../stores/theme'
 import { toggleLocale } from '../../locales'
+import { buildSidebarMenuItems } from '../../utils/navigation.js'
 import Modal from '../ui/modal/Modal.vue'
 import FormItem from '../ui/form-item/FormItem.vue'
 import Button from '../ui/button/Button.vue'
@@ -92,25 +93,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleDocumentKeyDown)
 })
 
-const menuItems = computed(() => {
-  const items = [{ key: '/', icon: 'folder', label: t('nav.files'), path: '/' }]
-
-  if (authStore.isAdmin) {
-    items.push({ key: '/mount', icon: 'mount', label: t('nav.mount'), path: '/mount' })
-  }
-
-  items.push({ key: '/texts', icon: 'file-text', label: t('nav.texts'), path: '/texts' })
-
-  if (authStore.isAdmin) {
-    items.push(
-      { key: '/users', icon: 'users', label: t('nav.users'), path: '/users' },
-      { key: '/audit', icon: 'audit', label: t('nav.audit'), path: '/audit' },
-      { key: '/setup', icon: 'settings', label: t('nav.setup'), path: '/setup' }
-    )
-  }
-
-  return items
-})
+const menuItems = computed(() => buildSidebarMenuItems({ isAdmin: authStore.isAdmin, t }))
 
 const isActive = (path) => route.path === path
 
@@ -271,6 +254,11 @@ const logoLetters = computed(() => logoText.split(''))
           <svg v-else-if="item.icon === 'file-text'" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm1 7V3.5L19.5 9H15zM8 13h8v2H8v-2zm0 4h8v2H8v-2zm0-8h4v2H8V9z"
+            />
+          </svg>
+          <svg v-else-if="item.icon === 'share'" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M18 16c-1.05 0-1.99.41-2.71 1.09L8.91 13.7A3.94 3.94 0 0 0 9 13a3.94 3.94 0 0 0-.09-.7l6.3-3.39A3.99 3.99 0 1 0 14 6a3.94 3.94 0 0 0 .09.7l-6.3 3.39a4 4 0 1 0 0 5.82l6.38 3.43c-.05.21-.08.43-.08.66a4 4 0 1 0 4-4z"
             />
           </svg>
           <svg v-else-if="item.icon === 'mount'" viewBox="0 0 24 24" fill="currentColor">
