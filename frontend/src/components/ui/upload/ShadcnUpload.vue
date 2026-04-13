@@ -2,6 +2,10 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+const props = defineProps({
+  multiple: Boolean,
+})
+
 const emit = defineEmits(['file-selected', 'before-upload'])
 
 const isDragging = ref(false)
@@ -20,22 +24,29 @@ const onDragLeave = () => {
 const onDrop = (e) => {
   e.preventDefault()
   isDragging.value = false
-  const files = e.dataTransfer.files
+  const files = Array.from(e.dataTransfer.files || [])
   if (files.length) {
-    handleFile(files[0])
+    handleFiles(files)
   }
 }
 
 const onChange = (e) => {
-  if (e.target.files.length) {
-    handleFile(e.target.files[0])
+  const files = Array.from(e.target.files || [])
+  if (files.length) {
+    handleFiles(files)
   }
 }
 
-const handleFile = (file) => {
-  const shouldContinue = emit('before-upload', { file: { file, name: file.name, type: file.type } })
+const handleFiles = (files) => {
+  const normalizedFiles = (props.multiple ? files : files.slice(0, 1)).map((file) => ({
+    file,
+    name: file.name,
+    type: file.type,
+  }))
+
+  const shouldContinue = emit('before-upload', { files: normalizedFiles })
   if (shouldContinue !== false) {
-    emit('file-selected', { file: { file, name: file.name, type: file.type } })
+    emit('file-selected', { files: normalizedFiles })
   }
 }
 
@@ -57,7 +68,7 @@ defineExpose({ clear })
     @drop="onDrop"
     @click="fileInput?.click()"
   >
-    <input ref="fileInput" type="file" hidden @change="onChange" />
+    <input ref="fileInput" type="file" hidden :multiple="multiple" @change="onChange" />
     <div class="upload-content">
       <div class="upload-icon">📁</div>
       <div class="upload-text">
