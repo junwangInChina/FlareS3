@@ -1,6 +1,6 @@
 export default {
   upload: {
-    hint5gb: '支持单个文件上传，最大 5GB',
+    hint5gb: '支持多文件队列上传，单个文件最大 5GB',
     expiresIn: '过期时间',
     r2Config: 'R2 配置',
     downloadPermission: '下载权限',
@@ -30,6 +30,21 @@ export default {
     secondsOnly: '{value} 秒',
     minutesOnly: '{value} 分钟',
     hoursOnly: '{value} 小时',
+    queue: {
+      title: '上传队列',
+      status: {
+        queued: '队列中',
+        uploading: '上传中',
+        success: '上传成功',
+        error: '上传失败',
+        cancelled: '已取消',
+      },
+      actions: {
+        cancel: '取消',
+        retry: '重试',
+        remove: '移除',
+      },
+    },
     errors: {
       partMissingEtag: '分片 {partNumber} 未返回 ETag',
       incompleteMultipart: '分片上传不完整: {uploaded}/{total}',
@@ -37,7 +52,7 @@ export default {
   },
   uiUpload: {
     dropHint: '点击或拖拽文件到此处上传',
-    dropDesc: '支持单个文件上传',
+    dropDesc: '支持多文件队列上传',
     brutalDrag: '拖拽文件到此处',
     brutalOrClick: '或点击上传',
   },
