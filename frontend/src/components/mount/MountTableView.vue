@@ -53,6 +53,11 @@ defineProps({
 :deep(.mount-name-text) {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 :deep(.mount-name.is-folder) {
