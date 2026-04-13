@@ -9,6 +9,12 @@ const routes = [
     component: () => import('../views/Login.vue'),
   },
   {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('../views/Dashboard.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/setup',
     name: 'Setup',
     component: () => import('../views/Setup.vue'),
@@ -31,6 +37,12 @@ const routes = [
     alias: '/texts/',
     name: 'Texts',
     component: () => import('../views/Texts.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/shares',
+    name: 'Shares',
+    component: () => import('../views/Shares.vue'),
     meta: { requiresAuth: true },
   },
   {
