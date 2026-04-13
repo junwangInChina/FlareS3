@@ -4,6 +4,7 @@ export default {
     subtitle: 'Manage users, roles, and quotas',
     createUser: 'Create user',
     createModalTitle: 'Create user',
+    editModalTitle: 'Edit user',
     resetModalTitle: 'Reset password',
     filters: {
       allUsers: 'All users',
@@ -22,6 +23,7 @@ export default {
       actions: 'Actions',
     },
     actions: {
+      edit: 'Edit',
       enable: 'Enable',
       disable: 'Disable',
       resetPassword: 'Reset password',
@@ -35,6 +37,7 @@ export default {
       username: 'Username',
       password: 'Password',
       role: 'Role',
+      status: 'Status',
       quota: 'Quota (GB)',
       newPassword: 'New password',
       usernamePlaceholder: 'Enter username',
@@ -53,6 +56,9 @@ export default {
       adminCannotDelete: 'Admin users cannot be deleted',
       createSuccess: 'User created',
       createFailed: 'Failed to create user',
+      updateSuccess: 'User updated',
+      updateFailed: 'Failed to update user',
+      noChanges: 'No changes to save',
       statusUpdated: 'Status updated',
       statusUpdateFailed: 'Failed to update status',
       newPasswordRequired: 'Please enter a new password',
