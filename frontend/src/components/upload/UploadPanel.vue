@@ -5,15 +5,18 @@
       :class="{ 'is-disabled': isUploadEntryDisabled }"
       :aria-disabled="isUploadEntryDisabled ? 'true' : 'false'"
     >
-      <Upload ref="uploadRef" @file-selected="handleUpload" @before-upload="beforeUpload">
+      <Upload
+        ref="uploadRef"
+        multiple
+        @file-selected="handleUpload"
+        @before-upload="beforeUpload"
+      >
         <p class="upload-hint">{{ t('upload.hint5gb') }}</p>
       </Upload>
     </div>
 
     <Alert v-if="uploadConfigAlertMessage" type="warning" class="upload-config-alert">
-      <template #default>
-        {{ uploadConfigAlertMessage }}
-      </template>
+      {{ uploadConfigAlertMessage }}
     </Alert>
 
     <Divider />
@@ -27,7 +30,7 @@
         <Select
           v-model="selectedR2ConfigId"
           :options="r2ConfigOptions"
-          :disabled="isUploading || r2OptionsLoading"
+          :disabled="r2OptionsLoading"
         />
       </FormItem>
       <FormItem v-else-if="r2ConfigOptions.length === 1" :label="t('upload.r2Config')">
@@ -43,65 +46,48 @@
       </FormItem>
     </div>
 
-    <Alert v-if="isUploading" type="info" class="upload-status">
-      <template #default>
-        <div class="upload-info">
-          <strong>{{ t('upload.uploading', { filename: currentFile?.name || '' }) }}</strong>
-          <Progress :percentage="displayProgress" :height="20" />
-          <div class="upload-stats">
-            <span>{{ formatBytes(uploadedSize) }} / {{ formatBytes(totalSize) }}</span>
-            <span>{{ uploadSpeed }}</span>
-            <span>{{ t('upload.remaining', { time: remainingTime }) }}</span>
-          </div>
-          <div class="upload-actions">
-            <Button size="small" type="default" @click="cancelUpload">
-              {{ t('common.cancel') }}
+    <UploadQueueList
+      v-if="queueItems.length > 0"
+      class="upload-queue-block"
+      :items="queueItems"
+      @cancel="cancelQueueItem"
+      @retry="retryQueueItem"
+      @remove="removeQueueItem"
+    />
+
+    <div v-if="latestSuccessResult" class="upload-result">
+      <Alert type="success">
+        <div class="file-info">
+          <strong>📄 {{ latestSuccessResult.filename }}</strong>
+        </div>
+        <div class="upload-summary">
+          <Tag type="info">{{ latestSuccessResult.fileSize }}</Tag>
+          <Tag type="success">{{ latestSuccessResult.avgSpeed }}</Tag>
+          <Tag type="warning">{{ latestSuccessResult.duration }}</Tag>
+        </div>
+        <p class="expire-note">
+          {{ latestSuccessExpireText }}
+        </p>
+
+        <div class="link-group">
+          <label class="link-label">{{ t('upload.shortLink') }}</label>
+          <div class="link-row">
+            <Input :model-value="latestSuccessResult.shortUrl" readonly size="small" />
+            <Button type="primary" size="small" @click="copyShortUrl">
+              {{ t('upload.copy') }}
             </Button>
           </div>
         </div>
-      </template>
-    </Alert>
 
-    <div v-if="uploadResult" class="upload-result">
-      <Alert :type="uploadResult.success ? 'success' : 'error'">
-        <template #default>
-          <div v-if="uploadResult.success">
-            <div class="file-info">
-              <strong>📄 {{ uploadResult.filename }}</strong>
-            </div>
-            <div class="upload-summary">
-              <Tag type="info">{{ uploadResult.fileSize }}</Tag>
-              <Tag type="success">{{ uploadResult.avgSpeed }}</Tag>
-              <Tag type="warning">{{ uploadResult.duration }}</Tag>
-            </div>
-            <p class="expire-note">
-              {{ fileExpireText }}
-            </p>
-
-            <div class="link-group">
-              <label class="link-label">{{ t('upload.shortLink') }}</label>
-              <div class="link-row">
-                <Input :model-value="uploadResult.shortUrl" readonly size="small" />
-                <Button type="primary" size="small" @click="copyShortUrl">{{
-                  t('upload.copy')
-                }}</Button>
-              </div>
-            </div>
-
-            <div class="link-group">
-              <label class="link-label">{{ t('upload.directLink') }}</label>
-              <div class="link-row">
-                <Input :model-value="uploadResult.downloadUrl" readonly size="small" />
-                <Button type="default" size="small" @click="copyDownloadUrl">{{
-                  t('upload.copy')
-                }}</Button>
-              </div>
-            </div>
+        <div class="link-group">
+          <label class="link-label">{{ t('upload.directLink') }}</label>
+          <div class="link-row">
+            <Input :model-value="latestSuccessResult.downloadUrl" readonly size="small" />
+            <Button type="default" size="small" @click="copyDownloadUrl">
+              {{ t('upload.copy') }}
+            </Button>
           </div>
-          <div v-else>
-            {{ uploadResult.message }}
-          </div>
-        </template>
+        </div>
       </Alert>
     </div>
   </div>
@@ -118,11 +104,13 @@ import Radio from '../ui/radio/Radio.vue'
 import Switch from '../ui/switch/Switch.vue'
 import Select from '../ui/select/Select.vue'
 import Alert from '../ui/alert/Alert.vue'
-import Progress from '../ui/progress/Progress.vue'
 import Tag from '../ui/tag/Tag.vue'
 import Input from '../ui/input/Input.vue'
 import Button from '../ui/button/Button.vue'
+import UploadQueueList from './UploadQueueList.vue'
 import { useMessage } from '../../composables/useMessage'
+import { useUploadQueue } from '../../composables/useUploadQueue.js'
+import { resolveUploadErrorMessage } from '../../utils/uploadErrors.js'
 
 const emit = defineEmits(['uploaded'])
 
@@ -147,9 +135,7 @@ const selectedR2ConfigLabel = computed(
 const resolvedUploadConfigId = computed(() =>
   isSelectedR2ConfigValid.value ? selectedR2ConfigId.value : ''
 )
-const isUploadEntryDisabled = computed(
-  () => r2OptionsLoading.value || !hasAvailableUploadConfig.value || isUploading.value
-)
+const isUploadEntryDisabled = computed(() => r2OptionsLoading.value || !hasAvailableUploadConfig.value)
 const uploadConfigAlertMessage = computed(() => {
   if (!r2OptionsLoading.value && !hasAvailableUploadConfig.value) {
     return locale.value.startsWith('zh')
@@ -171,27 +157,423 @@ const expiresOptions = computed(() =>
   }))
 )
 
-const fileExpireText = computed(() =>
-  expiresIn.value === 0
+const latestSuccessExpireText = computed(() => {
+  const expiresValue = Number(latestSuccessResult.value?.expiresIn ?? expiresIn.value)
+  return expiresValue === 0
     ? t('upload.fileNeverExpire')
-    : t('upload.fileExpire', { days: expiresIn.value })
-)
+    : t('upload.fileExpire', { days: expiresValue })
+})
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024
+const MULTIPART_THRESHOLD = 100 * 1024 * 1024
+const PART_UPLOAD_RETRY_COUNT = 3
+
+const createCancelledError = () => new Error('UPLOAD_CANCELLED')
+
+const isCancelledError = (error) =>
+  error?.code === 'ERR_CANCELED' ||
+  error?.name === 'CanceledError' ||
+  error?.message === 'UPLOAD_CANCELLED'
+
+const formatBytes = (bytes) => {
+  const value = Number(bytes)
+  if (!Number.isFinite(value) || value <= 0) return '0 B'
+  const unit = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(unit)), sizes.length - 1)
+  return `${(value / Math.pow(unit, index)).toFixed(2)} ${sizes[index]}`
+}
+
+const formatDuration = (seconds) => {
+  if (seconds < 60) return t('upload.seconds', { value: Number(seconds).toFixed(1) })
+  if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = Math.round(seconds % 60)
+    return t('upload.minutesSeconds', { minutes, seconds: remainingSeconds })
+  }
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.round((seconds % 3600) / 60)
+  return t('upload.hoursMinutes', { hours, minutes })
+}
+
+const formatRemainingTime = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return t('upload.calculating')
+  }
+  if (seconds < 60) {
+    return t('upload.secondsOnly', {
+      value: Math.round(seconds),
+    })
+  }
+  if (seconds < 3600) {
+    return t('upload.minutesOnly', {
+      value: Math.round(seconds / 60),
+    })
+  }
+  return t('upload.hoursOnly', {
+    value: (seconds / 3600).toFixed(1),
+  })
+}
+
+const createTaskState = () => ({
+  uploadStartTime: Date.now(),
+  activeMultipart: null,
+  cancelRequested: false,
+  inFlightControllers: new Set(),
+})
+
+const registerController = (taskState) => {
+  const controller = new AbortController()
+  taskState.inFlightControllers.add(controller)
+  return controller
+}
+
+const abortInFlightRequests = (taskState) => {
+  for (const controller of taskState.inFlightControllers) {
+    try {
+      controller.abort()
+    } catch {
+      // ignore
+    }
+  }
+  taskState.inFlightControllers.clear()
+}
+
+const ensureTaskActive = (taskState, isCancelled) => {
+  if (taskState.cancelRequested || isCancelled()) {
+    throw createCancelledError()
+  }
+}
+
+const cancelTask = async (taskState) => {
+  if (taskState.cancelRequested) return
+
+  taskState.cancelRequested = true
+  abortInFlightRequests(taskState)
+
+  const multipart = taskState.activeMultipart
+  if (multipart?.file_id) {
+    try {
+      await api.abortMultipartUpload({ file_id: multipart.file_id })
+    } catch {
+      // ignore
+    } finally {
+      taskState.activeMultipart = null
+    }
+  }
+}
+
+const updateUploadStats = (taskState, taskFile, updateItem, loaded, total) => {
+  const totalBytes = Number(total || taskFile.size || 0)
+  const uploadedBytes = Math.max(0, Number(loaded || 0))
+  const progress = totalBytes > 0 ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)) : 0
+  const elapsedSeconds = Math.max((Date.now() - taskState.uploadStartTime) / 1000, 0.001)
+  const avgSpeed = uploadedBytes / elapsedSeconds
+  const remainingSeconds = avgSpeed > 0 ? (totalBytes - uploadedBytes) / avgSpeed : Number.NaN
+
+  updateItem({
+    progress,
+    uploadedBytes,
+    totalBytes,
+    speed: uploadedBytes > 0 ? `${formatBytes(avgSpeed)}/s` : t('upload.preparing'),
+    remainingTime:
+      uploadedBytes >= totalBytes ? t('upload.secondsOnly', { value: 0 }) : formatRemainingTime(remainingSeconds),
+  })
+}
+
+const resolveTaskResult = (taskFile, response, completedResult, taskState) => {
+  const durationSeconds = Math.max((Date.now() - taskState.uploadStartTime) / 1000, 0.001)
+  const avgSpeed = taskFile.size / durationSeconds
+  const resolvedFilename = completedResult.filename || response.filename || taskFile.name
+  const downloadUrl = completedResult.download_url?.startsWith('http')
+    ? completedResult.download_url
+    : window.location.origin + (completedResult.download_url || response.download_url)
+  const shortUrlPath = completedResult.short_url || response.short_url
+
+  return {
+    success: true,
+    filename: resolvedFilename,
+    downloadUrl,
+    shortUrl: shortUrlPath?.startsWith('http') ? shortUrlPath : window.location.origin + shortUrlPath,
+    fileSize: formatBytes(taskFile.size),
+    avgSpeed: `${formatBytes(avgSpeed)}/s`,
+    duration: formatDuration(durationSeconds),
+    expiresIn: taskFile.expiresIn,
+  }
+}
+
+const uploadSmallFile = async (taskFile, taskState, updateItem, isCancelled) => {
+  const response = await api.getUploadURL({
+    filename: taskFile.name,
+    content_type: taskFile.type || 'application/octet-stream',
+    size: taskFile.size,
+    expires_in: taskFile.expiresIn,
+    require_login: taskFile.requireLogin,
+    config_id: taskFile.configId || undefined,
+  })
+
+  ensureTaskActive(taskState, isCancelled)
+
+  const controller = registerController(taskState)
+  try {
+    await api.uploadToR2(
+      response.upload_url,
+      taskFile.rawFile,
+      (_percent, loaded, total) => {
+        updateUploadStats(taskState, taskFile, updateItem, loaded, total)
+      },
+      { signal: controller.signal }
+    )
+  } finally {
+    taskState.inFlightControllers.delete(controller)
+  }
+
+  ensureTaskActive(taskState, isCancelled)
+
+  const confirmResult = await api.confirmUpload(response.file_id)
+  ensureTaskActive(taskState, isCancelled)
+
+  return resolveTaskResult(taskFile, response, confirmResult, taskState)
+}
+
+const uploadLargeFile = async (taskFile, taskState, updateItem, isCancelled) => {
+  let fileId = ''
+
+  try {
+    const initResponse = await api.initMultipartUpload({
+      filename: taskFile.name,
+      content_type: taskFile.type || 'application/octet-stream',
+      size: taskFile.size,
+      expires_in: taskFile.expiresIn,
+      require_login: taskFile.requireLogin,
+      config_id: taskFile.configId || undefined,
+    })
+
+    const { file_id, upload_id, part_size, total_parts } = initResponse
+    fileId = file_id
+    taskState.activeMultipart = { file_id, upload_id }
+
+    for (let partIndex = 0; partIndex < total_parts; partIndex += 1) {
+      ensureTaskActive(taskState, isCancelled)
+
+      const partNumber = partIndex + 1
+      const start = partIndex * part_size
+      const end = Math.min(start + part_size, taskFile.size)
+      const chunk = taskFile.rawFile.slice(start, end)
+
+      let lastError = null
+      for (let attempt = 1; attempt <= PART_UPLOAD_RETRY_COUNT; attempt += 1) {
+        try {
+          ensureTaskActive(taskState, isCancelled)
+
+          const presignResponse = await api.getMultipartUploadURL({
+            file_id,
+            upload_id,
+            part_number: partNumber,
+          })
+
+          ensureTaskActive(taskState, isCancelled)
+
+          const controller = registerController(taskState)
+          try {
+            const uploadResponse = await api.uploadToR2(
+              presignResponse.upload_url,
+              chunk,
+              (_percent, loaded) => {
+                updateUploadStats(taskState, taskFile, updateItem, start + loaded, taskFile.size)
+              },
+              { signal: controller.signal }
+            )
+
+            let etag = uploadResponse.headers?.etag || ''
+            if (!etag) {
+              throw new Error(t('upload.errors.partMissingEtag', { partNumber }))
+            }
+            if (!etag.startsWith('"')) {
+              etag = `"${etag}"`
+            }
+
+            updateUploadStats(taskState, taskFile, updateItem, end, taskFile.size)
+            initResponse.parts = [...(initResponse.parts || []), { part_number: partNumber, etag }]
+            lastError = null
+            break
+          } finally {
+            taskState.inFlightControllers.delete(controller)
+          }
+        } catch (error) {
+          if (isCancelledError(error) || taskState.cancelRequested || isCancelled()) {
+            throw createCancelledError()
+          }
+          lastError = error
+          if (attempt < PART_UPLOAD_RETRY_COUNT) {
+            await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+          }
+        }
+      }
+
+      if (lastError) {
+        throw lastError
+      }
+    }
+
+    ensureTaskActive(taskState, isCancelled)
+
+    const completeResult = await api.completeMultipartUpload({
+      file_id,
+      upload_id,
+      parts: initResponse.parts || [],
+    })
+
+    ensureTaskActive(taskState, isCancelled)
+
+    return resolveTaskResult(taskFile, initResponse, completeResult, taskState)
+  } catch (error) {
+    if (fileId) {
+      try {
+        await api.abortMultipartUpload({ file_id: fileId })
+      } catch {
+        // ignore
+      } finally {
+        if (taskState.activeMultipart?.file_id === fileId) {
+          taskState.activeMultipart = null
+        }
+      }
+    }
+    throw error
+  } finally {
+    if (fileId && taskState.activeMultipart?.file_id === fileId) {
+      taskState.activeMultipart = null
+    }
+  }
+}
+
+const uploadQueue = useUploadQueue({
+  runTask: async (item, { updateItem, setCancel, isCancelled }) => {
+    const taskFile = item.file
+    const taskState = createTaskState()
+
+    updateItem({
+      progress: 0,
+      uploadedBytes: 0,
+      totalBytes: taskFile.size,
+      speed: t('upload.preparing'),
+      remainingTime: t('upload.calculating'),
+    })
+
+    setCancel(() => {
+      void cancelTask(taskState)
+    })
+
+    try {
+      const result =
+        taskFile.size < MULTIPART_THRESHOLD
+          ? await uploadSmallFile(taskFile, taskState, updateItem, isCancelled)
+          : await uploadLargeFile(taskFile, taskState, updateItem, isCancelled)
+
+      message.success(t('upload.uploadSuccess'))
+      emit('uploaded', { filename: taskFile.name })
+      return result
+    } catch (error) {
+      if (isCancelledError(error) || taskState.cancelRequested || isCancelled()) {
+        throw createCancelledError()
+      }
+      throw new Error(resolveUploadErrorMessage(error, t('upload.uploadFailed')))
+    } finally {
+      abortInFlightRequests(taskState)
+    }
+  },
+})
+
+const queueItems = computed(() => uploadQueue.items.value)
+const latestSuccessResult = computed(() => uploadQueue.latestSuccessItem.value?.result || null)
+
+const beforeUpload = ({ files }) => {
+  if (r2OptionsLoading.value) {
+    message.warning(uploadConfigLoadingMessage.value)
+    return false
+  }
+  if (!hasAvailableUploadConfig.value || !resolvedUploadConfigId.value) {
+    message.error(uploadConfigAlertMessage.value)
+    return false
+  }
+
+  const invalidFile = files.find((item) => Number(item?.file?.size || 0) > MAX_FILE_SIZE)
+  if (invalidFile) {
+    message.error(t('upload.fileTooLarge'))
+    return false
+  }
+
+  return true
+}
+
+const buildQueuedFiles = (files = []) =>
+  files.map((item) => ({
+    rawFile: item.file,
+    name: item.name,
+    type: item.type || item.file?.type || 'application/octet-stream',
+    size: Number(item.file?.size || 0),
+    expiresIn: expiresIn.value,
+    requireLogin: requireLogin.value,
+    configId: resolvedUploadConfigId.value || undefined,
+  }))
+
+const handleUpload = ({ files }) => {
+  if (!resolvedUploadConfigId.value) {
+    message.error(uploadConfigAlertMessage.value)
+    return
+  }
+
+  const queuedFiles = buildQueuedFiles(files)
+  if (!queuedFiles.length) {
+    return
+  }
+
+  uploadRef.value?.clear()
+  uploadQueue.enqueueFiles(queuedFiles)
+}
+
+const cancelQueueItem = (itemId) => {
+  uploadQueue.cancelItem(itemId)
+}
+
+const retryQueueItem = (itemId) => {
+  uploadQueue.retryItem(itemId)
+}
+
+const removeQueueItem = (itemId) => {
+  uploadQueue.removeItem(itemId)
+}
+
+const copyShortUrl = () => {
+  if (latestSuccessResult.value?.shortUrl) {
+    navigator.clipboard.writeText(latestSuccessResult.value.shortUrl)
+    message.success(t('upload.shortLinkCopied'))
+  }
+}
+
+const copyDownloadUrl = () => {
+  if (latestSuccessResult.value?.downloadUrl) {
+    navigator.clipboard.writeText(latestSuccessResult.value.downloadUrl)
+    message.success(t('upload.directLinkCopied'))
+  }
+}
 
 onMounted(async () => {
   try {
     r2OptionsLoading.value = true
     const result = await api.getR2Options()
-    const opts = Array.isArray(result.options) ? result.options : []
-    r2ConfigOptions.value = opts.map((opt) => ({
-      label: opt.name,
-      value: opt.id,
+    const options = Array.isArray(result.options) ? result.options : []
+    r2ConfigOptions.value = options.map((option) => ({
+      label: option.name,
+      value: option.id,
     }))
+
     const defaultConfigId =
       typeof result.default_config_id === 'string' &&
-      opts.some((opt) => opt.id === result.default_config_id)
+      options.some((option) => option.id === result.default_config_id)
         ? result.default_config_id
         : ''
-    selectedR2ConfigId.value = defaultConfigId || opts[0]?.id || ''
+    selectedR2ConfigId.value = defaultConfigId || options[0]?.id || ''
   } catch (error) {
     r2ConfigOptions.value = []
     selectedR2ConfigId.value = ''
@@ -203,465 +585,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (animationFrame) {
-    cancelAnimationFrame(animationFrame)
-    animationFrame = null
-  }
-  cancelUpload({ silent: true })
-  isUploading.value = false
+  uploadQueue.dispose()
 })
-
-const uploadProgress = ref(0)
-const currentFile = ref(null)
-const uploadResult = ref(null)
-const isUploading = ref(false)
-const uploadedSize = ref(0)
-const totalSize = ref(0)
-const uploadSpeed = ref(t('upload.preparing'))
-const remainingTime = ref(t('upload.calculating'))
-const displayProgress = ref(0)
-let uploadStartTime = 0
-let animationFrame = null
-const cancelRequested = ref(false)
-const activeMultipart = ref(null)
-const inFlightControllers = new Set()
-
-const UPLOAD_CANCELLED = 'UPLOAD_CANCELLED'
-
-const createCancelledError = () => new Error(UPLOAD_CANCELLED)
-
-const isCancelledError = (error) =>
-  error?.code === 'ERR_CANCELED' ||
-  error?.name === 'CanceledError' ||
-  error?.message === UPLOAD_CANCELLED
-
-const registerController = () => {
-  const controller = new AbortController()
-  inFlightControllers.add(controller)
-  return controller
-}
-
-const abortInFlightRequests = () => {
-  for (const controller of inFlightControllers) {
-    try {
-      controller.abort()
-    } catch {
-      // ignore
-    }
-  }
-  inFlightControllers.clear()
-}
-
-const cancelUpload = async ({ silent = false } = {}) => {
-  if (cancelRequested.value) return
-  cancelRequested.value = true
-  abortInFlightRequests()
-
-  const multipart = activeMultipart.value
-  if (multipart?.file_id) {
-    try {
-      await api.abortMultipartUpload({ file_id: multipart.file_id })
-    } catch {
-      // ignore
-    } finally {
-      activeMultipart.value = null
-    }
-  }
-
-  if (!silent) {
-    uploadResult.value = { success: false, message: t('upload.uploadCanceled') }
-  }
-}
-
-const formatBytes = (bytes) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i]
-}
-
-const formatDuration = (seconds) => {
-  if (seconds < 60) return t('upload.seconds', { value: Number(seconds).toFixed(1) })
-  if (seconds < 3600) {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.round(seconds % 60)
-    return t('upload.minutesSeconds', { minutes: mins, seconds: secs })
-  }
-  const hours = Math.floor(seconds / 3600)
-  const mins = Math.round((seconds % 3600) / 60)
-  return t('upload.hoursMinutes', { hours, minutes: mins })
-}
-
-const animateProgress = () => {
-  const target = uploadProgress.value
-  const current = displayProgress.value
-  const diff = target - current
-  if (Math.abs(diff) > 0.5) {
-    displayProgress.value = Math.round(current + diff * 0.2)
-    animationFrame = requestAnimationFrame(animateProgress)
-  } else {
-    displayProgress.value = Math.round(target)
-    animationFrame = null
-  }
-}
-
-const updateUploadStats = (loaded, total) => {
-  const now = Date.now()
-  uploadedSize.value = loaded
-  totalSize.value = total
-  const exactProgress = Math.round((loaded / total) * 100)
-  uploadProgress.value = Math.min(exactProgress, 100)
-
-  if (loaded >= total) {
-    displayProgress.value = 100
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame)
-      animationFrame = null
-    }
-    return
-  }
-
-  if (!animationFrame && isUploading.value) {
-    animationFrame = requestAnimationFrame(animateProgress)
-  }
-
-  const elapsed = (now - uploadStartTime) / 1000
-  if (elapsed > 0.5) {
-    const avgSpeed = loaded / elapsed
-    uploadSpeed.value = formatBytes(avgSpeed) + '/s'
-    if (avgSpeed > 0) {
-      const remaining = (total - loaded) / avgSpeed
-      if (remaining < 60)
-        remainingTime.value = t('upload.secondsOnly', {
-          value: Math.round(remaining),
-        })
-      else if (remaining < 3600)
-        remainingTime.value = t('upload.minutesOnly', {
-          value: Math.round(remaining / 60),
-        })
-      else
-        remainingTime.value = t('upload.hoursOnly', {
-          value: (remaining / 3600).toFixed(1),
-        })
-    } else {
-      remainingTime.value = t('upload.calculating')
-    }
-  }
-}
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024
-
-const beforeUpload = ({ file }) => {
-  if (r2OptionsLoading.value) {
-    message.warning(uploadConfigLoadingMessage.value)
-    return false
-  }
-  if (!hasAvailableUploadConfig.value || !resolvedUploadConfigId.value) {
-    message.error(uploadConfigAlertMessage.value)
-    return false
-  }
-  if (file.file.size > MAX_FILE_SIZE) {
-    message.error(t('upload.fileTooLarge'))
-    return false
-  }
-  return true
-}
-
-const handleUpload = async ({ file }) => {
-  if (!resolvedUploadConfigId.value) {
-    message.error(uploadConfigAlertMessage.value)
-    return
-  }
-  currentFile.value = file
-  uploadProgress.value = 0
-  displayProgress.value = 0
-  uploadResult.value = null
-  isUploading.value = true
-  cancelRequested.value = false
-  activeMultipart.value = null
-  abortInFlightRequests()
-  uploadedSize.value = 0
-  totalSize.value = file.file.size
-  uploadSpeed.value = t('upload.preparing')
-  remainingTime.value = t('upload.calculating')
-  uploadStartTime = Date.now()
-  animationFrame = null
-
-  try {
-    uploadRef.value?.clear()
-    const fileSize = file.file.size
-
-    if (fileSize < 100 * 1024 * 1024) {
-      await uploadSmallFile(file)
-    } else {
-      await uploadLargeFile(file)
-    }
-
-    emit('uploaded', { filename: file.name })
-  } catch (error) {
-    if (isCancelledError(error) || cancelRequested.value) {
-      uploadResult.value = { success: false, message: t('upload.uploadCanceled') }
-    } else {
-      console.error('上传错误:', error)
-      uploadResult.value = {
-        success: false,
-        message: error.response?.data?.error || error.message || t('upload.uploadFailed'),
-      }
-    }
-  } finally {
-    isUploading.value = false
-    abortInFlightRequests()
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame)
-      animationFrame = null
-    }
-  }
-}
-
-const uploadSmallFile = async (file) => {
-  const response = await api.getUploadURL({
-    filename: file.name,
-    content_type: file.type || 'application/octet-stream',
-    size: file.file.size,
-    expires_in: expiresIn.value,
-    require_login: requireLogin.value,
-    config_id: resolvedUploadConfigId.value || undefined,
-  })
-
-  const controller = registerController()
-  try {
-    await api.uploadToR2(
-      response.upload_url,
-      file.file,
-      (_percent, loaded, total) => {
-        updateUploadStats(loaded, total)
-      },
-      { signal: controller.signal }
-    )
-  } catch (error) {
-    if (isCancelledError(error) || cancelRequested.value) {
-      throw createCancelledError()
-    }
-    throw error
-  } finally {
-    inFlightControllers.delete(controller)
-  }
-
-  const uploadEndTime = Date.now()
-  const duration = (uploadEndTime - uploadStartTime) / 1000
-  const avgSpeed = file.file.size / duration
-
-  uploadProgress.value = 100
-  displayProgress.value = 100
-
-  const confirmResult = await api.confirmUpload(response.file_id)
-  const resolvedFilename = confirmResult.filename || response.filename || file.name
-  const downloadUrl = confirmResult.download_url?.startsWith('http')
-    ? confirmResult.download_url
-    : window.location.origin + (confirmResult.download_url || response.download_url)
-
-  uploadResult.value = {
-    success: true,
-    filename: resolvedFilename,
-    downloadUrl: downloadUrl,
-    shortUrl: window.location.origin + (confirmResult.short_url || response.short_url),
-    fileSize: formatBytes(file.file.size),
-    avgSpeed: formatBytes(avgSpeed) + '/s',
-    duration: formatDuration(duration),
-  }
-
-  message.success(t('upload.uploadSuccess'))
-}
-
-const uploadLargeFile = async (file) => {
-  let fileId = ''
-  try {
-    const initResponse = await api.initMultipartUpload({
-      filename: file.name,
-      content_type: file.type || 'application/octet-stream',
-      size: file.file.size,
-      expires_in: expiresIn.value,
-      require_login: requireLogin.value,
-      config_id: resolvedUploadConfigId.value || undefined,
-    })
-
-    const { file_id, upload_id, part_size, total_parts } = initResponse
-    fileId = file_id
-    activeMultipart.value = { file_id, upload_id }
-
-    if (cancelRequested.value) {
-      await cancelUpload({ silent: true })
-      throw createCancelledError()
-    }
-
-    const CONCURRENCY = 3
-    const partProgress = new Array(total_parts).fill(0)
-
-    const updateTotalProgress = () => {
-      const totalLoaded = partProgress.reduce((a, b) => a + b, 0)
-      updateUploadStats(totalLoaded, file.file.size)
-    }
-
-    const uploadPart = async (partIndex) => {
-      if (cancelRequested.value) {
-        throw createCancelledError()
-      }
-
-      const partNumber = partIndex + 1
-      const start = partIndex * part_size
-      const end = Math.min(start + part_size, file.file.size)
-      const chunk = file.file.slice(start, end)
-
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          if (cancelRequested.value) {
-            throw createCancelledError()
-          }
-
-          const presignResponse = await api.getMultipartUploadURL({
-            file_id,
-            upload_id,
-            part_number: partNumber,
-          })
-
-          if (cancelRequested.value) {
-            throw createCancelledError()
-          }
-
-          const controller = registerController()
-          try {
-            const uploadResponse = await api.uploadToR2(
-              presignResponse.upload_url,
-              chunk,
-              (_percent, loaded) => {
-                partProgress[partIndex] = loaded
-                updateTotalProgress()
-              },
-              { signal: controller.signal }
-            )
-
-            let etag = uploadResponse.headers?.etag || ''
-            if (!etag)
-              throw new Error(t('upload.errors.partMissingEtag', { partNumber: partNumber }))
-            if (!etag.startsWith('"')) etag = `"${etag}"`
-
-            partProgress[partIndex] = end - start
-            updateTotalProgress()
-
-            return { part_number: partNumber, etag }
-          } finally {
-            inFlightControllers.delete(controller)
-          }
-        } catch (err) {
-          if (isCancelledError(err) || cancelRequested.value) {
-            throw createCancelledError()
-          }
-          if (attempt === 3) throw err
-          await new Promise((r) => setTimeout(r, 1000 * attempt))
-        }
-      }
-    }
-
-    const uploadedParts = []
-    let currentIndex = 0
-
-    const uploadNext = async () => {
-      while (currentIndex < total_parts) {
-        if (cancelRequested.value) {
-          throw createCancelledError()
-        }
-        const partIndex = currentIndex++
-        const result = await uploadPart(partIndex)
-        uploadedParts.push(result)
-      }
-    }
-
-    const workers = []
-    for (let i = 0; i < Math.min(CONCURRENCY, total_parts); i++) {
-      workers.push(uploadNext())
-    }
-    await Promise.all(workers)
-
-    const validParts = uploadedParts
-      .filter((p) => p && p.etag)
-      .sort((a, b) => a.part_number - b.part_number)
-
-    if (validParts.length !== total_parts) {
-      throw new Error(
-        t('upload.errors.incompleteMultipart', {
-          uploaded: validParts.length,
-          total: total_parts,
-        })
-      )
-    }
-
-    if (cancelRequested.value) {
-      throw createCancelledError()
-    }
-
-    const completeResponse = await api.completeMultipartUpload({
-      file_id,
-      upload_id,
-      parts: validParts,
-    })
-    const resolvedFilename = completeResponse.filename || initResponse.filename || file.name
-
-    const uploadEndTime = Date.now()
-    const duration = (uploadEndTime - uploadStartTime) / 1000
-    const avgSpeed = file.file.size / duration
-
-    uploadProgress.value = 100
-    displayProgress.value = 100
-
-    const downloadUrl = completeResponse.download_url?.startsWith('http')
-      ? completeResponse.download_url
-      : window.location.origin + completeResponse.download_url
-
-    uploadResult.value = {
-      success: true,
-      filename: resolvedFilename,
-      downloadUrl: downloadUrl,
-      shortUrl: window.location.origin + completeResponse.short_url,
-      fileSize: formatBytes(file.file.size),
-      avgSpeed: formatBytes(avgSpeed) + '/s',
-      duration: formatDuration(duration),
-    }
-
-    message.success(t('upload.uploadSuccess'))
-  } catch (error) {
-    if (fileId) {
-      try {
-        await api.abortMultipartUpload({ file_id: fileId })
-      } catch {
-        // ignore
-      } finally {
-        if (activeMultipart.value?.file_id === fileId) {
-          activeMultipart.value = null
-        }
-      }
-    }
-    throw error
-  } finally {
-    if (fileId && activeMultipart.value?.file_id === fileId) {
-      activeMultipart.value = null
-    }
-  }
-}
-
-const copyShortUrl = () => {
-  if (uploadResult.value?.shortUrl) {
-    navigator.clipboard.writeText(uploadResult.value.shortUrl)
-    message.success(t('upload.shortLinkCopied'))
-  }
-}
-
-const copyDownloadUrl = () => {
-  if (uploadResult.value?.downloadUrl) {
-    navigator.clipboard.writeText(uploadResult.value.downloadUrl)
-    message.success(t('upload.directLinkCopied'))
-  }
-}
 </script>
 
 <style scoped>
@@ -693,26 +618,8 @@ const copyDownloadUrl = () => {
   word-break: break-all;
 }
 
-.upload-status {
+.upload-queue-block {
   margin-top: var(--nb-space-lg);
-}
-
-.upload-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--nb-space-sm);
-}
-
-.upload-stats {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--nb-gray-500);
-}
-
-.upload-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .upload-result {
