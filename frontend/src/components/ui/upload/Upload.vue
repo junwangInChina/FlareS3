@@ -4,6 +4,10 @@ import { useThemeStore } from '../../../stores/theme'
 import BrutalUpload from './BrutalUpload.vue'
 import ShadcnUpload from './ShadcnUpload.vue'
 
+const props = defineProps({
+  multiple: Boolean,
+})
+
 const emit = defineEmits(['file-selected', 'before-upload'])
 
 const themeStore = useThemeStore()
@@ -22,6 +26,7 @@ defineExpose({
   <component
     :is="currentComponent"
     ref="innerRef"
+    :multiple="props.multiple"
     @file-selected="emit('file-selected', $event)"
     @before-upload="emit('before-upload', $event)"
   >
