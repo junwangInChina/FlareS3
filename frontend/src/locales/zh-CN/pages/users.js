@@ -4,6 +4,7 @@ export default {
     subtitle: '管理系统用户、角色及配额',
     createUser: '创建用户',
     createModalTitle: '创建用户',
+    editModalTitle: '编辑用户',
     resetModalTitle: '重置密码',
     filters: {
       allUsers: '全部用户',
@@ -22,6 +23,7 @@ export default {
       actions: '操作',
     },
     actions: {
+      edit: '编辑',
       enable: '启用',
       disable: '禁用',
       resetPassword: '重置密码',
@@ -35,6 +37,7 @@ export default {
       username: '用户名',
       password: '密码',
       role: '角色',
+      status: '状态',
       quota: '配额 (GB)',
       newPassword: '新密码',
       usernamePlaceholder: '请输入用户名',
@@ -53,6 +56,9 @@ export default {
       adminCannotDelete: '管理员用户不允许删除',
       createSuccess: '用户创建成功',
       createFailed: '创建用户失败',
+      updateSuccess: '用户信息已更新',
+      updateFailed: '更新用户失败',
+      noChanges: '未检测到需要保存的变更',
       statusUpdated: '状态已更新',
       statusUpdateFailed: '更新状态失败',
       newPasswordRequired: '请输入新密码',
