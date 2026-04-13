@@ -7,8 +7,10 @@ import audit from './pages/audit'
 import users from './pages/users'
 import files from './pages/files'
 import setup from './pages/setup'
+import dashboard from './pages/dashboard'
 import texts from './pages/texts'
 import mount from './pages/mount'
+import shares from './pages/shares'
 
 export default {
   ...common,
@@ -20,6 +22,8 @@ export default {
   ...users,
   ...files,
   ...setup,
+  ...dashboard,
   ...texts,
   ...mount,
+  ...shares,
 }
