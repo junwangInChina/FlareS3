@@ -122,17 +122,22 @@ defineProps({
 }
 
 .cell-ellipsis > span {
-  display: inline-block;
+  display: block;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   vertical-align: middle;
   cursor: help; /* Show help cursor on hover */
 }
 
 .cell-ellipsis :deep(.brutal-tooltip-trigger),
 .cell-ellipsis :deep(.tooltip-trigger) {
-  display: inline-flex;
-  align-items: center;
+  display: block;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
