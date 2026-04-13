@@ -8,6 +8,31 @@ export default {
       addConfig: '添加新配置',
       refreshList: '刷新列表',
     },
+    health: {
+      title: '配置状态',
+      labels: {
+        configCount: '配置数量',
+        defaultConfig: '默认配置',
+        uploadReady: '上传可用',
+      },
+      values: {
+        yes: '是',
+        no: '否',
+        notSet: '未设置',
+      },
+      notices: {
+        missingUploadConfigTitle: '尚未配置上传目标',
+        missingUploadConfigContent: '请先创建至少一套 R2 配置，否则前台无法上传文件。',
+        missingDefaultConfigTitle: '默认上传配置未设置',
+        missingDefaultConfigContent:
+          '当前已有上传配置，但未指定默认配置。建议先设置默认配置，避免上传请求失败。',
+        invalidDefaultConfigTitle: '默认配置引用无效',
+        invalidDefaultConfigContent:
+          '系统记录的默认配置不存在于当前配置列表中，请重新设置默认配置。',
+        readyTitle: '上传配置已就绪',
+        readyContent: '至少存在一套可用配置，且默认上传配置已设置。',
+      },
+    },
     state: {
       loading: '加载中...',
       emptyTitle: '暂无配置',
