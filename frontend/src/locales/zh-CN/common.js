@@ -29,8 +29,10 @@ export default {
   },
   nav: {
     files: '文件',
+    dashboard: '仪表盘',
     mount: '挂载',
     texts: '文档',
+    shares: '分享',
     users: '用户',
     audit: '日志',
     setup: '管理',
