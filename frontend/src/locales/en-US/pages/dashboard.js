@@ -1,7 +1,7 @@
 export default {
   dashboard: {
     title: 'Dashboard',
-    subtitle: 'Review system metrics, upload configuration health, and scheduled job results',
+    subtitle: 'Review system metrics and upload configuration health',
     actions: {
       refresh: 'Refresh data',
     },
@@ -40,6 +40,36 @@ export default {
       uploadConfigPendingDefaultHint:
         '{count} config(s) exist, but no default upload config is selected',
       uploadConfigReadyHint: 'Default config: {defaultConfigId}. Total configs: {count}',
+    },
+    insights: {
+      health: {
+        title: 'Health overview',
+      },
+      userStatus: {
+        title: 'User status distribution',
+        totalLabel: 'Total users',
+        activeUsers: 'Active users',
+        disabledUsers: 'Disabled users',
+        otherUsers: 'Other states',
+        empty: 'No user data yet',
+      },
+      configHealth: {
+        title: 'Upload config health',
+        missing: 'Missing',
+        pendingDefault: 'Default missing',
+        ready: 'Ready',
+        countLabel: '{count} config(s)',
+        steps: {
+          missing: 'Config',
+          pendingDefault: 'Default',
+          ready: 'Ready',
+        },
+      },
+      fileAlerts: {
+        title: 'File alerts',
+        expiringThisWeek: 'Expiring in 7 days',
+        pendingDeleteQueue: 'Pending delete queue',
+      },
     },
     risks: {
       title: 'Operational risks',

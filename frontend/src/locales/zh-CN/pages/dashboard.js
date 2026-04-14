@@ -1,7 +1,7 @@
 export default {
   dashboard: {
     title: '仪表盘',
-    subtitle: '查看系统运行指标、上传配置状态与定时任务执行结果',
+    subtitle: '查看系统运行指标与上传配置状态',
     actions: {
       refresh: '刷新数据',
     },
@@ -39,6 +39,36 @@ export default {
       uploadConfigMissingHint: '当前还没有任何可用于上传的 R2 配置',
       uploadConfigPendingDefaultHint: '已有 {count} 套配置，但尚未设置默认上传配置',
       uploadConfigReadyHint: '默认配置：{defaultConfigId}，当前共 {count} 套配置',
+    },
+    insights: {
+      health: {
+        title: '运行健康',
+      },
+      userStatus: {
+        title: '用户状态分布',
+        totalLabel: '总用户',
+        activeUsers: '启用用户',
+        disabledUsers: '禁用用户',
+        otherUsers: '其他状态',
+        empty: '暂无用户数据',
+      },
+      configHealth: {
+        title: '上传配置健康',
+        missing: '未配置',
+        pendingDefault: '缺少默认配置',
+        ready: '已就绪',
+        countLabel: '{count} 套配置',
+        steps: {
+          missing: '配置',
+          pendingDefault: '默认',
+          ready: '可用',
+        },
+      },
+      fileAlerts: {
+        title: '文件预警',
+        expiringThisWeek: '7日内到期',
+        pendingDeleteQueue: '待删队列',
+      },
     },
     risks: {
       title: '运营风险',
