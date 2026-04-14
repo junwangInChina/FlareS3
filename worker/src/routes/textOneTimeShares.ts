@@ -4,6 +4,14 @@ import { getUser, jsonResponse } from './utils'
 import { renderContentPage, renderMessagePage } from './textShares'
 import { generateRandomCode } from '../utils/random'
 
+type LoadTextAuthResult =
+  | {
+      user: NonNullable<ReturnType<typeof getUser>>
+      text: { id: string; owner_id: string; title: string }
+      ownerId: string
+    }
+  | { response: Response }
+
 function formatDateTimeLocal(isoString: string | null): string {
   if (!isoString) return ''
   const date = new Date(isoString)
@@ -24,14 +32,14 @@ function getD1Changes(result: unknown): number {
   return Number.isFinite(metaChanges) ? metaChanges : 0
 }
 
-export async function createTextOneTimeShare(
+async function loadTextAndAuthorize(
   request: Request,
   env: Env,
   textId: string
-): Promise<Response> {
+): Promise<LoadTextAuthResult> {
   const user = getUser(request)
-  if (!user) return jsonResponse({ error: '未授权' }, 401)
-  if (!textId) return jsonResponse({ error: 'id 不能为空' }, 400)
+  if (!user) return { response: jsonResponse({ error: '未授权' }, 401) }
+  if (!textId) return { response: jsonResponse({ error: 'id 不能为空' }, 400) }
 
   await ensureTextsTable(env.DB)
   await ensureTextOneTimeSharesTable(env.DB)
@@ -40,13 +48,28 @@ export async function createTextOneTimeShare(
     'SELECT id, owner_id, title FROM texts WHERE id = ? AND deleted_at IS NULL LIMIT 1'
   )
     .bind(textId)
-    .first()
+    .first<{ id: string; owner_id: string; title: string }>()
 
-  if (!text) return jsonResponse({ error: '文本不存在' }, 404)
+  if (!text) {
+    return { response: jsonResponse({ error: '文本不存在' }, 404) }
+  }
 
-  const ownerId = String((text as any).owner_id)
+  const ownerId = String(text.owner_id)
   if (user.role !== 'admin' && ownerId !== user.id) {
-    return jsonResponse({ error: '无权限' }, 403)
+    return { response: jsonResponse({ error: '无权限' }, 403) }
+  }
+
+  return { user, text, ownerId }
+}
+
+export async function createTextOneTimeShare(
+  request: Request,
+  env: Env,
+  textId: string
+): Promise<Response> {
+  const auth = await loadTextAndAuthorize(request, env, textId)
+  if ('response' in auth) {
+    return auth.response
   }
 
   const now = new Date()
@@ -67,7 +90,7 @@ export async function createTextOneTimeShare(
         `INSERT INTO text_one_time_shares (id, text_id, owner_id, share_code, expires_at, consumed_at, created_at, updated_at)
 	         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`
       )
-        .bind(id, textId, ownerId, shareCode, expiresAtIso, nowIso, nowIso)
+        .bind(id, textId, auth.ownerId, shareCode, expiresAtIso, nowIso, nowIso)
         .run()
 
       if (!result.error) {
@@ -95,6 +118,36 @@ export async function createTextOneTimeShare(
   }
 
   return jsonResponse({ error: '生成一次性分享链接失败' }, 500)
+}
+
+export async function deleteTextOneTimeShare(
+  request: Request,
+  env: Env,
+  textId: string
+): Promise<Response> {
+  const auth = await loadTextAndAuthorize(request, env, textId)
+  if ('response' in auth) {
+    return auth.response
+  }
+
+  const existing = await env.DB.prepare(
+    'SELECT id FROM text_one_time_shares WHERE text_id = ? LIMIT 1'
+  )
+    .bind(textId)
+    .first<{ id: string }>()
+
+  if (!existing) {
+    return jsonResponse({ success: true, deleted: false })
+  }
+
+  const result = await env.DB.prepare('DELETE FROM text_one_time_shares WHERE id = ?')
+    .bind(existing.id)
+    .run()
+
+  return jsonResponse({
+    success: true,
+    deleted: getD1Changes(result) > 0,
+  })
 }
 
 export async function tryViewTextOneTimeShare(
