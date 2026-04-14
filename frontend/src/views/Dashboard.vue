@@ -27,10 +27,11 @@
         :loading="loading && !loadedOnce"
       />
 
-      <section class="dashboard-panels">
-        <RiskAlertsPanel :risks="overview.risks" :loading="loading && !loadedOnce" />
-        <JobRunsPanel :items="jobRuns" :total="jobRunsTotal" :loading="loading && !loadedOnce" />
-      </section>
+      <DashboardInsights
+        :metrics="overview.metrics"
+        :setup="overview.setup"
+        :loading="loading && !loadedOnce"
+      />
     </div>
   </AppLayout>
 </template>
@@ -42,9 +43,8 @@ import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Button from '../components/ui/button/Button.vue'
+import DashboardInsights from '../components/dashboard/DashboardInsights.vue'
 import OverviewCards from '../components/dashboard/OverviewCards.vue'
-import RiskAlertsPanel from '../components/dashboard/RiskAlertsPanel.vue'
-import JobRunsPanel from '../components/dashboard/JobRunsPanel.vue'
 import { useMessage } from '../composables/useMessage'
 
 const message = useMessage()
@@ -66,12 +66,9 @@ const defaultOverview = () => ({
     defaultConfigId: null,
     hasUploadConfig: false,
   },
-  risks: [],
 })
 
 const overview = ref(defaultOverview())
-const jobRuns = ref([])
-const jobRunsTotal = ref(0)
 const loading = ref(false)
 const loadedOnce = ref(false)
 const activeAction = ref('')
@@ -85,7 +82,6 @@ const normalizeOverview = (payload) => ({
     ...defaultOverview().setup,
     ...(payload?.setup || {}),
   },
-  risks: Array.isArray(payload?.risks) ? payload.risks : [],
 })
 
 const loadDashboard = async ({ source = 'init' } = {}) => {
@@ -95,14 +91,8 @@ const loadDashboard = async ({ source = 'init' } = {}) => {
   activeAction.value = source
 
   try {
-    const [overviewResult, jobRunsResult] = await Promise.all([
-      api.getAdminOverview(),
-      api.getAdminJobRuns({ page: 1, limit: 10 }),
-    ])
-
+    const overviewResult = await api.getAdminOverview()
     overview.value = normalizeOverview(overviewResult)
-    jobRuns.value = Array.isArray(jobRunsResult?.items) ? jobRunsResult.items : []
-    jobRunsTotal.value = Number(jobRunsResult?.total || 0)
     loadedOnce.value = true
   } catch (error) {
     message.error(error.response?.data?.error || t('dashboard.messages.loadFailed'))
@@ -156,19 +146,6 @@ onMounted(() => {
   align-items: center;
   justify-content: flex-end;
   gap: var(--nb-space-sm);
-}
-
-.dashboard-panels {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: var(--nb-space-lg);
-  align-items: start;
-}
-
-@media (max-width: 1080px) {
-  .dashboard-panels {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 720px) {
