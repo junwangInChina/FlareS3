@@ -150,6 +150,30 @@ export function ensureFilesTable(db: D1Database): Promise<void> {
   })
 }
 
+export function ensureJobRunsTable(db: D1Database): Promise<void> {
+  return ensureOnce('job_runs', async () => {
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS job_runs (
+          id TEXT PRIMARY KEY,
+          job_name TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('running','success','partial','failed')),
+          started_at DATETIME NOT NULL,
+          finished_at DATETIME,
+          duration_ms INTEGER NOT NULL DEFAULT 0,
+          summary_json TEXT,
+          error_message TEXT,
+          created_at DATETIME NOT NULL
+        )`
+      )
+      .run()
+
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_job_runs_job_name ON job_runs(job_name)').run()
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_job_runs_status ON job_runs(status)').run()
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_job_runs_created_at ON job_runs(created_at)').run()
+  })
+}
+
 export function ensureFileSharesTable(db: D1Database): Promise<void> {
   return ensureOnce('file_shares', async () => {
     await db
