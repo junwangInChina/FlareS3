@@ -1,4 +1,5 @@
 import type { Env } from '../config/env'
+import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
 
 export const SESSION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 export const RATE_LIMIT_RETENTION_MS = 24 * 60 * 60 * 1000
@@ -12,7 +13,8 @@ function getChanges(result: unknown): number {
 export async function cleanupRetention(
   env: Env,
   now = new Date()
-): Promise<{ sessions: number; rateLimits: number; auditLogs: number }> {
+): Promise<JobExecutionResult> {
+  const startedAtMs = now.getTime()
   const nowIso = now.toISOString()
   const sessionThresholdIso = new Date(now.getTime() - SESSION_RETENTION_MS).toISOString()
   const rateLimitThresholdIso = new Date(now.getTime() - RATE_LIMIT_RETENTION_MS).toISOString()
@@ -38,9 +40,19 @@ export async function cleanupRetention(
     .bind(auditLogThresholdIso)
     .run()
 
-  return {
+  const details = {
     sessions: getChanges(sessionResult),
     rateLimits: getChanges(rateLimitResult),
     auditLogs: getChanges(auditLogResult),
   }
+
+  const processed = details.sessions + details.rateLimits + details.auditLogs
+
+  return buildJobResult('cleanupRetention', startedAtMs, {
+    status: 'success',
+    processed,
+    succeeded: processed,
+    failed: 0,
+    details,
+  })
 }
