@@ -167,6 +167,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_file_id ON file_shares(file_id
 CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_share_code ON file_shares(share_code);
 CREATE INDEX IF NOT EXISTS idx_file_shares_owner_id ON file_shares(owner_id);
 
+-- job_runs
+CREATE TABLE IF NOT EXISTS job_runs (
+  id TEXT PRIMARY KEY,
+  job_name TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('running','success','partial','failed')),
+  started_at DATETIME NOT NULL,
+  finished_at DATETIME,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  summary_json TEXT,
+  error_message TEXT,
+  created_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_runs_job_name ON job_runs(job_name);
+CREATE INDEX IF NOT EXISTS idx_job_runs_status ON job_runs(status);
+CREATE INDEX IF NOT EXISTS idx_job_runs_created_at ON job_runs(created_at);
+
 -- r2_configs
 CREATE TABLE IF NOT EXISTS r2_configs (
   id TEXT PRIMARY KEY,
