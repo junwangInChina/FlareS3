@@ -171,13 +171,30 @@
           }}</Button>
         </template>
       </Modal>
+
+      <UserEditModal
+        v-if="authStore.isAdmin"
+        v-model:show="showEditModal"
+        :user="editingUser"
+        :submitting="updating"
+        @submit="handleEditSubmit"
+      />
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { computed, ref, h, onMounted } from 'vue'
-import { KeyRound, Trash2, UserCheck, UserX, Plus, Search, RefreshCw } from 'lucide-vue-next'
+import { computed, ref, h, onMounted, watch } from 'vue'
+import {
+  KeyRound,
+  Pencil,
+  Trash2,
+  UserCheck,
+  UserX,
+  Plus,
+  Search,
+  RefreshCw,
+} from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -192,7 +209,10 @@ import Select from '../components/ui/select/Select.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
 import Tag from '../components/ui/tag/Tag.vue'
+import TableCellText from '../components/ui/table/TableCellText.vue'
+import UserEditModal from '../components/users/UserEditModal.vue'
 import { useMessage } from '../composables/useMessage'
+import { buildUserEditPayload } from '../utils/userManagement.js'
 
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
@@ -226,6 +246,10 @@ const creating = ref(false)
 const showResetModal = ref(false)
 const resetForm = ref({ userId: '', password: '' })
 const resetting = ref(false)
+
+const showEditModal = ref(false)
+const updating = ref(false)
+const editingUser = ref(null)
 
 const showDisableModal = ref(false)
 const disabling = ref(false)
@@ -277,16 +301,16 @@ const columns = computed(() => [
     title: t('users.columns.username'),
     key: 'username',
     align: 'left',
-    ellipsis: false,
-    render: (row) => h('span', toDisplayText(row.username)),
+    ellipsis: true,
+    render: (row) => h(TableCellText, { value: toDisplayText(row.username) }),
   },
   {
     title: t('users.columns.role'),
     key: 'role',
     width: 100,
     align: 'center',
-    ellipsis: false,
-    render: (row) => h('span', toRoleLabel(row.role)),
+    ellipsis: true,
+    render: (row) => h(TableCellText, { value: toRoleLabel(row.role) }),
   },
   {
     title: t('users.columns.status'),
@@ -306,20 +330,24 @@ const columns = computed(() => [
     key: 'quota_bytes',
     width: 140,
     align: 'center',
-    ellipsis: false,
+    ellipsis: true,
     render: (row) => {
       const text = formatBytes(row.quota_bytes || 0)
-      return h('span', text)
+      return h(TableCellText, { value: text })
     },
   },
   {
     title: t('users.columns.actions'),
     key: 'actions',
-    width: locale.value === 'zh-CN' ? 330 : 380,
+    width: locale.value === 'zh-CN' ? 420 : 500,
     align: 'center',
     ellipsis: false,
     render: (row) =>
       h('div', { class: 'action-buttons' }, [
+        h(Button, { size: 'small', type: 'default', onClick: () => openEdit(row) }, () => [
+          h(Pencil, { size: 16, style: 'margin-right: 4px' }),
+          t('users.actions.edit'),
+        ]),
         h(
           Button,
           {
@@ -565,6 +593,68 @@ const handleResetPassword = async () => {
   }
 }
 
+const syncUserOptionEntry = (user) => {
+  const userId = String(user?.id ?? '').trim()
+  if (!userId) return
+
+  if (user?.status === 'deleted') {
+    userOptionsUsers.value = userOptionsUsers.value.filter((item) => String(item.id) !== userId)
+    return
+  }
+
+  const nextEntry = {
+    id: userId,
+    username: String(user?.username ?? userId),
+    status: String(user?.status ?? 'active'),
+  }
+
+  const index = userOptionsUsers.value.findIndex((item) => String(item.id) === userId)
+  if (index >= 0) {
+    userOptionsUsers.value.splice(index, 1, nextEntry)
+    return
+  }
+
+  userOptionsUsers.value.unshift(nextEntry)
+}
+
+const openEdit = (row) => {
+  editingUser.value = { ...row }
+  showEditModal.value = true
+}
+
+const handleEditSubmit = async (form) => {
+  const currentUser = editingUser.value
+  const userId = String(currentUser?.id ?? '').trim()
+  if (!userId) return
+
+  const payload = buildUserEditPayload(currentUser, form)
+  if (payload.quota_bytes === null) {
+    message.error(t('users.messages.quotaInvalid'))
+    return
+  }
+
+  if (!Object.keys(payload).length) {
+    message.info(t('users.messages.noChanges'))
+    return
+  }
+
+  try {
+    updating.value = true
+    await api.updateUser(userId, payload)
+    message.success(t('users.messages.updateSuccess'))
+    showEditModal.value = false
+    syncUserOptionEntry({
+      ...currentUser,
+      ...payload,
+    })
+    await loadUsers()
+  } catch (error) {
+    message.error(error.response?.data?.error || t('users.messages.updateFailed'))
+  } finally {
+    updating.value = false
+  }
+}
+
 const openDisableModal = (row) => {
   const id = String(row?.id ?? '').trim()
   if (!id) return
@@ -663,6 +753,12 @@ const handleDelete = (row) => {
   openDeleteModal(row)
 }
 
+watch(showEditModal, (visible) => {
+  if (!visible && !updating.value) {
+    editingUser.value = null
+  }
+})
+
 onMounted(() => {
   loadUsers()
   loadUserOptions()
@@ -756,6 +852,7 @@ onMounted(() => {
   gap: 8px;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 :root[data-ui-theme='shadcn'] :deep(.action-buttons) {
