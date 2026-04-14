@@ -7,6 +7,10 @@ function trimDecimal(value) {
   return value.replace(/\.0$/, '')
 }
 
+function normalizeCount(value) {
+  return Math.max(0, Math.floor(normalizeNumber(value)))
+}
+
 export function getOverviewDisplayValue(value, { loading = false, fallback = '0' } = {}) {
   if (loading) return '—'
   if (value === null || value === undefined || value === '') return fallback
@@ -49,6 +53,113 @@ export function getUploadConfigMetric(setup, { loading = false, t }) {
       count: configCount,
       defaultConfigId,
     }),
+  }
+}
+
+function getUploadConfigStatusKey(setup) {
+  const hasUploadConfig = Boolean(setup?.hasUploadConfig)
+  const defaultConfigId = String(setup?.defaultConfigId || '').trim()
+
+  if (!hasUploadConfig) return 'missing'
+  if (!defaultConfigId) return 'pendingDefault'
+  return 'ready'
+}
+
+export function buildDashboardInsightsModel({ metrics = {}, setup = {}, loading = false, t }) {
+  const totalUsers = normalizeCount(metrics?.totalUsers)
+  const activeUsers = totalUsers > 0 ? Math.min(normalizeCount(metrics?.activeUsers), totalUsers) : 0
+  const disabledUsers =
+    totalUsers > 0 ? Math.min(normalizeCount(metrics?.disabledUsers), Math.max(totalUsers - activeUsers, 0)) : 0
+  const otherUsers = totalUsers > 0 ? Math.max(totalUsers - activeUsers - disabledUsers, 0) : 0
+
+  const uploadConfigMetric = getUploadConfigMetric(setup, { loading, t })
+  const configHealthStatusKey = getUploadConfigStatusKey(setup)
+
+  return {
+    userStatus: {
+      title: t('dashboard.insights.userStatus.title'),
+      totalLabel: t('dashboard.insights.userStatus.totalLabel'),
+      totalValue: getOverviewDisplayValue(totalUsers, { loading }),
+      empty: totalUsers === 0,
+      segments: [
+        {
+          key: 'activeUsers',
+          label: t('dashboard.insights.userStatus.activeUsers'),
+          tone: 'success',
+          value: activeUsers,
+          displayValue: getOverviewDisplayValue(activeUsers, { loading }),
+          ratio: totalUsers > 0 ? activeUsers / totalUsers : 0,
+        },
+        {
+          key: 'disabledUsers',
+          label: t('dashboard.insights.userStatus.disabledUsers'),
+          tone: 'danger',
+          value: disabledUsers,
+          displayValue: getOverviewDisplayValue(disabledUsers, { loading }),
+          ratio: totalUsers > 0 ? disabledUsers / totalUsers : 0,
+        },
+        {
+          key: 'otherUsers',
+          label: t('dashboard.insights.userStatus.otherUsers'),
+          tone: 'muted',
+          value: otherUsers,
+          displayValue: getOverviewDisplayValue(otherUsers, { loading }),
+          ratio: totalUsers > 0 ? otherUsers / totalUsers : 0,
+        },
+      ],
+    },
+    configHealth: {
+      title: t('dashboard.insights.configHealth.title'),
+      label: uploadConfigMetric.label,
+      value: uploadConfigMetric.value,
+      statusKey: configHealthStatusKey,
+      statusLabel:
+        configHealthStatusKey === 'ready'
+          ? t('dashboard.insights.configHealth.ready')
+          : configHealthStatusKey === 'pendingDefault'
+            ? t('dashboard.insights.configHealth.pendingDefault')
+            : t('dashboard.insights.configHealth.missing'),
+      hint: uploadConfigMetric.hint,
+      steps: [
+        {
+          key: 'missing',
+          label: t('dashboard.insights.configHealth.steps.missing'),
+          complete: configHealthStatusKey !== 'missing',
+          active: configHealthStatusKey === 'missing',
+        },
+        {
+          key: 'pendingDefault',
+          label: t('dashboard.insights.configHealth.steps.pendingDefault'),
+          complete: configHealthStatusKey === 'ready',
+          active: configHealthStatusKey === 'pendingDefault',
+        },
+        {
+          key: 'ready',
+          label: t('dashboard.insights.configHealth.steps.ready'),
+          complete: configHealthStatusKey === 'ready',
+          active: configHealthStatusKey === 'ready',
+        },
+      ],
+    },
+    fileAlerts: {
+      title: t('dashboard.insights.fileAlerts.title'),
+      items: [
+        {
+          key: 'expiringThisWeek',
+          label: t('dashboard.insights.fileAlerts.expiringThisWeek'),
+          tone: 'warning',
+          value: normalizeCount(metrics?.expiringThisWeek),
+          displayValue: getOverviewDisplayValue(metrics?.expiringThisWeek, { loading }),
+        },
+        {
+          key: 'pendingDeleteQueue',
+          label: t('dashboard.insights.fileAlerts.pendingDeleteQueue'),
+          tone: 'info',
+          value: normalizeCount(metrics?.pendingDeleteQueue),
+          displayValue: getOverviewDisplayValue(metrics?.pendingDeleteQueue, { loading }),
+        },
+      ],
+    },
   }
 }
 
