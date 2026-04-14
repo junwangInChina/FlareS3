@@ -264,6 +264,7 @@ import Input from '../components/ui/input/Input.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
+import TableCellText from '../components/ui/table/TableCellText.vue'
 import { useMessage } from '../composables/useMessage'
 
 const authStore = useAuthStore()
@@ -420,28 +421,24 @@ const columns = computed(() => [
     title: t('files.columns.filename'),
     key: 'filename',
     align: 'left',
-    render: (row) => h(Tooltip, { content: row.filename }, () => row.filename),
+    ellipsis: true,
+    render: (row) => h(TableCellText, { value: row.filename }),
   },
   {
     title: t('files.columns.size'),
     key: 'size',
     width: 100,
     align: 'center',
-    ellipsis: false,
-    render: (row) => {
-      const sizeText = formatBytes(row.size)
-      return h('span', sizeText)
-    },
+    ellipsis: true,
+    render: (row) => h(TableCellText, { value: formatBytes(row.size) }),
   },
   {
     title: t('files.columns.expires'),
     key: 'expires_in',
-    width: 80,
+    width: 100,
     align: 'center',
-    ellipsis: false,
-    render: (row) => {
-      return h('span', getExpiresText(row))
-    },
+    ellipsis: true,
+    render: (row) => h(TableCellText, { value: getExpiresText(row) }),
   },
   {
     title: t('files.columns.status'),
@@ -466,20 +463,19 @@ const columns = computed(() => [
     key: 'remaining_time',
     width: 160,
     align: 'center',
-    render: (row) => {
-      const text = getRemainingText(row)
-      return h(Tooltip, { content: text }, () => text)
-    },
+    ellipsis: true,
+    render: (row) => h(TableCellText, { value: getRemainingText(row) }),
   },
   {
     title: isTrashMode.value ? t('files.columns.deletedAt') : t('files.columns.uploadedAt'),
     key: isTrashMode.value ? 'deleted_at' : 'created_at',
     width: 160,
     align: 'center',
-    render: (row) => {
-      const text = formatDateTime(isTrashMode.value ? row.deleted_at : row.created_at)
-      return h(Tooltip, { content: text }, () => text)
-    },
+    ellipsis: true,
+    render: (row) =>
+      h(TableCellText, {
+        value: formatDateTime(isTrashMode.value ? row.deleted_at : row.created_at),
+      }),
   },
   ...(authStore.isAdmin
     ? [
@@ -488,11 +484,8 @@ const columns = computed(() => [
           key: 'owner',
           width: 120,
           align: 'center',
-          ellipsis: false,
-          render: (row) => {
-            const text = row.owner_username || row.owner_id
-            return h('span', text)
-          },
+          ellipsis: true,
+          render: (row) => h(TableCellText, { value: row.owner_username || row.owner_id }),
         },
       ]
     : []),
