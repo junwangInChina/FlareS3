@@ -13,3 +13,4 @@ scripts/
 docs/
 .test-dist/
 *test*
+.superpowers/
