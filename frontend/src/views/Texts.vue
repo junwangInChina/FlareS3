@@ -199,6 +199,7 @@ import Input from '../components/ui/input/Input.vue'
 import Select from '../components/ui/select/Select.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
+import TableCellText from '../components/ui/table/TableCellText.vue'
 import TextFormModal from '../components/texts/TextFormModal.vue'
 import TextViewModal from '../components/texts/TextViewModal.vue'
 import TextShareModal from '../components/texts/TextShareModal.vue'
@@ -303,10 +304,8 @@ const columns = computed(() => {
       key: 'title',
       align: 'left',
       width: 160,
-      render: (row) => {
-        const value = String(row?.title ?? '').trim()
-        return h(Tooltip, { content: value }, () => (value ? value : '-'))
-      },
+      ellipsis: true,
+      render: (row) => h(TableCellText, { value: row?.title }),
     },
     {
       title: t('texts.columns.preview'),
@@ -324,11 +323,11 @@ const columns = computed(() => {
       key: 'content_length',
       width: 100,
       align: 'center',
-      ellipsis: false,
+      ellipsis: true,
       render: (row) => {
         const length = Number(row?.content_length ?? 0)
-        if (!Number.isFinite(length) || length < 0) return h('span', '-')
-        return h('span', formatBytes(length))
+        const text = !Number.isFinite(length) || length < 0 ? '-' : formatBytes(length)
+        return h(TableCellText, { value: text })
       },
     },
     {
@@ -336,8 +335,8 @@ const columns = computed(() => {
       key: 'updated_at',
       width: themeStore.uiTheme === 'shadcn' ? 190 : 220,
       align: 'center',
-      ellipsis: false,
-      render: (row) => h('span', formatDateTime(row?.updated_at)),
+      ellipsis: true,
+      render: (row) => h(TableCellText, { value: formatDateTime(row?.updated_at) }),
     },
     {
       title: t('texts.columns.actions'),
@@ -395,8 +394,8 @@ const columns = computed(() => {
       key: 'owner',
       width: 140,
       align: 'center',
-      ellipsis: false,
-      render: (row) => h('span', String(row?.owner_username || row?.owner_id || '-')),
+      ellipsis: true,
+      render: (row) => h(TableCellText, { value: row?.owner_username || row?.owner_id }),
     })
   }
 
