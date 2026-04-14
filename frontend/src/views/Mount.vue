@@ -254,6 +254,7 @@ import Select from '../components/ui/select/Select.vue'
 import Input from '../components/ui/input/Input.vue'
 import Button from '../components/ui/button/Button.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
+import TableCellText from '../components/ui/table/TableCellText.vue'
 import Alert from '../components/ui/alert/Alert.vue'
 import Modal from '../components/ui/modal/Modal.vue'
 import { useMessage } from '../composables/useMessage'
@@ -688,6 +689,7 @@ const columns = computed(() => [
     title: t('mount.table.name'),
     key: 'name',
     align: 'left',
+    ellipsis: true,
     render: (row) => {
       const isFolder = row.kind === 'folder'
       const displayName = isFolder ? `${row.name}/` : row.name
@@ -715,17 +717,18 @@ const columns = computed(() => [
     key: 'size',
     width: 120,
     align: 'center',
-    ellipsis: false,
-    render: (row) => (row.kind === 'object' ? h('span', formatBytes(row.size)) : h('span', '-')),
+    ellipsis: true,
+    render: (row) =>
+      h(TableCellText, { value: row.kind === 'object' ? formatBytes(row.size) : '-' }),
   },
   {
     title: t('mount.table.lastModified'),
     key: 'last_modified',
     width: 190,
     align: 'center',
-    ellipsis: false,
+    ellipsis: true,
     render: (row) =>
-      row.kind === 'object' ? h('span', formatDateTime(row.last_modified)) : h('span', '-'),
+      h(TableCellText, { value: row.kind === 'object' ? formatDateTime(row.last_modified) : '-' }),
   },
   {
     title: t('mount.table.actions'),
