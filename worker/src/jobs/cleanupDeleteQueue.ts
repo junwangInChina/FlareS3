@@ -6,19 +6,31 @@ import {
   summarizeS3Error,
 } from '../services/r2'
 import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
+import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
 
 const BATCH_SIZE = 100
 
-export async function cleanupDeleteQueue(env: Env): Promise<void> {
+export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> {
+  const startedAtMs = Date.now()
   await ensureFilesMultipartUploadIdColumn(env.DB)
   const { results } = await env.DB.prepare(
     `SELECT id, file_id, r2_key FROM delete_queue WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT ?`
   )
     .bind(BATCH_SIZE)
     .all()
-  if (!results.length) return
+  if (!results.length) {
+    return buildJobResult('cleanupDeleteQueue', startedAtMs, {
+      status: 'success',
+      processed: 0,
+      succeeded: 0,
+      failed: 0,
+      details: { dequeuedFiles: 0 },
+    })
+  }
 
   const now = new Date().toISOString()
+  let succeeded = 0
+  let failed = 0
   for (const row of results) {
     const queueId = String(row.id)
     const fileId = String(row.file_id)
@@ -64,6 +76,7 @@ export async function cleanupDeleteQueue(env: Env): Promise<void> {
         }
       }
     } catch (error) {
+      failed += 1
       console.error('cleanupDeleteQueue delete failed', error)
       continue
     }
@@ -72,5 +85,16 @@ export async function cleanupDeleteQueue(env: Env): Promise<void> {
     await env.DB.prepare('UPDATE delete_queue SET processed_at = ? WHERE id = ?')
       .bind(now, queueId)
       .run()
+    succeeded += 1
   }
+
+  return buildJobResult('cleanupDeleteQueue', startedAtMs, {
+    status: failed > 0 ? (succeeded > 0 ? 'partial' : 'failed') : 'success',
+    processed: results.length,
+    succeeded,
+    failed,
+    details: {
+      dequeuedFiles: succeeded,
+    },
+  })
 }
