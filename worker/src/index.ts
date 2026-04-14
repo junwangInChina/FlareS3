@@ -48,13 +48,17 @@ import {
 import { shortlink } from './routes/shortlink'
 import { getStats } from './routes/stats'
 import { listAudit, deleteAudit, batchDeleteAudit } from './routes/audit'
+import { getAdminOverview } from './routes/adminOverview'
+import { listAdminJobRuns } from './routes/adminJobRuns'
 import { listTexts, getText, createText, updateText, deleteText } from './routes/texts'
 import { getTextShare, upsertTextShare, deleteTextShare, viewTextShare } from './routes/textShares'
-import { createTextOneTimeShare } from './routes/textOneTimeShares'
+import { listShares } from './routes/shares'
+import { createTextOneTimeShare, deleteTextOneTimeShare } from './routes/textOneTimeShares'
 import { getFileShare, upsertFileShare, deleteFileShare, viewFileShare } from './routes/fileShares'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 import { cleanupRetention } from './jobs/cleanupRetention'
+import { buildJobResult, finishJobRun, startJobRun, type JobExecutionResult } from './services/jobRuns'
 
 const router = Router()
 
@@ -238,8 +242,22 @@ router.delete(
 )
 
 router.get(
+  '/api/shares',
+  withAuth((request, env: Env) => listShares(request, env))
+)
+
+router.get(
   '/api/stats',
   withAuth((request, env: Env) => getStats(request, env))
+)
+
+router.get(
+  '/api/admin/overview',
+  withAdmin((request, env: Env) => getAdminOverview(request, env))
+)
+router.get(
+  '/api/admin/job-runs',
+  withAdmin((request, env: Env) => listAdminJobRuns(request, env))
 )
 
 router.get(
@@ -292,6 +310,10 @@ router.delete(
 router.post(
   '/api/texts/:id/one-time-share',
   withAuth((request, env: Env) => createTextOneTimeShare(request, env, (request as any).params.id))
+)
+router.delete(
+  '/api/texts/:id/one-time-share',
+  withAuth((request, env: Env) => deleteTextOneTimeShare(request, env, (request as any).params.id))
 )
 
 router.get('/s/:code', (request, env: Env) => shortlink(request, env, (request as any).params.code))
@@ -509,23 +531,61 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 }
 
 async function handleScheduled(env: Env): Promise<void> {
-  try {
-    const cleanupExpiredResult = await cleanupExpired(env)
-    const cleanupDeleteQueueResult = await cleanupDeleteQueue(env)
-    const cleanupRetentionResult = await cleanupRetention(env)
+  const failures: JobExecutionResult[] = []
+  const jobs = [
+    ['cleanupExpired', () => cleanupExpired(env)],
+    ['cleanupDeleteQueue', () => cleanupDeleteQueue(env)],
+    ['cleanupRetention', () => cleanupRetention(env)],
+  ] as const
 
-    logStructured('info', {
-      event: 'scheduled.cleanup.completed',
-      cleanupExpired: cleanupExpiredResult ?? null,
-      cleanupDeleteQueue: cleanupDeleteQueueResult ?? null,
-      cleanupRetention: cleanupRetentionResult ?? null,
-    })
-  } catch (error) {
+  async function executeTrackedJob(
+    jobName: string,
+    handler: () => Promise<JobExecutionResult>
+  ): Promise<JobExecutionResult> {
+    const startedAt = new Date().toISOString()
+    const runId = await startJobRun(env.DB, jobName, startedAt)
+
+    try {
+      const result = await handler()
+      await finishJobRun(env.DB, runId, result)
+      return result
+    } catch (error) {
+      const failedResult = buildJobResult(jobName, Date.parse(startedAt), {
+        status: 'failed',
+        processed: 0,
+        succeeded: 0,
+        failed: 1,
+        details: {},
+        errorMessage: serializeError(error) ?? 'unknown_error',
+      })
+      await finishJobRun(env.DB, runId, failedResult)
+      return failedResult
+    }
+  }
+
+  const results: Array<readonly [string, JobExecutionResult]> = []
+  for (const [jobName, handler] of jobs) {
+    const result = await executeTrackedJob(jobName, handler)
+    if (result.status === 'failed') {
+      failures.push(result)
+    }
+    results.push([jobName, result] as const)
+  }
+
+  logStructured('info', {
+    event: 'scheduled.cleanup.completed',
+    ...Object.fromEntries(results),
+  })
+
+  if (failures.length > 0) {
+    const errorMessage = failures
+      .map((item) => item.errorMessage || `${item.jobName} failed`)
+      .join('; ')
     logStructured('error', {
       event: 'scheduled.cleanup.failed',
-      error: serializeError(error) ?? 'unknown_error',
+      error: errorMessage,
     })
-    throw error
+    throw new Error(errorMessage)
   }
 }
 
