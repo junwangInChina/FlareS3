@@ -26,6 +26,28 @@ import {
   resolveUploadConfigForUser,
 } from '../services/uploadConfigPolicy'
 import { normalizeDeclaredFileSize, validateUploadedObjectSize } from '../services/uploadValidation'
+import {
+  createUploadError,
+  fileTooLargeError,
+  invalidUploadRequestError,
+  mapUnexpectedUploadError,
+  multipartFileIdRequiredError,
+  multipartNotInitializedError,
+  multipartPartNumberInvalidError,
+  multipartUploadIdMismatchError,
+  multipartUploadIdMissingError,
+  uploadConfigCapacityExceededError,
+  uploadConfigForbiddenError,
+  uploadConfigNotFoundError,
+  uploadConfigUnavailableError,
+  uploadErrorResponse,
+  uploadFileExpiredError,
+  uploadFileNotFoundError,
+  uploadObjectMissingError,
+  uploadObjectSizeInvalidError,
+  uploadObjectSizeMismatchError,
+  userQuotaExceededError,
+} from '../services/uploadErrors'
 
 const ALLOWED_EXPIRES = new Set([-30, 0, 1, 3, 7, 30])
 const PART_SIZE = 20 * 1024 * 1024
@@ -80,7 +102,7 @@ function createUploadConfigPolicyErrorResponse(error: unknown): Response | null 
   if (!isUploadConfigPolicyError(error)) {
     return null
   }
-  return jsonResponse({ error: error.message }, error.status)
+  return uploadErrorResponse(uploadConfigForbiddenError(error.message))
 }
 
 async function getUploadConfigQuotaBytes(env: Env, configId: string): Promise<number> {
@@ -116,7 +138,7 @@ async function ensureUploadConfigHasCapacity(
   ])
 
   if (usedSpace + declaredSize > quotaBytes) {
-    return jsonResponse({ error: '所选存储配置空间不足' }, 413)
+    return uploadErrorResponse(uploadConfigCapacityExceededError())
   }
 
   return null
@@ -193,7 +215,7 @@ async function verifyUploadedObjectSizeOrReject(
   const actualSize = await getObjectSize(loaded.config, String(file.r2_key))
   if (actualSize === null) {
     return {
-      response: jsonResponse({ error: '上传对象不存在或尚未完成' }, 409),
+      response: uploadErrorResponse(uploadObjectMissingError()),
     }
   }
 
@@ -226,12 +248,12 @@ async function verifyUploadedObjectSizeOrReject(
 
   if (validation.reason === 'INVALID_ACTUAL_SIZE') {
     return {
-      response: jsonResponse({ error: '上传对象大小无效' }, 502),
+      response: uploadErrorResponse(uploadObjectSizeInvalidError()),
     }
   }
 
   return {
-    response: jsonResponse({ error: '上传对象大小与声明大小不一致' }, 409),
+    response: uploadErrorResponse(uploadObjectSizeMismatchError()),
   }
 }
 
@@ -323,18 +345,18 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
 
     const declaredSize = normalizeDeclaredFileSize(body.size)
     if (!body.filename || declaredSize === null) {
-      return jsonResponse({ error: '无效的请求' }, 400)
+      return uploadErrorResponse(invalidUploadRequestError())
     }
     const expiresIn = normalizeExpiresIn(body.expires_in)
 
     const maxSize = getMaxFileSize(env)
     if (declaredSize > maxSize) {
-      return jsonResponse({ error: '文件大小超过限制' }, 413)
+      return uploadErrorResponse(fileTooLargeError(declaredSize, maxSize))
     }
 
     const used = await getUserUsedSpace(env.DB, user.id)
     if (used + declaredSize > user.quota_bytes) {
-      return jsonResponse({ error: '超出配额' }, 413)
+      return uploadErrorResponse(userQuotaExceededError(declaredSize, user.quota_bytes, used))
     }
 
     let loaded
@@ -347,8 +369,8 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
     }
 
     if (!loaded) {
-      if (body.config_id) return jsonResponse({ error: '配置不存在或不可用' }, 404)
-      return jsonResponse({ error: 'R2 未配置' }, 503)
+      if (body.config_id) return uploadErrorResponse(uploadConfigNotFoundError())
+      return uploadErrorResponse(uploadConfigUnavailableError())
     }
 
     const quotaResponse = await ensureUploadConfigHasCapacity(env, loaded.id, declaredSize)
@@ -390,7 +412,12 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
       r2_config_id: loaded.id,
     })
   } catch (error) {
-    return jsonResponse({ error: '生成上传 URL 失败' }, 500)
+    return uploadErrorResponse(
+      mapUnexpectedUploadError(error, {
+        code: 'UPLOAD_PRESIGN_FAILED',
+        message: '生成上传 URL 失败',
+      })
+    )
   }
 }
 
@@ -408,12 +435,12 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
       .first()
 
     if (!file || file.owner_id !== user.id) {
-      return jsonResponse({ error: '文件不存在' }, 404)
+      return uploadErrorResponse(uploadFileNotFoundError())
     }
 
     const r2Key = String(file.r2_key)
     const loaded = await resolveR2ConfigForKey(env, r2Key)
-    if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+    if (!loaded) return uploadErrorResponse(uploadConfigUnavailableError())
 
     const sizeValidation = await verifyUploadedObjectSizeOrReject(
       env,
@@ -459,7 +486,12 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
       r2_config_id: loaded.id,
     })
   } catch (error) {
-    return jsonResponse({ error: '确认上传失败' }, 500)
+    return uploadErrorResponse(
+      mapUnexpectedUploadError(error, {
+        code: 'UPLOAD_CONFIRM_FAILED',
+        message: '确认上传失败',
+      })
+    )
   }
 }
 
@@ -479,18 +511,18 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
 
     const declaredSize = normalizeDeclaredFileSize(body.size)
     if (!body.filename || declaredSize === null) {
-      return jsonResponse({ error: '无效的请求' }, 400)
+      return uploadErrorResponse(invalidUploadRequestError())
     }
     const expiresIn = normalizeExpiresIn(body.expires_in)
 
     const maxSize = getMaxFileSize(env)
     if (declaredSize > maxSize) {
-      return jsonResponse({ error: '文件大小超过限制' }, 413)
+      return uploadErrorResponse(fileTooLargeError(declaredSize, maxSize))
     }
 
     const used = await getUserUsedSpace(env.DB, user.id)
     if (used + declaredSize > user.quota_bytes) {
-      return jsonResponse({ error: '超出配额' }, 413)
+      return uploadErrorResponse(userQuotaExceededError(declaredSize, user.quota_bytes, used))
     }
 
     let loaded
@@ -503,8 +535,8 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
     }
 
     if (!loaded) {
-      if (body.config_id) return jsonResponse({ error: '配置不存在或不可用' }, 404)
-      return jsonResponse({ error: 'R2 未配置' }, 503)
+      if (body.config_id) return uploadErrorResponse(uploadConfigNotFoundError())
+      return uploadErrorResponse(uploadConfigUnavailableError())
     }
 
     const quotaResponse = await ensureUploadConfigHasCapacity(env, loaded.id, declaredSize)
@@ -541,7 +573,12 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       r2_config_id: loaded.id,
     })
   } catch (error) {
-    return jsonResponse({ error: '初始化分片上传失败' }, 500)
+    return uploadErrorResponse(
+      mapUnexpectedUploadError(error, {
+        code: 'UPLOAD_MULTIPART_INIT_FAILED',
+        message: '初始化分片上传失败',
+      })
+    )
   }
 }
 
@@ -564,32 +601,32 @@ export async function presignMultipart(request: Request, env: Env): Promise<Resp
       .first()
 
     if (!file || file.owner_id !== user.id) {
-      return jsonResponse({ error: '文件不存在' }, 404)
+      return uploadErrorResponse(uploadFileNotFoundError())
     }
 
     if (isExpired(file.expires_at)) {
-      return jsonResponse({ error: '文件已过期' }, 410)
+      return uploadErrorResponse(uploadFileExpiredError())
     }
 
     if (file.upload_status !== 'uploading') {
-      return jsonResponse({ error: '分片上传未初始化' }, 400)
+      return uploadErrorResponse(multipartNotInitializedError())
     }
 
     const storedUploadId = String(file.multipart_upload_id || '').trim()
     if (!storedUploadId) {
-      return jsonResponse({ error: 'upload_id 缺失' }, 400)
+      return uploadErrorResponse(multipartUploadIdMissingError())
     }
     if (storedUploadId !== String(body.upload_id || '').trim()) {
-      return jsonResponse({ error: 'upload_id 不匹配' }, 400)
+      return uploadErrorResponse(multipartUploadIdMismatchError())
     }
 
     const partNumber = Number(body.part_number)
     if (!Number.isFinite(partNumber) || partNumber <= 0) {
-      return jsonResponse({ error: 'part_number 无效' }, 400)
+      return uploadErrorResponse(multipartPartNumberInvalidError())
     }
 
     const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
-    if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+    if (!loaded) return uploadErrorResponse(uploadConfigUnavailableError())
 
     const uploadUrl = await generateMultipartUploadUrl(
       loaded.config,
@@ -604,7 +641,12 @@ export async function presignMultipart(request: Request, env: Env): Promise<Resp
       part_number: partNumber,
     })
   } catch (error) {
-    return jsonResponse({ error: '生成分片上传 URL 失败' }, 500)
+    return uploadErrorResponse(
+      mapUnexpectedUploadError(error, {
+        code: 'UPLOAD_MULTIPART_PRESIGN_FAILED',
+        message: '生成分片上传 URL 失败',
+      })
+    )
   }
 }
 
@@ -627,32 +669,38 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
       .first()
 
     if (!file || file.owner_id !== user.id) {
-      return jsonResponse({ error: '文件不存在' }, 404)
+      return uploadErrorResponse(uploadFileNotFoundError())
     }
 
     const expiresAt = new Date(String(file.expires_at))
     const expiresAtMs = expiresAt.getTime()
     if (Number.isNaN(expiresAtMs)) {
-      return jsonResponse({ error: '文件过期时间无效' }, 500)
+      return uploadErrorResponse(
+        createUploadError({
+          status: 500,
+          code: 'UPLOAD_FILE_EXPIRATION_INVALID',
+          message: '文件过期时间无效',
+        })
+      )
     }
     if (Date.now() > expiresAtMs) {
-      return jsonResponse({ error: '文件已过期' }, 410)
+      return uploadErrorResponse(uploadFileExpiredError())
     }
 
     if (file.upload_status !== 'uploading') {
-      return jsonResponse({ error: '分片上传未初始化' }, 400)
+      return uploadErrorResponse(multipartNotInitializedError())
     }
 
     const storedUploadId = String(file.multipart_upload_id || '').trim()
     if (!storedUploadId) {
-      return jsonResponse({ error: 'upload_id 缺失' }, 400)
+      return uploadErrorResponse(multipartUploadIdMissingError())
     }
     if (storedUploadId !== String(body.upload_id || '').trim()) {
-      return jsonResponse({ error: 'upload_id 不匹配' }, 400)
+      return uploadErrorResponse(multipartUploadIdMismatchError())
     }
 
     const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
-    if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+    if (!loaded) return uploadErrorResponse(uploadConfigUnavailableError())
 
     const requestParts = Array.isArray(body.parts) ? body.parts : []
     const parts: Array<{ PartNumber?: number; ETag?: string }> =
@@ -724,7 +772,12 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
       r2_config_id: loaded.id,
     })
   } catch (error) {
-    return jsonResponse({ error: '完成分片上传失败' }, 500)
+    return uploadErrorResponse(
+      mapUnexpectedUploadError(error, {
+        code: 'UPLOAD_MULTIPART_COMPLETE_FAILED',
+        message: '完成分片上传失败',
+      })
+    )
   }
 }
 
@@ -736,7 +789,7 @@ export async function abortMultipart(request: Request, env: Env): Promise<Respon
     const body = await parseJson<{ file_id: string }>(request)
     const fileId = String(body?.file_id || '').trim()
     if (!fileId) {
-      return jsonResponse({ error: 'file_id 不能为空' }, 400)
+      return uploadErrorResponse(multipartFileIdRequiredError())
     }
 
     await ensureFilesMultipartUploadIdColumn(env.DB)
@@ -747,21 +800,27 @@ export async function abortMultipart(request: Request, env: Env): Promise<Respon
       .first()
 
     if (!file || file.owner_id !== user.id) {
-      return jsonResponse({ error: '文件不存在' }, 404)
+      return uploadErrorResponse(uploadFileNotFoundError())
     }
 
     if (file.upload_status !== 'uploading') {
-      return jsonResponse({ error: '文件不在分片上传中' }, 400)
+      return uploadErrorResponse(
+        createUploadError({
+          status: 400,
+          code: 'UPLOAD_MULTIPART_NOT_ACTIVE',
+          message: '文件不在分片上传中',
+        })
+      )
     }
 
     const r2Key = String(file.r2_key)
     const multipartUploadId = String(file.multipart_upload_id || '').trim()
     if (!multipartUploadId) {
-      return jsonResponse({ error: 'upload_id 缺失' }, 400)
+      return uploadErrorResponse(multipartUploadIdMissingError())
     }
 
     const loaded = await resolveR2ConfigForKey(env, r2Key)
-    if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+    if (!loaded) return uploadErrorResponse(uploadConfigUnavailableError())
 
     let queued = false
     try {
@@ -814,6 +873,11 @@ export async function abortMultipart(request: Request, env: Env): Promise<Respon
 
     return jsonResponse({ success: true, queued })
   } catch (error) {
-    return jsonResponse({ error: '取消分片上传失败' }, 500)
+    return uploadErrorResponse(
+      mapUnexpectedUploadError(error, {
+        code: 'UPLOAD_MULTIPART_ABORT_FAILED',
+        message: '取消分片上传失败',
+      })
+    )
   }
 }
