@@ -145,6 +145,9 @@ export function buildDashboardInsightsModel({ metrics = {}, setup = {}, loading 
     ...segment,
     ratio: totalTexts > 0 ? segment.value / totalTexts : 0,
   }))
+  const visibleTextFreshnessSegments = loading
+    ? textFreshnessSegments
+    : textFreshnessSegments.filter((segment) => segment.value > 0)
 
   return {
     userStatus: {
@@ -242,7 +245,7 @@ export function buildDashboardInsightsModel({ metrics = {}, setup = {}, loading 
       title: t('dashboard.insights.textFreshness.title'),
       totalLabel: t('dashboard.insights.textFreshness.totalLabel'),
       totalValue: getOverviewDisplayValue(totalTexts, { loading }),
-      segments: textFreshnessSegments,
+      segments: visibleTextFreshnessSegments,
     },
   }
 }
