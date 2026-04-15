@@ -47,6 +47,10 @@ const getShareBarHeight = (bar) => {
 }
 
 const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio * 100, 100))}%`
+const getTextFreshnessColumns = (segments) => {
+  if (!segments.length) return 'minmax(0, 1fr)'
+  return segments.map((segment) => `minmax(0, ${Math.max(segment.ratio, 0.12)}fr)`).join(' ')
+}
 </script>
 
 <template>
@@ -164,10 +168,18 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
 
       <div class="share-status">
         <div class="share-status-chart">
-          <div v-for="bar in insights.shareStatus.bars" :key="bar.key" class="share-status-bar" :data-tone="bar.tone">
-            <div class="share-status-bar-value">{{ bar.displayValue }}</div>
-            <div class="share-status-bar-shell">
-              <div class="share-status-bar-fill" :style="{ height: getShareBarHeight(bar) }"></div>
+          <div
+            v-for="bar in insights.shareStatus.bars"
+            :key="bar.key"
+            class="share-status-bar"
+            :data-tone="bar.tone"
+            :style="{ '--share-bar-height': getShareBarHeight(bar) }"
+          >
+            <div class="share-status-bar-plot">
+              <div class="share-status-bar-value">{{ bar.displayValue }}</div>
+              <div class="share-status-bar-shell">
+                <div class="share-status-bar-fill"></div>
+              </div>
             </div>
             <div class="share-status-bar-label">{{ bar.label }}</div>
           </div>
@@ -194,7 +206,10 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
             :style="{ width: getTextFreshnessWidth(segment) }"
           ></div>
         </div>
-        <div class="text-freshness-list">
+        <div
+          class="text-freshness-list"
+          :style="{ gridTemplateColumns: getTextFreshnessColumns(insights.textFreshness.segments) }"
+        >
           <div v-for="segment in insights.textFreshness.segments" :key="segment.key" class="text-freshness-item">
             <span class="text-freshness-item-label">{{ segment.label }}</span>
             <span class="text-freshness-item-value">{{ segment.displayValue }}</span>
@@ -250,8 +265,8 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
   display: grid;
   grid-template-columns: minmax(170px, 208px) minmax(0, 1fr);
   gap: 20px;
-  justify-content: start;
-  align-items: start;
+  justify-content: center;
+  align-items: center;
 }
 
 .user-status-ring {
@@ -307,9 +322,10 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
 }
 
 .user-status-summary {
+  display: flex;
   min-width: 0;
-  max-width: 320px;
-  justify-self: start;
+  max-width: 220px;
+  align-self: center;
 }
 
 .user-status-total-label {
@@ -335,24 +351,24 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
 
 .user-status-legend {
   display: grid;
-  gap: 0;
-  border-top: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 75%, transparent);
+  gap: 8px;
+  width: 100%;
+  border-top: none;
 }
 
 .user-status-legend-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 65%, transparent);
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 2px 0;
+  border-bottom: none;
 }
 
 .user-status-legend-copy {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
 }
 
 .user-status-legend-dot {
@@ -544,9 +560,20 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
 }
 
 .share-status-bar {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   justify-items: center;
+  align-items: center;
+}
+
+.share-status-bar-plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  min-height: 88px;
 }
 
 .share-status-bar-shell {
@@ -563,6 +590,7 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
 
 .share-status-bar-fill {
   width: 14px;
+  height: var(--share-bar-height);
   min-height: 10px;
   border-radius: 999px 999px 4px 4px;
   background: color-mix(in srgb, var(--nb-ink, #0f172a) 86%, #475569);
@@ -589,10 +617,15 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
 }
 
 .share-status-bar-value {
+  position: absolute;
+  bottom: calc(var(--share-bar-height) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
   font-size: 12px;
   font-weight: 800;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .text-freshness {
@@ -648,9 +681,10 @@ const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio
 
 .text-freshness-item {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
   min-width: 0;
 }
 
