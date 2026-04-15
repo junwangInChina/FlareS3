@@ -65,15 +65,86 @@ function getUploadConfigStatusKey(setup) {
   return 'ready'
 }
 
+function getShareStatusMetric(value, { key, label, shortLabel, tone, loading = false }) {
+  const normalizedValue = normalizeCount(value)
+
+  return {
+    key,
+    label,
+    shortLabel,
+    tone,
+    value: normalizedValue,
+    displayValue: getOverviewDisplayValue(normalizedValue, { loading }),
+  }
+}
+
 export function buildDashboardInsightsModel({ metrics = {}, setup = {}, loading = false, t }) {
   const totalUsers = normalizeCount(metrics?.totalUsers)
   const activeUsers = totalUsers > 0 ? Math.min(normalizeCount(metrics?.activeUsers), totalUsers) : 0
   const disabledUsers =
     totalUsers > 0 ? Math.min(normalizeCount(metrics?.disabledUsers), Math.max(totalUsers - activeUsers, 0)) : 0
   const otherUsers = totalUsers > 0 ? Math.max(totalUsers - activeUsers - disabledUsers, 0) : 0
+  const totalTexts = normalizeCount(metrics?.totalTexts)
 
   const uploadConfigMetric = getUploadConfigMetric(setup, { loading, t })
   const configHealthStatusKey = getUploadConfigStatusKey(setup)
+  const shareStatusBars = [
+    getShareStatusMetric(metrics?.activeShares, {
+      key: 'activeShares',
+      label: t('dashboard.insights.shareStatus.activeShares'),
+      shortLabel: t('dashboard.insights.shareStatus.shortActive'),
+      tone: 'default',
+      loading,
+    }),
+    getShareStatusMetric(metrics?.expiredShares, {
+      key: 'expiredShares',
+      label: t('dashboard.insights.shareStatus.expiredShares'),
+      shortLabel: t('dashboard.insights.shareStatus.shortExpired'),
+      tone: 'warning',
+      loading,
+    }),
+    getShareStatusMetric(metrics?.exhaustedShares, {
+      key: 'exhaustedShares',
+      label: t('dashboard.insights.shareStatus.exhaustedShares'),
+      shortLabel: t('dashboard.insights.shareStatus.shortExhausted'),
+      tone: 'muted',
+      loading,
+    }),
+    getShareStatusMetric(metrics?.consumedShares, {
+      key: 'consumedShares',
+      label: t('dashboard.insights.shareStatus.consumedShares'),
+      shortLabel: t('dashboard.insights.shareStatus.shortConsumed'),
+      tone: 'success',
+      loading,
+    }),
+  ]
+  const maxShareValue = shareStatusBars.reduce((maxValue, item) => Math.max(maxValue, item.value), 0)
+  const textFreshnessSegments = [
+    {
+      key: 'textsUpdated7d',
+      label: t('dashboard.insights.textFreshness.textsUpdated7d'),
+      tone: 'strong',
+      value: normalizeCount(metrics?.textsUpdated7d),
+      displayValue: getOverviewDisplayValue(metrics?.textsUpdated7d, { loading }),
+    },
+    {
+      key: 'textsUpdated8To30d',
+      label: t('dashboard.insights.textFreshness.textsUpdated8To30d'),
+      tone: 'medium',
+      value: normalizeCount(metrics?.textsUpdated8To30d),
+      displayValue: getOverviewDisplayValue(metrics?.textsUpdated8To30d, { loading }),
+    },
+    {
+      key: 'textsStaleOver30d',
+      label: t('dashboard.insights.textFreshness.textsStaleOver30d'),
+      tone: 'muted',
+      value: normalizeCount(metrics?.textsStaleOver30d),
+      displayValue: getOverviewDisplayValue(metrics?.textsStaleOver30d, { loading }),
+    },
+  ].map((segment) => ({
+    ...segment,
+    ratio: totalTexts > 0 ? segment.value / totalTexts : 0,
+  }))
 
   return {
     userStatus: {
@@ -160,6 +231,19 @@ export function buildDashboardInsightsModel({ metrics = {}, setup = {}, loading 
         },
       ],
     },
+    shareStatus: {
+      title: t('dashboard.insights.shareStatus.title'),
+      bars: shareStatusBars.map((item) => ({
+        ...item,
+        barRatio: maxShareValue > 0 ? item.value / maxShareValue : 0,
+      })),
+    },
+    textFreshness: {
+      title: t('dashboard.insights.textFreshness.title'),
+      totalLabel: t('dashboard.insights.textFreshness.totalLabel'),
+      totalValue: getOverviewDisplayValue(totalTexts, { loading }),
+      segments: textFreshnessSegments,
+    },
   }
 }
 
@@ -202,6 +286,23 @@ export function buildOverviewCardsModel({ metrics = {}, setup = {}, loading = fa
       ],
     },
     {
+      key: 'docsShares',
+      label: t('dashboard.cards.docsShares'),
+      hint: t('dashboard.cards.docsSharesHint'),
+      metrics: [
+        {
+          key: 'totalTexts',
+          label: t('dashboard.cards.totalTexts'),
+          value: getOverviewDisplayValue(metrics?.totalTexts, { loading }),
+        },
+        {
+          key: 'activeShares',
+          label: t('dashboard.cards.activeShares'),
+          value: getOverviewDisplayValue(metrics?.activeShares, { loading }),
+        },
+      ],
+    },
+    {
       key: 'storage',
       label: t('dashboard.cards.storage'),
       hint: uploadConfigMetric.hint,
@@ -218,8 +319,6 @@ export function buildOverviewCardsModel({ metrics = {}, setup = {}, loading = fa
           key: uploadConfigMetric.key,
           label: uploadConfigMetric.label,
           value: uploadConfigMetric.value,
-          tagLabel: uploadConfigMetric.tagLabel,
-          tagType: uploadConfigMetric.tagType,
         },
       ],
     },
