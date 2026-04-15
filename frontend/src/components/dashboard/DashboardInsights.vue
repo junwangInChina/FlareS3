@@ -55,177 +55,187 @@ const getTextFreshnessColumns = (segments) => {
 
 <template>
   <section class="dashboard-insights-grid">
-    <Card class="dashboard-insights-card dashboard-insights-card--user-status">
-      <div class="dashboard-insights-card-head">
-        <div class="dashboard-insights-section-title">{{ insights.userStatus.title }}</div>
-      </div>
-
-      <div class="user-status-panel">
-        <div class="user-status-ring">
-          <div class="user-status-ring-shell">
-            <svg
-              class="user-status-ring-svg"
-              viewBox="0 0 120 120"
-              role="img"
-              :aria-label="insights.userStatus.title"
-            >
-              <circle class="user-status-ring-track" cx="60" cy="60" r="44" />
-              <circle
-                v-for="segment in ringSegments"
-                :key="segment.key"
-                class="user-status-ring-segment"
-                :data-tone="segment.tone"
-                cx="60"
-                cy="60"
-                r="44"
-                :stroke-dasharray="`${segment.dashLength} ${RING_CIRCUMFERENCE}`"
-                :stroke-dashoffset="`${-segment.dashOffset}`"
-              />
-            </svg>
-
-            <div class="user-status-ring-center">
-              <div class="user-status-total-label">{{ insights.userStatus.totalLabel }}</div>
-              <div class="user-status-total-value">{{ insights.userStatus.totalValue }}</div>
-              <div v-if="insights.userStatus.empty" class="user-status-empty">
-                {{ t('dashboard.insights.userStatus.empty') }}
-              </div>
-            </div>
-          </div>
+    <div class="dashboard-insights-column dashboard-insights-column--primary">
+      <Card class="dashboard-insights-card dashboard-insights-card--user-status">
+        <div class="dashboard-insights-card-head">
+          <div class="dashboard-insights-section-title">{{ insights.userStatus.title }}</div>
         </div>
 
-        <div class="user-status-summary">
-          <div class="user-status-legend">
-            <div v-for="segment in insights.userStatus.segments" :key="segment.key" class="user-status-legend-item">
-              <div class="user-status-legend-copy">
-                <span class="user-status-legend-dot" :data-tone="segment.tone" aria-hidden="true"></span>
-                <span class="user-status-legend-label">{{ segment.label }}</span>
-              </div>
-              <span class="user-status-legend-value">{{ segment.displayValue }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Card>
-
-    <Card class="dashboard-insights-card dashboard-insights-card--health">
-      <div class="dashboard-insights-card-head">
-        <div class="dashboard-insights-section-title">{{ t('dashboard.insights.health.title') }}</div>
-      </div>
-
-      <div class="dashboard-insights-stack">
-        <section class="dashboard-insights-panel dashboard-insights-panel--config">
-          <div class="config-health">
-            <div class="dashboard-insights-subtitle">{{ insights.configHealth.title }}</div>
-            <div class="config-health-steps">
-              <div
-                v-for="step in insights.configHealth.steps"
-                :key="step.key"
-                class="config-health-step"
-                :data-step="step.key"
-                :class="{ 'is-complete': step.complete, 'is-active': step.active }"
+        <div class="user-status-panel">
+          <div class="user-status-ring">
+            <div class="user-status-ring-shell">
+              <svg
+                class="user-status-ring-svg"
+                viewBox="0 0 120 120"
+                role="img"
+                :aria-label="insights.userStatus.title"
               >
-                <span class="config-health-step-bar"></span>
-                <span class="config-health-step-label">{{ step.label }}</span>
-              </div>
-            </div>
-            <div class="config-health-body">
-              <div class="config-health-status-row">
-                <div class="config-health-status" :data-tone="insights.configHealth.statusKey">
-                  {{ insights.configHealth.statusLabel }}
+                <circle class="user-status-ring-track" cx="60" cy="60" r="44" />
+                <circle
+                  v-for="segment in ringSegments"
+                  :key="segment.key"
+                  class="user-status-ring-segment"
+                  :data-tone="segment.tone"
+                  cx="60"
+                  cy="60"
+                  r="44"
+                  :stroke-dasharray="`${segment.dashLength} ${RING_CIRCUMFERENCE}`"
+                  :stroke-dashoffset="`${-segment.dashOffset}`"
+                />
+              </svg>
+
+              <div class="user-status-ring-center">
+                <div class="user-status-total-label">{{ insights.userStatus.totalLabel }}</div>
+                <div class="user-status-total-value">{{ insights.userStatus.totalValue }}</div>
+                <div v-if="insights.userStatus.empty" class="user-status-empty">
+                  {{ t('dashboard.insights.userStatus.empty') }}
                 </div>
-                <div class="config-health-value">
-                  {{ t('dashboard.insights.configHealth.countLabel', { count: insights.configHealth.value }) }}
-                </div>
               </div>
-              <div class="config-health-hint">{{ insights.configHealth.hint }}</div>
             </div>
           </div>
-        </section>
 
-        <section class="dashboard-insights-panel dashboard-insights-panel--alerts">
-          <div class="file-alerts">
-            <div class="dashboard-insights-subtitle">{{ insights.fileAlerts.title }}</div>
+          <div class="user-status-summary">
+            <div class="user-status-legend">
+              <div v-for="segment in insights.userStatus.segments" :key="segment.key" class="user-status-legend-item">
+                <div class="user-status-legend-copy">
+                  <span class="user-status-legend-dot" :data-tone="segment.tone" aria-hidden="true"></span>
+                  <span class="user-status-legend-label">{{ segment.label }}</span>
+                </div>
+                <span class="user-status-legend-value">{{ segment.displayValue }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card class="dashboard-insights-card dashboard-insights-card--share-status">
+        <div class="dashboard-insights-card-head">
+          <div class="dashboard-insights-section-title">{{ insights.shareStatus.title }}</div>
+        </div>
+
+        <div class="share-status">
+          <div class="share-status-chart">
             <div
-              v-for="item in insights.fileAlerts.items"
-              :key="item.key"
-              class="file-alert-item"
-              :data-tone="item.tone"
+              v-for="bar in insights.shareStatus.bars"
+              :key="bar.key"
+              class="share-status-bar"
+              :data-tone="bar.tone"
+              :style="{ '--share-bar-height': getShareBarHeight(bar) }"
             >
-              <div class="file-alert-item-copy">
-                <div class="file-alert-label">{{ item.label }}</div>
+              <div class="share-status-bar-plot">
+                <div class="share-status-bar-value">{{ bar.displayValue }}</div>
+                <div class="share-status-bar-shell">
+                  <div class="share-status-bar-fill"></div>
+                </div>
               </div>
-              <div class="file-alert-value">{{ item.displayValue }}</div>
+              <div class="share-status-bar-label">{{ bar.label }}</div>
             </div>
           </div>
-        </section>
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </div>
 
-    <Card class="dashboard-insights-card dashboard-insights-card--share-status">
-      <div class="dashboard-insights-card-head">
-        <div class="dashboard-insights-section-title">{{ insights.shareStatus.title }}</div>
-      </div>
+    <div class="dashboard-insights-column dashboard-insights-column--secondary">
+      <Card class="dashboard-insights-card dashboard-insights-card--health">
+        <div class="dashboard-insights-card-head">
+          <div class="dashboard-insights-section-title">{{ t('dashboard.insights.health.title') }}</div>
+        </div>
 
-      <div class="share-status">
-        <div class="share-status-chart">
+        <div class="dashboard-insights-stack">
+          <section class="dashboard-insights-panel dashboard-insights-panel--config">
+            <div class="config-health">
+              <div class="dashboard-insights-subtitle">{{ insights.configHealth.title }}</div>
+              <div class="config-health-steps">
+                <div
+                  v-for="step in insights.configHealth.steps"
+                  :key="step.key"
+                  class="config-health-step"
+                  :data-step="step.key"
+                  :class="{ 'is-complete': step.complete, 'is-active': step.active }"
+                >
+                  <span class="config-health-step-bar"></span>
+                  <span class="config-health-step-label">{{ step.label }}</span>
+                </div>
+              </div>
+              <div class="config-health-body">
+                <div class="config-health-status-row">
+                  <div class="config-health-status" :data-tone="insights.configHealth.statusKey">
+                    {{ insights.configHealth.statusLabel }}
+                  </div>
+                  <div class="config-health-value">
+                    {{ t('dashboard.insights.configHealth.countLabel', { count: insights.configHealth.value }) }}
+                  </div>
+                </div>
+                <div class="config-health-hint">{{ insights.configHealth.hint }}</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dashboard-insights-panel dashboard-insights-panel--alerts">
+            <div class="file-alerts">
+              <div class="dashboard-insights-subtitle">{{ insights.fileAlerts.title }}</div>
+              <div
+                v-for="item in insights.fileAlerts.items"
+                :key="item.key"
+                class="file-alert-item"
+                :data-tone="item.tone"
+              >
+                <div class="file-alert-item-copy">
+                  <div class="file-alert-label">{{ item.label }}</div>
+                </div>
+                <div class="file-alert-value">{{ item.displayValue }}</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </Card>
+
+      <Card class="dashboard-insights-card dashboard-insights-card--text-freshness">
+        <div class="dashboard-insights-card-head">
+          <div class="dashboard-insights-section-title">{{ insights.textFreshness.title }}</div>
+        </div>
+
+        <div class="text-freshness">
+          <div class="text-freshness-head">
+            <div class="text-freshness-total-label">{{ insights.textFreshness.totalLabel }}</div>
+            <div class="text-freshness-total-value">{{ insights.textFreshness.totalValue }}</div>
+          </div>
+          <div class="text-freshness-track" aria-hidden="true">
+            <div
+              v-for="segment in insights.textFreshness.segments"
+              :key="segment.key"
+              class="text-freshness-segment"
+              :data-tone="segment.tone"
+              :style="{ width: getTextFreshnessWidth(segment) }"
+            ></div>
+          </div>
           <div
-            v-for="bar in insights.shareStatus.bars"
-            :key="bar.key"
-            class="share-status-bar"
-            :data-tone="bar.tone"
-            :style="{ '--share-bar-height': getShareBarHeight(bar) }"
+            class="text-freshness-list"
+            :style="{ gridTemplateColumns: getTextFreshnessColumns(insights.textFreshness.segments) }"
           >
-            <div class="share-status-bar-plot">
-              <div class="share-status-bar-value">{{ bar.displayValue }}</div>
-              <div class="share-status-bar-shell">
-                <div class="share-status-bar-fill"></div>
-              </div>
+            <div v-for="segment in insights.textFreshness.segments" :key="segment.key" class="text-freshness-item">
+              <span class="text-freshness-item-label">{{ segment.label }}</span>
+              <span class="text-freshness-item-value">{{ segment.displayValue }}</span>
             </div>
-            <div class="share-status-bar-label">{{ bar.label }}</div>
           </div>
         </div>
-      </div>
-    </Card>
-
-    <Card class="dashboard-insights-card dashboard-insights-card--text-freshness">
-      <div class="dashboard-insights-card-head">
-        <div class="dashboard-insights-section-title">{{ insights.textFreshness.title }}</div>
-      </div>
-
-      <div class="text-freshness">
-        <div class="text-freshness-head">
-          <div class="text-freshness-total-label">{{ insights.textFreshness.totalLabel }}</div>
-          <div class="text-freshness-total-value">{{ insights.textFreshness.totalValue }}</div>
-        </div>
-        <div class="text-freshness-track" aria-hidden="true">
-          <div
-            v-for="segment in insights.textFreshness.segments"
-            :key="segment.key"
-            class="text-freshness-segment"
-            :data-tone="segment.tone"
-            :style="{ width: getTextFreshnessWidth(segment) }"
-          ></div>
-        </div>
-        <div
-          class="text-freshness-list"
-          :style="{ gridTemplateColumns: getTextFreshnessColumns(insights.textFreshness.segments) }"
-        >
-          <div v-for="segment in insights.textFreshness.segments" :key="segment.key" class="text-freshness-item">
-            <span class="text-freshness-item-label">{{ segment.label }}</span>
-            <span class="text-freshness-item-value">{{ segment.displayValue }}</span>
-          </div>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .dashboard-insights-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 1fr);
+  grid-template-columns: max-content minmax(360px, 1fr);
   gap: 12px;
-  align-items: stretch;
+  align-items: start;
+}
+
+.dashboard-insights-column {
+  display: grid;
+  gap: 12px;
+  align-content: start;
 }
 
 .dashboard-insights-card {
@@ -711,7 +721,7 @@ const getTextFreshnessColumns = (segments) => {
 
 @media (max-width: 1080px) {
   .dashboard-insights-grid {
-    grid-template-columns: minmax(0, 1.2fr) minmax(240px, 1fr);
+    grid-template-columns: max-content minmax(280px, 1fr);
   }
 
   .user-status-panel {
@@ -723,6 +733,10 @@ const getTextFreshnessColumns = (segments) => {
 @media (max-width: 720px) {
   .dashboard-insights-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-insights-column {
+    display: contents;
   }
 
   .dashboard-insights-card-head {
