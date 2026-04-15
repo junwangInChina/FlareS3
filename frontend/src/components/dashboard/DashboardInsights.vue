@@ -233,6 +233,14 @@ const getTextFreshnessColumns = (segments) => {
   height: 100%;
 }
 
+.dashboard-insights-card--user-status {
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
+  justify-self: start;
+  align-self: start;
+}
+
 .dashboard-insights-card-head {
   display: grid;
   gap: 10px;
@@ -263,10 +271,12 @@ const getTextFreshnessColumns = (segments) => {
 
 .user-status-panel {
   display: grid;
-  grid-template-columns: minmax(170px, 208px) minmax(0, 1fr);
+  grid-template-columns: minmax(170px, 208px) fit-content(220px);
   gap: 20px;
-  justify-content: center;
+  justify-content: start;
   align-items: center;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .user-status-ring {
