@@ -40,37 +40,44 @@ const ringSegments = computed(() => {
     })
     .filter((segment) => segment.dashLength > 0)
 })
+
+const getShareBarHeight = (bar) => {
+  if (bar.value <= 0) return '10px'
+  return `${Math.max(18, Math.round(bar.barRatio * 52) + 12)}px`
+}
+
+const getTextFreshnessWidth = (segment) => `${Math.max(0, Math.min(segment.ratio * 100, 100))}%`
 </script>
 
 <template>
   <section class="dashboard-insights-grid">
     <Card class="dashboard-insights-card dashboard-insights-card--user-status">
-      <div class="dashboard-insights-section-header">
+      <div class="dashboard-insights-card-head">
         <div class="dashboard-insights-section-title">{{ insights.userStatus.title }}</div>
       </div>
 
       <div class="user-status-panel">
         <div class="user-status-ring">
           <div class="user-status-ring-shell">
-          <svg
-            class="user-status-ring-svg"
-            viewBox="0 0 120 120"
-            role="img"
-            :aria-label="insights.userStatus.title"
-          >
-            <circle class="user-status-ring-track" cx="60" cy="60" r="44" />
-            <circle
-              v-for="segment in ringSegments"
-              :key="segment.key"
-              class="user-status-ring-segment"
-              :data-tone="segment.tone"
-              cx="60"
-              cy="60"
-              r="44"
-              :stroke-dasharray="`${segment.dashLength} ${RING_CIRCUMFERENCE}`"
-              :stroke-dashoffset="`${-segment.dashOffset}`"
-            />
-          </svg>
+            <svg
+              class="user-status-ring-svg"
+              viewBox="0 0 120 120"
+              role="img"
+              :aria-label="insights.userStatus.title"
+            >
+              <circle class="user-status-ring-track" cx="60" cy="60" r="44" />
+              <circle
+                v-for="segment in ringSegments"
+                :key="segment.key"
+                class="user-status-ring-segment"
+                :data-tone="segment.tone"
+                cx="60"
+                cy="60"
+                r="44"
+                :stroke-dasharray="`${segment.dashLength} ${RING_CIRCUMFERENCE}`"
+                :stroke-dashoffset="`${-segment.dashOffset}`"
+              />
+            </svg>
 
             <div class="user-status-ring-center">
               <div class="user-status-total-label">{{ insights.userStatus.totalLabel }}</div>
@@ -97,49 +104,105 @@ const ringSegments = computed(() => {
     </Card>
 
     <Card class="dashboard-insights-card dashboard-insights-card--health">
-      <div class="dashboard-insights-section-header">
+      <div class="dashboard-insights-card-head">
         <div class="dashboard-insights-section-title">{{ t('dashboard.insights.health.title') }}</div>
       </div>
 
-      <div class="config-health">
-        <div class="dashboard-insights-subtitle">{{ insights.configHealth.title }}</div>
-        <div class="config-health-steps">
-          <div
-            v-for="step in insights.configHealth.steps"
-            :key="step.key"
-            class="config-health-step"
-            :data-step="step.key"
-            :class="{ 'is-complete': step.complete, 'is-active': step.active }"
-          >
-            <span class="config-health-step-bar"></span>
-            <span class="config-health-step-label">{{ step.label }}</span>
-          </div>
-        </div>
-        <div class="config-health-body">
-          <div class="config-health-status-row">
-            <div class="config-health-status" :data-tone="insights.configHealth.statusKey">
-              {{ insights.configHealth.statusLabel }}
+      <div class="dashboard-insights-stack">
+        <section class="dashboard-insights-panel dashboard-insights-panel--config">
+          <div class="config-health">
+            <div class="dashboard-insights-subtitle">{{ insights.configHealth.title }}</div>
+            <div class="config-health-steps">
+              <div
+                v-for="step in insights.configHealth.steps"
+                :key="step.key"
+                class="config-health-step"
+                :data-step="step.key"
+                :class="{ 'is-complete': step.complete, 'is-active': step.active }"
+              >
+                <span class="config-health-step-bar"></span>
+                <span class="config-health-step-label">{{ step.label }}</span>
+              </div>
             </div>
-            <div class="config-health-value">
-              {{ t('dashboard.insights.configHealth.countLabel', { count: insights.configHealth.value }) }}
+            <div class="config-health-body">
+              <div class="config-health-status-row">
+                <div class="config-health-status" :data-tone="insights.configHealth.statusKey">
+                  {{ insights.configHealth.statusLabel }}
+                </div>
+                <div class="config-health-value">
+                  {{ t('dashboard.insights.configHealth.countLabel', { count: insights.configHealth.value }) }}
+                </div>
+              </div>
+              <div class="config-health-hint">{{ insights.configHealth.hint }}</div>
             </div>
           </div>
-          <div class="config-health-hint">{{ insights.configHealth.hint }}</div>
-        </div>
+        </section>
+
+        <section class="dashboard-insights-panel dashboard-insights-panel--alerts">
+          <div class="file-alerts">
+            <div class="dashboard-insights-subtitle">{{ insights.fileAlerts.title }}</div>
+            <div
+              v-for="item in insights.fileAlerts.items"
+              :key="item.key"
+              class="file-alert-item"
+              :data-tone="item.tone"
+            >
+              <div class="file-alert-item-copy">
+                <div class="file-alert-label">{{ item.label }}</div>
+              </div>
+              <div class="file-alert-value">{{ item.displayValue }}</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Card>
+
+    <Card class="dashboard-insights-card dashboard-insights-card--share-status">
+      <div class="dashboard-insights-card-head">
+        <div class="dashboard-insights-section-title">{{ insights.shareStatus.title }}</div>
       </div>
 
-      <div class="file-alerts">
-        <div class="dashboard-insights-subtitle">{{ insights.fileAlerts.title }}</div>
-        <div
-          v-for="item in insights.fileAlerts.items"
-          :key="item.key"
-          class="file-alert-item"
-          :data-tone="item.tone"
-        >
-          <div class="file-alert-copy">
-            <div class="file-alert-label">{{ item.label }}</div>
+      <div class="share-status">
+        <div class="share-status-chart">
+          <div v-for="bar in insights.shareStatus.bars" :key="bar.key" class="share-status-bar" :data-tone="bar.tone">
+            <div class="share-status-bar-shell">
+              <div class="share-status-bar-fill" :style="{ height: getShareBarHeight(bar) }"></div>
+            </div>
+            <div class="share-status-bar-meta">
+              <div class="share-status-bar-short">{{ bar.shortLabel }}</div>
+              <div class="share-status-bar-value">{{ bar.displayValue }}</div>
+            </div>
           </div>
-          <div class="file-alert-value">{{ item.displayValue }}</div>
+        </div>
+      </div>
+    </Card>
+
+    <Card class="dashboard-insights-card dashboard-insights-card--text-freshness">
+      <div class="dashboard-insights-card-head">
+        <div class="dashboard-insights-section-title">{{ insights.textFreshness.title }}</div>
+      </div>
+
+      <div class="text-freshness">
+        <div class="text-freshness-head">
+          <div class="text-freshness-total-label">{{ insights.textFreshness.totalLabel }}</div>
+          <div class="text-freshness-total-value">{{ insights.textFreshness.totalValue }}</div>
+        </div>
+        <div class="text-freshness-track" aria-hidden="true">
+          <div
+            v-for="segment in insights.textFreshness.segments"
+            :key="segment.key"
+            class="text-freshness-segment"
+            :data-tone="segment.tone"
+            :style="{ width: getTextFreshnessWidth(segment) }"
+          ></div>
+        </div>
+        <div class="text-freshness-list">
+          <div v-for="segment in insights.textFreshness.segments" :key="segment.key" class="text-freshness-item">
+            <div class="text-freshness-item-copy">
+              <span class="text-freshness-item-label">{{ segment.label }}</span>
+            </div>
+            <span class="text-freshness-item-value">{{ segment.displayValue }}</span>
+          </div>
         </div>
       </div>
     </Card>
@@ -149,37 +212,48 @@ const ringSegments = computed(() => {
 <style scoped>
 .dashboard-insights-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: var(--nb-space-md);
-  align-items: start;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 1fr);
+  gap: 12px;
+  align-items: stretch;
 }
 
 .dashboard-insights-card {
   min-width: 0;
+  height: 100%;
 }
 
-.dashboard-insights-section-header {
-  margin-bottom: var(--nb-space-md);
+.dashboard-insights-card-head {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.dashboard-insights-card-head::after {
+  content: '';
+  width: 100%;
+  height: 1px;
+  background: color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 80%, transparent);
 }
 
 .dashboard-insights-section-title {
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
-  font-size: 18px;
+  font-size: 17px;
   font-weight: var(--nb-heading-font-weight, 900);
+  letter-spacing: 0.01em;
 }
 
 .dashboard-insights-subtitle {
   color: var(--nb-muted-foreground, var(--nb-gray-500));
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .user-status-panel {
   display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
-  gap: var(--nb-space-lg);
+  grid-template-columns: minmax(170px, 208px) minmax(0, 1fr);
+  gap: 20px;
   align-items: center;
 }
 
@@ -192,12 +266,12 @@ const ringSegments = computed(() => {
 .user-status-ring-shell {
   position: relative;
   width: 100%;
-  max-width: 220px;
+  max-width: 208px;
 }
 
 .user-status-ring-svg {
   width: 100%;
-  max-width: 220px;
+  max-width: 208px;
   height: auto;
   transform: rotate(-90deg);
 }
@@ -205,24 +279,24 @@ const ringSegments = computed(() => {
 .user-status-ring-track {
   fill: none;
   stroke: var(--nb-border, var(--nb-gray-200));
-  stroke-width: 12;
+  stroke-width: 10;
 }
 
 .user-status-ring-segment {
   fill: none;
-  stroke-width: 12;
+  stroke-width: 10;
 }
 
 .user-status-ring-segment[data-tone='success'] {
-  stroke: var(--nb-success, #16a34a);
+  stroke: color-mix(in srgb, var(--nb-success, #16a34a) 82%, #2f6b4f);
 }
 
 .user-status-ring-segment[data-tone='danger'] {
-  stroke: var(--nb-danger, #dc2626);
+  stroke: color-mix(in srgb, var(--nb-ink, #0f172a) 86%, #475569);
 }
 
 .user-status-ring-segment[data-tone='muted'] {
-  stroke: var(--nb-muted-foreground, var(--nb-gray-400));
+  stroke: color-mix(in srgb, var(--nb-muted-foreground, var(--nb-gray-400)) 82%, #cbd5e1);
 }
 
 .user-status-ring-center {
@@ -241,25 +315,29 @@ const ringSegments = computed(() => {
 
 .user-status-total-label {
   color: var(--nb-muted-foreground, var(--nb-gray-500));
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .user-status-total-value {
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
-  font-size: clamp(28px, 4vw, 40px);
+  font-size: clamp(30px, 4vw, 42px);
   font-weight: var(--nb-heading-font-weight, 900);
   line-height: 1;
 }
 
 .user-status-empty {
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--nb-muted-foreground, var(--nb-gray-500));
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .user-status-legend {
   display: grid;
-  gap: 8px;
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 75%, transparent);
 }
 
 .user-status-legend-item {
@@ -267,12 +345,14 @@ const ringSegments = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 65%, transparent);
 }
 
 .user-status-legend-copy {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -298,11 +378,29 @@ const ringSegments = computed(() => {
 
 .user-status-legend-label {
   min-width: 0;
+  color: var(--nb-foreground, var(--nb-ink, #0f172a));
+  font-size: 14px;
 }
 
 .user-status-legend-value {
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
   font-weight: 800;
+  font-size: 14px;
+}
+
+.dashboard-insights-stack {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.dashboard-insights-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 85%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--nb-secondary, #f8fafc) 55%, transparent);
 }
 
 .config-health {
@@ -313,26 +411,26 @@ const ringSegments = computed(() => {
 .config-health-steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .config-health-step {
   display: grid;
-  gap: 6px;
+  gap: 5px;
 }
 
 .config-health-step-bar {
-  min-height: 8px;
+  min-height: 6px;
   border-radius: 999px;
-  background: var(--nb-border, var(--nb-gray-200));
+  background: color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 85%, transparent);
 }
 
 .config-health-step.is-active .config-health-step-bar {
-  background: var(--nb-warning, #f59e0b);
+  background: color-mix(in srgb, var(--nb-warning, #f59e0b) 72%, #cbd5e1);
 }
 
 .config-health-step.is-complete .config-health-step-bar {
-  background: var(--nb-success, #16a34a);
+  background: color-mix(in srgb, var(--nb-success, #16a34a) 82%, #84cc16);
 }
 
 .config-health-step-label {
@@ -347,7 +445,7 @@ const ringSegments = computed(() => {
 
 .config-health-status-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
 }
@@ -355,26 +453,28 @@ const ringSegments = computed(() => {
 .config-health-status {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  border: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 88%, transparent);
+  font-size: 11px;
   font-weight: 700;
-  background: var(--nb-border, var(--nb-gray-200));
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--nb-surface, #ffffff) 88%, var(--nb-secondary, #f8fafc));
 }
 
 .config-health-status[data-tone='ready'] {
-  color: var(--nb-success, #16a34a);
-  background: color-mix(in srgb, var(--nb-success, #16a34a) 12%, transparent);
+  color: color-mix(in srgb, var(--nb-success, #16a34a) 78%, #2f6b4f);
+  background: color-mix(in srgb, var(--nb-success, #16a34a) 10%, var(--nb-surface, #ffffff));
 }
 
 .config-health-status[data-tone='pendingDefault'] {
-  color: var(--nb-warning, #f59e0b);
-  background: color-mix(in srgb, var(--nb-warning, #f59e0b) 14%, transparent);
+  color: color-mix(in srgb, var(--nb-warning, #f59e0b) 72%, #8a6c55);
+  background: color-mix(in srgb, var(--nb-warning, #f59e0b) 10%, var(--nb-surface, #ffffff));
 }
 
 .config-health-status[data-tone='missing'] {
-  color: var(--nb-danger, #dc2626);
-  background: color-mix(in srgb, var(--nb-danger, #dc2626) 12%, transparent);
+  color: color-mix(in srgb, var(--nb-ink, #0f172a) 82%, #64748b);
+  background: color-mix(in srgb, var(--nb-ink, #0f172a) 5%, var(--nb-surface, #ffffff));
 }
 
 .config-health-value {
@@ -385,35 +485,38 @@ const ringSegments = computed(() => {
 
 .config-health-hint {
   color: var(--nb-muted-foreground, var(--nb-gray-500));
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .file-alerts {
   display: grid;
-  gap: 12px;
-  margin-top: var(--nb-space-lg);
+  gap: 10px;
 }
 
 .file-alert-item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--nb-border, var(--nb-gray-200));
-  border-radius: 16px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 88%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--nb-surface, #ffffff) 92%, var(--nb-secondary, #f8fafc));
 }
 
 .file-alert-item[data-tone='warning'] {
-  border-color: color-mix(in srgb, var(--nb-warning, #f59e0b) 26%, var(--nb-border, var(--nb-gray-200)));
+  border-color: color-mix(in srgb, var(--nb-warning, #f59e0b) 18%, var(--nb-border, var(--nb-gray-200)));
 }
 
 .file-alert-item[data-tone='info'] {
-  border-color: color-mix(in srgb, var(--nb-info, #2563eb) 22%, var(--nb-border, var(--nb-gray-200)));
+  border-color: color-mix(in srgb, var(--nb-info, #2563eb) 16%, var(--nb-border, var(--nb-gray-200)));
 }
 
-.file-alert-copy {
+.file-alert-item-copy {
+  display: grid;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -424,8 +527,159 @@ const ringSegments = computed(() => {
 
 .file-alert-value {
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 900;
+}
+
+.share-status {
+  display: grid;
+  gap: 10px;
+}
+
+.share-status-chart {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+  min-height: 108px;
+}
+
+.share-status-bar {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.share-status-bar-shell {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  width: 100%;
+  min-height: 68px;
+  padding: 10px 0 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--nb-surface, #ffffff) 88%, var(--nb-secondary, #f8fafc));
+  border: 1px solid color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 82%, transparent);
+}
+
+.share-status-bar-fill {
+  width: 14px;
+  min-height: 10px;
+  border-radius: 999px 999px 4px 4px;
+  background: color-mix(in srgb, var(--nb-ink, #0f172a) 86%, #475569);
+}
+
+.share-status-bar[data-tone='warning'] .share-status-bar-fill {
+  background: color-mix(in srgb, var(--nb-warning, #f59e0b) 74%, #a1551d);
+}
+
+.share-status-bar[data-tone='muted'] .share-status-bar-fill {
+  background: color-mix(in srgb, var(--nb-muted-foreground, var(--nb-gray-400)) 82%, #b7c4d3);
+}
+
+.share-status-bar[data-tone='success'] .share-status-bar-fill {
+  background: color-mix(in srgb, var(--nb-success, #16a34a) 80%, #2f6b4f);
+}
+
+.share-status-bar-meta {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.share-status-bar-short {
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.share-status-bar-value {
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.text-freshness {
+  display: grid;
+  gap: 10px;
+}
+
+.text-freshness-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.text-freshness-total-label {
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: 12px;
+}
+
+.text-freshness-total-value {
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.text-freshness-track {
+  display: flex;
+  width: 100%;
+  min-height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nb-border, var(--nb-gray-200)) 65%, transparent);
+}
+
+.text-freshness-segment {
+  min-width: 0;
+  background: color-mix(in srgb, var(--nb-info, #2563eb) 70%, #244a86);
+}
+
+.text-freshness-segment[data-tone='medium'] {
+  background: color-mix(in srgb, var(--nb-info, #2563eb) 38%, #6f97ca);
+}
+
+.text-freshness-segment[data-tone='muted'] {
+  background: color-mix(in srgb, var(--nb-info, #2563eb) 16%, #c2d4eb);
+}
+
+.text-freshness-list {
+  display: grid;
+  gap: 8px;
+}
+
+.text-freshness-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.text-freshness-item-copy {
+  min-width: 0;
+}
+
+.text-freshness-item-label {
+  color: var(--nb-muted-foreground, var(--nb-gray-500));
+  font-size: 12px;
+}
+
+.text-freshness-item-value {
+  font-family: var(--nb-heading-font-family, var(--nb-font-mono));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 1080px) {
+  .dashboard-insights-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(240px, 1fr);
+  }
+
+  .user-status-panel {
+    grid-template-columns: minmax(160px, 196px) minmax(0, 1fr);
+    gap: 16px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -433,12 +687,22 @@ const ringSegments = computed(() => {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-insights-card-head {
+    margin-bottom: 14px;
+  }
+
   .user-status-panel {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-insights-panel {
+    padding: 12px 14px;
+  }
+
   .config-health-status-row,
-  .file-alert-item {
+  .file-alert-item,
+  .text-freshness-head,
+  .text-freshness-item {
     align-items: flex-start;
     flex-direction: column;
   }
