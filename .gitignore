@@ -13,4 +13,8 @@ scripts/
 docs/
 .test-dist/
 *test*
+!worker/tests/
+!worker/tests/*.test.cjs
+!frontend/tests/
+!frontend/tests/*.test.js
 .superpowers/
