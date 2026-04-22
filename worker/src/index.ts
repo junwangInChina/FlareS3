@@ -82,10 +82,7 @@ function withAdmin(handler: RouteHandler): RouteHandler {
 }
 
 router.post('/api/auth/login', (request, env: Env) => login(request, env))
-router.post(
-  '/api/auth/logout',
-  withAuth((request, env: Env) => logout(request, env))
-)
+router.post('/api/auth/logout', (request, env: Env) => logout(request, env))
 router.get(
   '/api/auth/status',
   withAuth((request, _env: Env) => authStatus(request))
