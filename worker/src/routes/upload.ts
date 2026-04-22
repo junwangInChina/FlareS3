@@ -1,5 +1,5 @@
 import type { Env } from '../config/env'
-import { getMaxFileSize, getTotalStorage } from '../config/env'
+import { getMaxFileSize } from '../config/env'
 import { jsonResponse, parseJson, getUser, calcPresignedDownloadUrlTtlSeconds } from './utils'
 import {
   abortMultipartUpload,
@@ -18,7 +18,6 @@ import {
 } from '../services/r2'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
-import { getUserUsedSpace } from '../services/quota'
 import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { generateRandomCode } from '../utils/random'
 import {
@@ -36,7 +35,6 @@ import {
   multipartPartNumberInvalidError,
   multipartUploadIdMismatchError,
   multipartUploadIdMissingError,
-  uploadConfigCapacityExceededError,
   uploadConfigForbiddenError,
   uploadConfigNotFoundError,
   uploadConfigUnavailableError,
@@ -46,8 +44,12 @@ import {
   uploadObjectMissingError,
   uploadObjectSizeInvalidError,
   uploadObjectSizeMismatchError,
-  userQuotaExceededError,
 } from '../services/uploadErrors'
+import {
+  consumeUploadReservation,
+  releaseUploadReservation,
+  reserveUploadCapacity,
+} from '../services/uploadReservations'
 
 const ALLOWED_EXPIRES = new Set([-30, 0, 1, 3, 7, 30])
 const PART_SIZE = 20 * 1024 * 1024
@@ -105,45 +107,6 @@ function createUploadConfigPolicyErrorResponse(error: unknown): Response | null 
   return uploadErrorResponse(uploadConfigForbiddenError(error.message))
 }
 
-async function getUploadConfigQuotaBytes(env: Env, configId: string): Promise<number> {
-  const quota = await env.DB.prepare('SELECT quota_bytes FROM r2_configs WHERE id = ? LIMIT 1')
-    .bind(configId)
-    .first('quota_bytes')
-  const quotaBytes = Number(quota)
-  if (Number.isFinite(quotaBytes) && quotaBytes > 0) {
-    return quotaBytes
-  }
-  return getTotalStorage(env)
-}
-
-async function getUploadConfigUsedSpace(env: Env, configId: string): Promise<number> {
-  const prefix = `flares3/${configId}/%`
-  const usedSpace = await env.DB.prepare(
-    "SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE upload_status IN ('pending','uploading','completed') AND deleted_at IS NULL AND r2_key LIKE ?"
-  )
-    .bind(prefix)
-    .first('usedSpace')
-  const normalized = Number(usedSpace)
-  return Number.isFinite(normalized) && normalized > 0 ? normalized : 0
-}
-
-async function ensureUploadConfigHasCapacity(
-  env: Env,
-  configId: string,
-  declaredSize: number
-): Promise<Response | null> {
-  const [quotaBytes, usedSpace] = await Promise.all([
-    getUploadConfigQuotaBytes(env, configId),
-    getUploadConfigUsedSpace(env, configId),
-  ])
-
-  if (usedSpace + declaredSize > quotaBytes) {
-    return uploadErrorResponse(uploadConfigCapacityExceededError())
-  }
-
-  return null
-}
-
 function sanitizeUploadFilename(filename: string): string {
   return sanitizeFilename(filename)
 }
@@ -184,6 +147,7 @@ async function markFileUploadDeleted(env: Env, fileId: string): Promise<void> {
   )
     .bind(now, fileId)
     .run()
+  await releaseUploadReservation(env.DB, fileId)
 }
 
 async function deleteUploadedObjectIfPresent(
@@ -263,17 +227,12 @@ function isUniqueConstraintError(errorMessage: string, field: 'r2_key' | 'short_
   return normalized.includes(`files.${field}`) || normalized.includes(field)
 }
 
-async function createFileRecord(
+async function allocateUploadFileIdentity(
   env: Env,
-  userId: string,
   filename: string,
-  size: number,
-  contentType: string,
   expiresIn: number,
-  requireLogin: boolean,
   r2ConfigId: string
 ): Promise<{ id: string; r2Key: string; shortCode: string; expiresAt: Date; filename: string }> {
-  const id = crypto.randomUUID()
   const baseFilename = sanitizeUploadFilename(filename)
   const expiresAt = calcExpiresAt(expiresIn)
 
@@ -289,44 +248,65 @@ async function createFileRecord(
     }
 
     for (let i = 0; i < SHORT_CODE_MAX_ATTEMPTS; i += 1) {
+      const id = crypto.randomUUID()
       const shortCode = generateRandomCode(6)
-      const now = new Date().toISOString()
-      const result = await env.DB.prepare(
-        `INSERT INTO files (id, owner_id, filename, r2_key, size, content_type, expires_in, created_at, expires_at, upload_status, short_code, require_login)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
-      )
-        .bind(
-          id,
-          userId,
-          resolvedFilename,
-          r2Key,
-          size,
-          contentType,
-          expiresIn,
-          now,
-          expiresAt.toISOString(),
-          shortCode,
-          requireLogin ? 1 : 0
-        )
-        .run()
-
-      if (!result.error) {
-        return { id, r2Key, shortCode, expiresAt, filename: resolvedFilename }
-      }
-
-      const errorMessage = formatD1ErrorMessage(result.error)
-      if (isUniqueConstraintError(errorMessage, 'r2_key')) {
-        break
-      }
-      if (isUniqueConstraintError(errorMessage, 'short_code')) {
-        continue
-      }
-
-      throw new Error(errorMessage || 'create_file_record_failed')
+      return { id, r2Key, shortCode, expiresAt, filename: resolvedFilename }
     }
   }
 
   throw new Error('filename_conflict_unresolved')
+}
+
+async function createPendingUploadFileRecord(
+  env: Env,
+  userId: string,
+  file: { id: string; r2Key: string; shortCode: string; expiresAt: Date; filename: string },
+  size: number,
+  contentType: string,
+  expiresIn: number,
+  requireLogin: boolean,
+  r2ConfigId: string,
+  userQuotaBytes: number
+): Promise<void> {
+  await reserveUploadCapacity(env, {
+    fileId: file.id,
+    userId,
+    userQuotaBytes,
+    r2ConfigId,
+    declaredSize: size,
+  })
+
+  const now = new Date().toISOString()
+  const result = await env.DB
+    .prepare(
+      `INSERT INTO files (id, owner_id, filename, r2_key, size, content_type, expires_in, created_at, expires_at, upload_status, short_code, require_login)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+    )
+    .bind(
+      file.id,
+      userId,
+      file.filename,
+      file.r2Key,
+      size,
+      contentType,
+      expiresIn,
+      now,
+      file.expiresAt.toISOString(),
+      file.shortCode,
+      requireLogin ? 1 : 0
+    )
+    .run()
+
+  if (!result.error) {
+    return
+  }
+
+  await releaseUploadReservation(env.DB, file.id)
+  const errorMessage = formatD1ErrorMessage(result.error)
+  if (isUniqueConstraintError(errorMessage, 'r2_key') || isUniqueConstraintError(errorMessage, 'short_code')) {
+    throw new Error('create_file_record_conflict')
+  }
+  throw new Error(errorMessage || 'create_file_record_failed')
 }
 
 export async function presignUpload(request: Request, env: Env): Promise<Response> {
@@ -354,11 +334,6 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
       return uploadErrorResponse(fileTooLargeError(declaredSize, maxSize))
     }
 
-    const used = await getUserUsedSpace(env.DB, user.id)
-    if (used + declaredSize > user.quota_bytes) {
-      return uploadErrorResponse(userQuotaExceededError(declaredSize, user.quota_bytes, used))
-    }
-
     let loaded
     try {
       loaded = await resolveUploadConfigForUser(env, user, body.config_id)
@@ -373,25 +348,46 @@ export async function presignUpload(request: Request, env: Env): Promise<Respons
       return uploadErrorResponse(uploadConfigUnavailableError())
     }
 
-    const quotaResponse = await ensureUploadConfigHasCapacity(env, loaded.id, declaredSize)
-    if (quotaResponse) {
-      return quotaResponse
-    }
-
     const contentType = body.content_type || 'application/octet-stream'
     const requireLogin = body.require_login !== false
-    const file = await createFileRecord(
-      env,
-      user.id,
-      body.filename,
-      declaredSize,
-      contentType,
-      expiresIn,
-      requireLogin,
-      loaded.id
-    )
+    let file: { id: string; r2Key: string; shortCode: string; expiresAt: Date; filename: string } | null =
+      null
+    let lastCreateError: unknown = null
+    for (let attempt = 0; attempt < SHORT_CODE_MAX_ATTEMPTS; attempt += 1) {
+      file = await allocateUploadFileIdentity(env, body.filename, expiresIn, loaded.id)
+      try {
+        await createPendingUploadFileRecord(
+          env,
+          user.id,
+          file,
+          declaredSize,
+          contentType,
+          expiresIn,
+          requireLogin,
+          loaded.id,
+          user.quota_bytes
+        )
+        lastCreateError = null
+        break
+      } catch (error) {
+        lastCreateError = error
+        if (error instanceof Error && error.message === 'create_file_record_conflict') {
+          continue
+        }
+        throw error
+      }
+    }
+    if (!file || lastCreateError) {
+      throw lastCreateError || new Error('create_file_record_failed')
+    }
 
-    const uploadUrl = await generateUploadUrl(loaded.config, file.r2Key, contentType, 3600)
+    let uploadUrl = ''
+    try {
+      uploadUrl = await generateUploadUrl(loaded.config, file.r2Key, contentType, 3600)
+    } catch (error) {
+      await markFileUploadDeleted(env, file.id)
+      throw error
+    }
 
     await logAudit(env.DB, {
       actorUserId: user.id,
@@ -464,6 +460,7 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
     await env.DB.prepare('UPDATE files SET size = ?, upload_status = ? WHERE id = ?')
       .bind(sizeValidation.actualSize, 'completed', body.file_id)
       .run()
+    await consumeUploadReservation(env.DB, body.file_id)
 
     let downloadUrl = `/api/files/${body.file_id}/download`
     const allowDirect = Number(file.require_login) === 0
@@ -520,11 +517,6 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       return uploadErrorResponse(fileTooLargeError(declaredSize, maxSize))
     }
 
-    const used = await getUserUsedSpace(env.DB, user.id)
-    if (used + declaredSize > user.quota_bytes) {
-      return uploadErrorResponse(userQuotaExceededError(declaredSize, user.quota_bytes, used))
-    }
-
     let loaded
     try {
       loaded = await resolveUploadConfigForUser(env, user, body.config_id)
@@ -539,25 +531,46 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       return uploadErrorResponse(uploadConfigUnavailableError())
     }
 
-    const quotaResponse = await ensureUploadConfigHasCapacity(env, loaded.id, declaredSize)
-    if (quotaResponse) {
-      return quotaResponse
-    }
-
     const contentType = body.content_type || 'application/octet-stream'
     const requireLogin = body.require_login !== false
-    const file = await createFileRecord(
-      env,
-      user.id,
-      body.filename,
-      declaredSize,
-      contentType,
-      expiresIn,
-      requireLogin,
-      loaded.id
-    )
+    let file: { id: string; r2Key: string; shortCode: string; expiresAt: Date; filename: string } | null =
+      null
+    let lastCreateError: unknown = null
+    for (let attempt = 0; attempt < SHORT_CODE_MAX_ATTEMPTS; attempt += 1) {
+      file = await allocateUploadFileIdentity(env, body.filename, expiresIn, loaded.id)
+      try {
+        await createPendingUploadFileRecord(
+          env,
+          user.id,
+          file,
+          declaredSize,
+          contentType,
+          expiresIn,
+          requireLogin,
+          loaded.id,
+          user.quota_bytes
+        )
+        lastCreateError = null
+        break
+      } catch (error) {
+        lastCreateError = error
+        if (error instanceof Error && error.message === 'create_file_record_conflict') {
+          continue
+        }
+        throw error
+      }
+    }
+    if (!file || lastCreateError) {
+      throw lastCreateError || new Error('create_file_record_failed')
+    }
 
-    const uploadId = await initiateMultipartUpload(loaded.config, file.r2Key, contentType)
+    let uploadId = ''
+    try {
+      uploadId = await initiateMultipartUpload(loaded.config, file.r2Key, contentType)
+    } catch (error) {
+      await markFileUploadDeleted(env, file.id)
+      throw error
+    }
 
     await ensureFilesMultipartUploadIdColumn(env.DB)
     await env.DB.prepare('UPDATE files SET upload_status = ?, multipart_upload_id = ? WHERE id = ?')
@@ -744,6 +757,7 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
     )
       .bind(sizeValidation.actualSize, 'completed', file.id)
       .run()
+    await consumeUploadReservation(env.DB, String(file.id))
 
     let downloadUrl = `/api/files/${file.id}/download`
     const allowDirect = Number(file.require_login) === 0
@@ -860,6 +874,7 @@ export async function abortMultipart(request: Request, env: Env): Promise<Respon
         .bind(now, fileId)
         .run()
     }
+    await releaseUploadReservation(env.DB, fileId)
 
     await logAudit(env.DB, {
       actorUserId: user.id,
