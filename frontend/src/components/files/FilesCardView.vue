@@ -59,7 +59,7 @@
                     type="ghost"
                     size="small"
                     class="icon-btn"
-                    :disabled="loading || isFileDeleted(row)"
+                    :disabled="loading || !canManageFileShare(row)"
                     @click.stop="emit('share', row)"
                   >
                     <Share2 :size="18" />
@@ -140,6 +140,7 @@ import Card from '../ui/card/Card.vue'
 import Button from '../ui/button/Button.vue'
 import Tooltip from '../ui/tooltip/Tooltip.vue'
 import Tag from '../ui/tag/Tag.vue'
+import { canManageFileShare, getFileStatusState, isFileDeleted } from '../../utils/files.js'
 
 const props = defineProps({
   files: {
@@ -182,8 +183,6 @@ const emit = defineEmits([
 ])
 
 const { t, locale } = useI18n({ useScope: 'global' })
-const isFileDeleted = (row) => row?.upload_status === 'deleted'
-
 const isFileCardDisabled = (row) => props.isTrashMode || isFileDeleted(row)
 
 const isCjkChar = (ch) => {
@@ -227,9 +226,7 @@ const getRemainingText = (row) => {
 }
 
 const getFileStatus = (row) => {
-  const deleted = isFileDeleted(row)
-  const expiresAt = row?.expires_at ? new Date(row.expires_at).getTime() : Number.NaN
-  const expired = !deleted && Number.isFinite(expiresAt) && Date.now() > expiresAt
+  const { deleted, expired } = getFileStatusState(row)
 
   const text = deleted
     ? t('files.status.invalid')
