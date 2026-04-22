@@ -266,6 +266,7 @@ import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TableCellText from '../components/ui/table/TableCellText.vue'
 import { useMessage } from '../composables/useMessage'
+import { canManageFileShare, getFileStatusState, isFileDeleted } from '../utils/files.js'
 
 const authStore = useAuthStore()
 const filesStore = useFilesStore()
@@ -385,8 +386,6 @@ const formatDateTime = (isoString) => {
   return date.toLocaleString(locale.value)
 }
 
-const isFileDeleted = (row) => row?.upload_status === 'deleted'
-
 const getExpiresText = (row) => {
   const expiresIn = Number(row?.expires_in)
   if (!Number.isFinite(expiresIn)) return '-'
@@ -402,9 +401,7 @@ const getRemainingText = (row) => {
 }
 
 const getFileStatus = (row) => {
-  const deleted = isFileDeleted(row)
-  const expiresAt = row?.expires_at ? new Date(row.expires_at).getTime() : Number.NaN
-  const expired = !deleted && Number.isFinite(expiresAt) && Date.now() > expiresAt
+  const { deleted, expired } = getFileStatusState(row)
 
   const text = deleted
     ? t('files.status.invalid')
@@ -536,6 +533,7 @@ const columns = computed(() => [
       }
 
       const rowDisabled = disabled || isFileDeleted(row)
+      const shareDisabled = disabled || !canManageFileShare(row)
       return h('div', { class: 'action-buttons' }, [
         h(
           Button,
@@ -552,7 +550,7 @@ const columns = computed(() => [
           {
             size: 'small',
             type: 'default',
-            disabled: rowDisabled,
+            disabled: shareDisabled,
             onClick: () => showFileShare(row),
           },
           () => [h(Share2, { size: 16, style: 'margin-right: 4px' }), t('files.actions.share')]
@@ -589,7 +587,7 @@ const showFileInfo = (row) => {
 
 const showFileShare = (row) => {
   if (!row) return
-  if (isFileDeleted(row)) return
+  if (!canManageFileShare(row)) return
   sharingFileId.value = String(row.id ?? '')
   sharingFilename.value = String(row.filename ?? '')
   showShareModal.value = true
