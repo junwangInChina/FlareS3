@@ -15,9 +15,9 @@ import {
   testConnection,
 } from '../services/r2'
 import { listUploadConfigOptionsForUser } from '../services/uploadConfigPolicy'
+import { getReservedConfigSpace } from '../services/uploadReservations'
 
-const ACTIVE_STORAGE_USAGE_WHERE =
-  "upload_status IN ('pending','uploading','completed') AND deleted_at IS NULL"
+const ACTIVE_COMPLETED_STORAGE_USAGE_WHERE = "upload_status = 'completed' AND deleted_at IS NULL"
 
 type R2ConfigInput = {
   name: string
@@ -53,7 +53,7 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
   }> = []
 
   const legacyUsedSpaceRow = await env.DB.prepare(
-    `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_STORAGE_USAGE_WHERE} AND r2_key NOT LIKE 'flares3/%/%'`
+    `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE} AND r2_key NOT LIKE 'flares3/%/%'`
   ).first('usedSpace')
   const legacyUsedSpace = Number(legacyUsedSpaceRow || 0)
 
@@ -76,11 +76,12 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
 
     const prefix = `flares3/${option.id}/%`
     const usedSpaceRow = await env.DB.prepare(
-      `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_STORAGE_USAGE_WHERE} AND r2_key LIKE ?`
+      `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE} AND r2_key LIKE ?`
     )
       .bind(prefix)
       .first('usedSpace')
     let usedSpace = Number(usedSpaceRow || 0)
+    usedSpace += await getReservedConfigSpace(env.DB, option.id)
     if (legacyAssignedId && legacyUsedSpace > 0 && option.id === legacyAssignedId) {
       usedSpace += legacyUsedSpace
     }
