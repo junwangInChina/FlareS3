@@ -3,6 +3,7 @@ import { jsonResponse, parseJson, getUser } from './utils'
 import { hashPassword } from '../services/password'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
+import { releaseUploadReservation } from '../services/uploadReservations'
 
 async function revokeUserSessions(db: D1Database, userId: string): Promise<void> {
   const now = new Date().toISOString()
@@ -333,6 +334,7 @@ export async function deleteUser(request: Request, env: Env, userId: string): Pr
       .run()
 
     for (const file of files.results) {
+      await releaseUploadReservation(env.DB, String(file.id))
       await enqueueFileDeletionIfNeeded(
         env.DB,
         { id: String(file.id), r2_key: String(file.r2_key) },
