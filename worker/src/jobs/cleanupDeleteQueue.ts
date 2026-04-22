@@ -7,6 +7,7 @@ import {
 } from '../services/r2'
 import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
+import { releaseUploadReservation } from '../services/uploadReservations'
 
 const BATCH_SIZE = 100
 
@@ -81,6 +82,7 @@ export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> 
       continue
     }
 
+    await releaseUploadReservation(env.DB, fileId)
     await env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId).run()
     await env.DB.prepare('UPDATE delete_queue SET processed_at = ? WHERE id = ?')
       .bind(now, queueId)
