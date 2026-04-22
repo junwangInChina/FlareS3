@@ -17,8 +17,12 @@
         </div>
 
         <div v-if="previewKind" class="preview-body">
+          <div v-if="loading" class="preview-pane preview-placeholder">
+            {{ t('mount.state.loading') }}
+          </div>
+          <div v-else-if="error" class="preview-pane preview-placeholder">{{ error }}</div>
           <img
-            v-if="previewKind === 'image'"
+            v-else-if="previewKind === 'image'"
             class="preview-media"
             :src="previewUrl"
             alt=""
@@ -31,9 +35,7 @@
             title="pdf-preview"
           />
           <div v-else-if="previewKind === 'markdown'" class="preview-pane">
-            <div v-if="loading" class="preview-placeholder">{{ t('mount.state.loading') }}</div>
-            <div v-else-if="error" class="preview-placeholder">{{ error }}</div>
-            <div v-else class="preview-markdown" v-html="markdownHtml" />
+            <div class="preview-markdown" v-html="markdownHtml" />
           </div>
           <pre v-else-if="previewKind === 'text'" class="preview-pane preview-pre">{{
             textDisplay
@@ -64,6 +66,10 @@ import Modal from '../ui/modal/Modal.vue'
 import Button from '../ui/button/Button.vue'
 import Alert from '../ui/alert/Alert.vue'
 import { useMessage } from '../../composables/useMessage'
+import {
+  getMountedPreviewKind,
+  shouldProbeMountedPreviewAvailability,
+} from '../../utils/mountPreview.js'
 
 const props = defineProps({
   show: Boolean,
@@ -76,34 +82,14 @@ const emit = defineEmits(['update:show'])
 const { t } = useI18n({ useScope: 'global' })
 const message = useMessage()
 
-const getBasename = (key) => {
-  const normalized = String(key || '').trim()
-  if (!normalized) return ''
-  const idx = normalized.lastIndexOf('/')
-  return idx >= 0 ? normalized.slice(idx + 1) : normalized
-}
-
-const getFilenameExtension = (filename) => {
-  const name = String(filename || '').trim()
-  const index = name.lastIndexOf('.')
-  if (index <= 0 || index === name.length - 1) return ''
-  return name.slice(index + 1).toLowerCase()
-}
-
 const previewKind = computed(() => {
-  const extension = getFilenameExtension(getBasename(props.objectKey))
-  if (!extension) return null
-
-  if (extension === 'pdf') return 'pdf'
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) return 'image'
-  if (extension === 'md' || extension === 'markdown') return 'markdown'
-  if (['txt', 'log', 'csv', 'json', 'yml', 'yaml', 'ini', 'conf'].includes(extension)) return 'text'
-
-  return null
+  return getMountedPreviewKind(props.objectKey)
 })
 
 const modalTitle = computed(() => {
-  const name = getBasename(props.objectKey)
+  const key = String(props.objectKey || '').trim()
+  const idx = key.lastIndexOf('/')
+  const name = idx >= 0 ? key.slice(idx + 1) : key
   return name ? t('mount.preview.titleWithName', { name }) : t('mount.preview.title')
 })
 
@@ -128,6 +114,7 @@ const downloadUrl = computed(() => {
 const previewText = ref('')
 const loading = ref(false)
 const error = ref('')
+const MAX_MEDIA_PREVIEW_PROBE_BYTES = 4096
 
 const sanitizeMarkdownHtml = (html) => {
   if (!html) return ''
@@ -178,19 +165,34 @@ watch([() => props.show, previewKind, previewUrl], async ([show, kind, url], _pr
   loading.value = false
   previewText.value = ''
 
-  const shouldFetch = kind === 'text' || kind === 'markdown'
-  if (!show || !shouldFetch || !url) return
+  const shouldFetchText = kind === 'text' || kind === 'markdown'
+  const shouldProbe = shouldProbeMountedPreviewAvailability(kind)
+  if (!show || (!shouldFetchText && !shouldProbe) || !url) return
 
   const controller = new AbortController()
   onCleanup(() => controller.abort())
 
   loading.value = true
   try {
-    const response = await fetch(url, { signal: controller.signal })
+    const response = await fetch(url, {
+      signal: controller.signal,
+      ...(shouldProbe
+        ? {
+            headers: {
+              Range: `bytes=0-${MAX_MEDIA_PREVIEW_PROBE_BYTES - 1}`,
+            },
+          }
+        : {}),
+    })
     if (!response.ok) {
       error.value = await readPreviewError(response)
       return
     }
+
+    if (shouldProbe) {
+      return
+    }
+
     previewText.value = await response.text()
   } catch (err) {
     if (err?.name !== 'AbortError') {
