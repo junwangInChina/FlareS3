@@ -1,12 +1,14 @@
 import type { Env } from '../config/env'
 import { jsonResponse, redirect, getUser } from './utils'
 import {
+  checkObjectExists,
   deleteObject,
   deleteObjectsByPrefix,
   generateDownloadUrl,
   generatePreviewUrl,
   listObjectsV2,
   loadR2ConfigById,
+  type R2Config,
   summarizeS3Error,
 } from '../services/r2'
 import { logAudit } from '../services/audit'
@@ -96,6 +98,31 @@ function formatUpstreamFetchError(error: unknown): string {
   return message.slice(0, 200)
 }
 
+function formatCheckObjectError(error: unknown): string {
+  const summary = summarizeS3Error(error)
+  const parts = [
+    summary.code,
+    typeof summary.httpStatusCode === 'number' ? `HTTP ${summary.httpStatusCode}` : null,
+    summary.message,
+  ].filter(Boolean)
+
+  if (!parts.length) {
+    return '检查对象失败'
+  }
+
+  return `检查对象失败（${parts.join(' / ')}）`
+}
+
+async function ensureMountedObjectExists(config: R2Config, key: string): Promise<Response | null> {
+  try {
+    const exists = await checkObjectExists(config, key)
+    if (exists) return null
+    return jsonResponse({ error: '对象不存在' }, 404)
+  } catch (error) {
+    return jsonResponse({ error: formatCheckObjectError(error) }, 502)
+  }
+}
+
 export async function listMountedObjects(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   const configId = String(url.searchParams.get('config_id') || '').trim()
@@ -156,6 +183,9 @@ export async function downloadMountedObject(request: Request, env: Env): Promise
     return jsonResponse({ error: '配置不存在或不可用' }, 404)
   }
 
+  const missingResponse = await ensureMountedObjectExists(loaded.config, key)
+  if (missingResponse) return missingResponse
+
   const filename = getBasename(key) || 'file'
 
   try {
@@ -184,6 +214,9 @@ export async function previewMountedObject(request: Request, env: Env): Promise<
   if (!loaded) {
     return jsonResponse({ error: '配置不存在或不可用' }, 404)
   }
+
+  const missingResponse = await ensureMountedObjectExists(loaded.config, key)
+  if (missingResponse) return missingResponse
 
   const filename = getBasename(key) || 'file'
   const extension = getFilenameExtension(filename)
@@ -282,6 +315,9 @@ export async function deleteMountedObject(request: Request, env: Env): Promise<R
         return jsonResponse({ error: '目录不存在或已为空' }, 404)
       }
     } else {
+      const missingResponse = await ensureMountedObjectExists(loaded.config, key)
+      if (missingResponse) return missingResponse
+
       await deleteObject(loaded.config, key)
       deletedCount = 1
     }
