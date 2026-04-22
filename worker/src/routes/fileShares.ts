@@ -21,7 +21,13 @@ type LoadFileAuthResult =
   | { response: Response }
   | {
       user: AuthUser
-      file: unknown
+      file: {
+        id: string
+        owner_id: string
+        filename: string
+        upload_status: string
+        expires_at: string | null
+      }
       ownerId: string
     }
 
@@ -43,7 +49,7 @@ async function loadFileAndAuthorize(
   await ensureFileSharesTable(env.DB)
 
   const file = await env.DB.prepare(
-    'SELECT id, owner_id, filename FROM files WHERE id = ? AND upload_status != ? LIMIT 1'
+    'SELECT id, owner_id, filename, upload_status, expires_at FROM files WHERE id = ? AND upload_status != ? LIMIT 1'
   )
     .bind(fileId, 'deleted')
     .first()
@@ -57,7 +63,38 @@ async function loadFileAndAuthorize(
     return { response: jsonResponse({ error: '无权限' }, 403) }
   }
 
-  return { user, file, ownerId }
+  return {
+    user,
+    file: {
+      id: String((file as any).id),
+      owner_id: ownerId,
+      filename: String((file as any).filename || ''),
+      upload_status: String((file as any).upload_status || ''),
+      expires_at: (file as any).expires_at ? String((file as any).expires_at) : null,
+    },
+    ownerId,
+  }
+}
+
+function validateFileShareTarget(file: {
+  upload_status: string
+  expires_at: string | null
+}): Response | null {
+  if (file.upload_status !== 'completed') {
+    return jsonResponse({ error: '文件未完成上传' }, 400)
+  }
+
+  const expiresAt = new Date(String(file.expires_at || ''))
+  const expiresAtMs = expiresAt.getTime()
+  if (Number.isNaN(expiresAtMs)) {
+    return jsonResponse({ error: '文件过期时间无效' }, 500)
+  }
+
+  if (Date.now() > expiresAtMs) {
+    return jsonResponse({ error: '文件已过期' }, 410)
+  }
+
+  return null
 }
 
 export async function getFileShare(request: Request, env: Env, fileId: string): Promise<Response> {
@@ -97,6 +134,11 @@ export async function upsertFileShare(
   const auth = await loadFileAndAuthorize(request, env, fileId)
   if ('response' in auth) {
     return auth.response
+  }
+
+  const shareTargetError = validateFileShareTarget(auth.file)
+  if (shareTargetError) {
+    return shareTargetError
   }
 
   let body: {
