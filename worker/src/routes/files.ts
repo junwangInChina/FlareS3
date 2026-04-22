@@ -9,6 +9,7 @@ import {
 } from '../services/r2'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
+import { releaseUploadReservation } from '../services/uploadReservations'
 
 const ALLOWED_SORT_FIELDS: Record<string, string> = {
   created_at: 'f.created_at',
@@ -615,6 +616,7 @@ export async function deleteFile(request: Request, env: Env, fileId: string): Pr
   )
     .bind(now, fileId)
     .run()
+  await releaseUploadReservation(env.DB, fileId)
 
   await logAudit(env.DB, {
     actorUserId: user.id,
