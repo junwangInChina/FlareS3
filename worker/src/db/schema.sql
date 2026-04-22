@@ -198,3 +198,17 @@ CREATE TABLE IF NOT EXISTS r2_configs (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_r2_configs_name ON r2_configs(name);
+
+-- upload_reservations
+CREATE TABLE IF NOT EXISTS upload_reservations (
+  file_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  r2_config_id TEXT NOT NULL,
+  reserved_bytes INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('active','consumed','released')),
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_upload_reservations_user_status ON upload_reservations(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_upload_reservations_config_status ON upload_reservations(r2_config_id, status);
