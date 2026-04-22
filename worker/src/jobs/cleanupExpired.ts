@@ -7,6 +7,7 @@ import {
 } from '../services/r2'
 import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
+import { releaseUploadReservation } from '../services/uploadReservations'
 
 const BATCH_SIZE = 100
 
@@ -64,6 +65,7 @@ export async function cleanupExpired(env: Env): Promise<JobExecutionResult> {
       )
         .bind(now, row.id)
         .run()
+      await releaseUploadReservation(env.DB, String(row.id))
       succeeded += 1
       deletedFiles += 1
     } catch (error) {
