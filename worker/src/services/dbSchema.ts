@@ -245,3 +245,32 @@ export function ensureR2ConfigsTable(db: D1Database): Promise<void> {
     }
   })
 }
+
+export function ensureUploadReservationsTable(db: D1Database): Promise<void> {
+  return ensureOnce('upload_reservations', async () => {
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS upload_reservations (
+          file_id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          r2_config_id TEXT NOT NULL,
+          reserved_bytes INTEGER NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('active','consumed','released')),
+          created_at DATETIME NOT NULL,
+          updated_at DATETIME NOT NULL
+        )`
+      )
+      .run()
+
+    await db
+      .prepare(
+        'CREATE INDEX IF NOT EXISTS idx_upload_reservations_user_status ON upload_reservations(user_id, status)'
+      )
+      .run()
+    await db
+      .prepare(
+        'CREATE INDEX IF NOT EXISTS idx_upload_reservations_config_status ON upload_reservations(r2_config_id, status)'
+      )
+      .run()
+  })
+}
