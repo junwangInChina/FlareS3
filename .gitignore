@@ -6,6 +6,11 @@ worker/.dev.vars
 worker/.wrangler/
 frontend/dist/
 scripts/
+!worker/scripts/
+!worker/scripts/prepare-wrangler-ci-config.sh
+!worker/scripts/reconcile-legacy-d1-columns.mjs
+!worker/scripts/smoke-check.sh
+!worker/scripts/verify-worker-secret.sh
 
 .claude/
 .snow
