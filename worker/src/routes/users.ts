@@ -1,16 +1,37 @@
 import type { Env } from '../config/env'
 import { jsonResponse, parseJson, getUser } from './utils'
 import { hashPassword } from '../services/password'
-import { logAudit } from '../services/audit'
+import { logAudit, prepareAuditLogInsert } from '../services/audit'
+import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
 import { getClientIp } from '../middleware/rateLimit'
-import { releaseUploadReservation } from '../services/uploadReservations'
+import { prepareReleaseUploadReservation } from '../services/uploadReservations'
+
+function prepareRevokeUserSessions(
+  db: D1Database,
+  userId: string,
+  revokedAt: string = new Date().toISOString()
+): D1PreparedStatement {
+  return db
+    .prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL')
+    .bind(revokedAt, userId)
+}
 
 async function revokeUserSessions(db: D1Database, userId: string): Promise<void> {
-  const now = new Date().toISOString()
-  await db
-    .prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL')
-    .bind(now, userId)
-    .run()
+  await prepareRevokeUserSessions(db, userId).run()
+}
+
+function prepareDeactivateUserPublicResources(
+  db: D1Database,
+  userId: string,
+  now: string
+): D1PreparedStatement[] {
+  return [
+    db.prepare('UPDATE texts SET deleted_at = ?, updated_at = ? WHERE owner_id = ? AND deleted_at IS NULL')
+      .bind(now, now, userId),
+    db.prepare('DELETE FROM text_shares WHERE owner_id = ?').bind(userId),
+    db.prepare('DELETE FROM text_one_time_shares WHERE owner_id = ?').bind(userId),
+    db.prepare('DELETE FROM file_shares WHERE owner_id = ?').bind(userId),
+  ]
 }
 
 async function deactivateUserPublicResources(
@@ -18,32 +39,7 @@ async function deactivateUserPublicResources(
   userId: string,
   now: string
 ): Promise<void> {
-  await db
-    .prepare(
-      'UPDATE texts SET deleted_at = ?, updated_at = ? WHERE owner_id = ? AND deleted_at IS NULL'
-    )
-    .bind(now, now, userId)
-    .run()
-  await db.prepare('DELETE FROM text_shares WHERE owner_id = ?').bind(userId).run()
-  await db.prepare('DELETE FROM text_one_time_shares WHERE owner_id = ?').bind(userId).run()
-  await db.prepare('DELETE FROM file_shares WHERE owner_id = ?').bind(userId).run()
-}
-
-async function enqueueFileDeletionIfNeeded(
-  db: D1Database,
-  file: { id: string; r2_key: string },
-  now: string
-): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO delete_queue (id, file_id, r2_key, created_at)
-       SELECT ?, ?, ?, ?
-       WHERE NOT EXISTS (
-         SELECT 1 FROM delete_queue WHERE file_id = ? AND processed_at IS NULL
-       )`
-    )
-    .bind(crypto.randomUUID(), file.id, file.r2_key, now, file.id)
-    .run()
+  await db.batch(prepareDeactivateUserPublicResources(db, userId, now))
 }
 
 async function countActiveAdmins(db: D1Database): Promise<number> {
@@ -313,49 +309,56 @@ export async function deleteUser(request: Request, env: Env, userId: string): Pr
   }
 
   const now = new Date().toISOString()
-  await env.DB.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')
-    .bind('deleted', now, userId)
-    .run()
-
-  await revokeUserSessions(env.DB, userId)
-  await deactivateUserPublicResources(env.DB, userId, now)
-
   const files = await env.DB.prepare(
     `SELECT id, r2_key FROM files WHERE owner_id = ? AND deleted_at IS NULL`
   )
     .bind(userId)
     .all()
-
-  if (files.results && files.results.length) {
-    await env.DB.prepare(
-      `UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE owner_id = ? AND deleted_at IS NULL`
-    )
-      .bind(now, userId)
-      .run()
-
-    for (const file of files.results) {
-      await releaseUploadReservation(env.DB, String(file.id))
-      await enqueueFileDeletionIfNeeded(
-        env.DB,
-        { id: String(file.id), r2_key: String(file.r2_key) },
-        now
-      )
-    }
-  }
+  const activeFiles = (files.results || []).map((file) => ({
+    id: String(file.id),
+    r2_key: String(file.r2_key),
+  }))
 
   const actor = getUser(request)
-  await logAudit(env.DB, {
-    actorUserId: actor?.id,
-    action: 'USER_DELETE',
-    targetType: 'user',
-    targetId: userId,
-    ip: getClientIp(request),
-    userAgent: request.headers.get('User-Agent') || undefined,
-    metadata: {
-      queuedFiles: files.results?.length || 0,
-      sessionsRevoked: true,
-    },
-  })
+  const statements: D1PreparedStatement[] = [
+    env.DB.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')
+      .bind('deleted', now, userId),
+    prepareRevokeUserSessions(env.DB, userId, now),
+    ...prepareDeactivateUserPublicResources(env.DB, userId, now),
+  ]
+
+  if (activeFiles.length) {
+    statements.push(
+      env.DB.prepare(
+        `UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE owner_id = ? AND deleted_at IS NULL`
+      ).bind(now, userId)
+    )
+    statements.push(
+      ...activeFiles.map((file) => prepareReleaseUploadReservation(env.DB, file.id, now)),
+      ...activeFiles.map((file) => prepareEnqueueFileDeletionIfNeeded(env.DB, file, now))
+    )
+  }
+
+  statements.push(
+    prepareAuditLogInsert(
+      env.DB,
+      {
+        actorUserId: actor?.id,
+        action: 'USER_DELETE',
+        targetType: 'user',
+        targetId: userId,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('User-Agent') || undefined,
+        metadata: {
+          queuedFiles: activeFiles.length,
+          sessionsRevoked: true,
+        },
+      },
+      now
+    )
+  )
+
+  await env.DB.batch(statements)
 
   return jsonResponse({ success: true, queued: true })
 }
