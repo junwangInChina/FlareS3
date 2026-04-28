@@ -31,12 +31,15 @@ npm install
 
 ### 1) 初始化 D1（本地模拟）
 
-```
+```bash
 cd worker
-npx wrangler d1 execute DB --local --file=src/db/schema.sql
+node ./scripts/reconcile-legacy-d1-columns.mjs --database "DB" --local
+npx wrangler d1 migrations apply "DB" --local
 ```
 
 - `DB` 为 `worker/wrangler.toml` 中 `[[d1_databases]]` 的 `binding`。
+- `worker/migrations/` 现在是唯一 schema 真相源；新环境只需要 `migrations apply` 即可初始化。
+- 如果本地 D1 是 migration 正式化之前留下的旧状态，`reconcile-legacy-d1-columns.mjs` 会补齐历史缺失列；新库会自动跳过。
 - 这会把本地数据库写到 `worker/.wrangler/state/v3/d1/`（Miniflare 持久化），不依赖远程 D1。
 - 需要重置本地数据可删除该目录或执行 `npx wrangler d1 execute DB --local --command "DELETE FROM users;"` 等。
 
@@ -69,10 +72,16 @@ npm run dev
 在根目录执行（不需要在根目录安装依赖；会调用子目录脚本）：
 
 ```bash
+npm run audit:prod
 npm run lint
 npm run typecheck
+npm run test
 npm run build
+npm run dry-run:worker
 npm run format:check
+
+# 或者直接跑与 CI / Day5 放行一致的一键校验
+npm run verify:release
 ```
 
 ## 部署到 Cloudflare
@@ -96,34 +105,45 @@ npm run format:check
 
 1. 创建/绑定 D1（默认配置使用 `flares3-db`）与 R2（并在 `worker/wrangler.toml` 填写实际 `database_id`）
 2. 设置 Worker 运行时变量 / Secrets（生产环境请在 Cloudflare Dashboard 或 `wrangler secret put` 配置；`.dev.vars` 仅本地开发；使用 GitHub Actions 自动创建 D1 时可忽略 `database_id` 占位符）
-3. 部署 Worker（`wrangler deploy`，部署/更新 `flares3-worker`）
-4. Pages 绑定路由：`/api/*`、`/s/*`、`/f/*`、`/t/*`
+3. 对已有库先补齐历史缺失列，再执行 migration：
+   - `node ./scripts/reconcile-legacy-d1-columns.mjs --config "wrangler.toml" --database "DB" --remote`
+   - `npx wrangler --config "wrangler.toml" d1 migrations apply "DB" --remote`
+4. 部署 Worker（`wrangler deploy`，部署/更新 `flares3-worker`）
+5. Pages 绑定路由：`/api/*`、`/s/*`、`/f/*`、`/t/*`
 
 #### B) 单 Worker 全栈部署（Worker Only）
 
 1. 创建/绑定 D1（默认配置使用 `flares3-db`）与 R2（并在 `worker/wrangler.full.toml` 填写实际 `database_id`）
 2. 设置 Worker 运行时变量 / Secrets（生产环境请在 Cloudflare Dashboard 或 `wrangler secret put` 配置；`.dev.vars` 仅本地开发；使用 GitHub Actions 自动创建 D1 时可忽略 `database_id` 占位符）
-3. 构建前端（生成 `frontend/dist`）：`npm --prefix frontend run build`
-4. 部署 Worker（全栈）：`npm --prefix worker run deploy:full`（部署/更新 `flares3-spa`）
-5. 在 Cloudflare Dashboard 绑定 Worker 路由：`/*` -> Worker（此模式不再需要 Pages 项目）
+3. 对已有库先补齐历史缺失列，再执行 migration：
+   - `node ./scripts/reconcile-legacy-d1-columns.mjs --config "wrangler.full.toml" --database "DB" --remote`
+   - `npx wrangler --config "wrangler.full.toml" d1 migrations apply "DB" --remote`
+4. 构建前端（生成 `frontend/dist`）：`npm --prefix frontend run build`
+5. 部署 Worker（全栈）：`npm --prefix worker run deploy:full`（部署/更新 `flares3-spa`）
+6. 在 Cloudflare Dashboard 绑定 Worker 路由：`/*` -> Worker（此模式不再需要 Pages 项目）
 
 ### 自动化部署（可选）
 
-仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖并执行 `lint/typecheck/build`。
+仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖，并执行与 Day5 放行一致的 `npm run verify:release`（`audit:prod + lint + typecheck + test + build + worker dry-run`）。
 
-如需 CD（由 GitHub Actions 发布），仓库提供两套工作流：
+如需 CD（由 GitHub Actions 发布），当前建议按“受控主链路 + 手动备用链路”使用：
 
-- **单 Worker 全栈部署（默认自动）**：`.github/workflows/deploy-worker-only.yml`
-  - 推送到 `main` 会自动触发（生产发布）
-  - 也可在 GitHub Actions 页面手动触发（`workflow_dispatch`）
-- **拆分部署（Pages + Worker，手动）**：`.github/workflows/deploy.yml`
-  - 仅在 GitHub Actions 页面手动触发（`workflow_dispatch`）
+- **受控全栈发布基线**：`.github/workflows/deploy-worker-only.yml`
+  - GitHub Actions 名称：`Controlled Full-Stack Release`
+  - 仅支持手动触发
+  - 固定执行：`build -> staging deploy -> staging smoke -> production approval -> production deploy -> production smoke`
+  - `production` 审批依赖 GitHub Environment `production` 的 Required reviewers 配置
+- **拆分部署手动备用链路**：`.github/workflows/deploy.yml`
+  - GitHub Actions 名称：`Manual Split Pages + Worker Deploy`
+  - 只在确实需要保留 `Pages + Worker` 拆分拓扑时使用
+
+完整运行说明见：[docs/release-runbook.md](./docs/release-runbook.md)。Day5 的联合放行记录可落到 [.trellis/tasks/04-27-project-readiness-audit/day5-go-no-go.md](./.trellis/tasks/04-27-project-readiness-audit/day5-go-no-go.md)。
 
 #### 0) Cloudflare 侧准备（一次性）
 
 > 说明：工作流会在 CI 中自动确保：
 >
-> - D1 数据库 `flares3-db` 存在（不存在则创建），并把 `database_id` 注入到临时 Wrangler 配置中（不会把真实 ID 提交到仓库）
+> - 受控全栈发布链路会按目标 Environment 的 `D1_DATABASE_NAME` 自动确保目标 D1 数据库存在（不存在则创建），并把 `database_id` 注入到临时 Wrangler 配置中（不会把真实 ID 提交到仓库）
 > - （仅拆分部署）Pages 项目 `flares3-pages` 存在（不存在则创建）
 >
 > ⚠️ 前提：`CLOUDFLARE_API_TOKEN` 需要具备 **Workers 部署 / Pages 部署 / D1 Edit** 权限，否则无法 list/create/execute。
@@ -147,14 +167,24 @@ npm run format:check
 - Secrets：
   - `CLOUDFLARE_API_TOKEN`（API Token 权限至少包含：Workers 部署、Pages 部署、D1 执行）
   - `CLOUDFLARE_ACCOUNT_ID`
-- Variables：无（`deploy.yml` 已固定 Pages 项目名为 `flares3-pages`）
+- Environments：
+  - `staging`
+  - `production`
+- Environment Variables（`staging` / `production` 都要配置）：
+  - `WORKER_NAME`
+  - `D1_DATABASE_NAME`
+  - `SMOKE_URL`
 
 > 获取方式：`CLOUDFLARE_API_TOKEN` 在 Cloudflare Dashboard -> My Profile -> API Tokens 创建；`CLOUDFLARE_ACCOUNT_ID` 可在 Cloudflare Dashboard 任意页面的 Account 信息处查看。
+> `production` Environment 需要在 GitHub 后台配置 Required reviewers，workflow 才会在正式发布前停在人工审批点。
 
 #### 2) 触发部署
 
-- 推送到 `main` 分支会自动触发 **单 Worker 全栈部署**：`deploy-worker-only.yml`
-- **拆分部署（Pages + Worker）**：在 GitHub Actions 页面手动触发 `deploy.yml`（`workflow_dispatch`）
+- **受控全栈发布**：在 GitHub Actions 页面手动触发 `Controlled Full-Stack Release`
+  - 仅从 `main` 触发
+  - `promote_to_production=false`：只部署到 `staging`
+  - `promote_to_production=true`：`staging` smoke 通过后继续等待 `production` 审批并发布
+- **拆分部署（Pages + Worker）**：在 GitHub Actions 页面手动触发 `Manual Split Pages + Worker Deploy`
 
 #### 3) 部署流程做了什么
 
@@ -163,18 +193,23 @@ npm run format:check
 1. 安装依赖（`worker/`、`frontend/`）
 2. 确保 D1 数据库 `flares3-db` 存在（不存在则创建），并生成临时 `worker/wrangler.ci.toml`（注入 `database_id`）
 3. 确保 Pages 项目 `flares3-pages` 存在（不存在则创建；仅拆分部署需要）
-4. `npm run lint` / `npm run typecheck` / `npm run build`
-5. 执行 D1 幂等初始化：`wrangler --config wrangler.ci.toml d1 execute DB --remote --file=src/db/schema.sql --yes`
-6. 部署 Worker：`wrangler --config wrangler.ci.toml deploy`
-7. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=flares3-pages --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
+4. `npm run audit:prod` / `npm run lint` / `npm run typecheck` / `npm run test` / `npm run build`
+5. 补齐历史 D1 缺失列：`node ./scripts/reconcile-legacy-d1-columns.mjs --config wrangler.ci.toml --database DB --remote`
+6. 应用版本化 migration：`wrangler --config wrangler.ci.toml d1 migrations apply DB --remote`
+7. 部署 Worker：`wrangler --config wrangler.ci.toml deploy`
+8. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=flares3-pages --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
 
-`deploy-worker-only.yml` 会依次执行：
+`Controlled Full-Stack Release` 会依次执行：
 
-1. 安装依赖（`worker/`、`frontend/`）
-2. `npm run lint` / `npm run typecheck` / `npm run build`
-3. 确保 D1 数据库 `flares3-db` 存在（不存在则创建），并生成临时 `worker/wrangler.full.ci.toml`（注入 `database_id`）
-4. 执行 D1 幂等初始化：`wrangler --config wrangler.full.ci.toml d1 execute DB --remote --file=src/db/schema.sql --yes`
-5. 部署 Worker（全栈）：`wrangler --config wrangler.full.ci.toml deploy`
+1. 安装依赖并执行 `npm run audit:prod` / `npm run lint` / `npm run typecheck` / `npm run test` / `npm run build`
+2. 打包 `frontend/dist`，确保 `staging` 与 `production` 使用同一份前端构建产物
+3. 根据 `staging` Environment 的 `WORKER_NAME`、`D1_DATABASE_NAME` 动态生成临时 `worker/wrangler.full.ci.toml`
+4. 自动确保目标 D1 存在；补齐历史 D1 缺失列并应用 migration
+5. 部署 `staging` Worker（全栈）
+6. 对 `staging` 的 `SMOKE_URL` 执行 `/health` smoke
+7. 若 `promote_to_production=true`，进入 `production` Environment 审批
+8. 审批通过后，按 `production` Environment 的变量重新生成临时配置并部署
+9. 对 `production` 的 `SMOKE_URL` 再执行一次 smoke
 
 ### 部署后操作
 
