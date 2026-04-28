@@ -5,16 +5,14 @@ import {
   abortMultipartUpload,
   summarizeS3Error,
 } from '../services/r2'
-import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
-import { releaseUploadReservation } from '../services/uploadReservations'
+import { prepareReleaseUploadReservation } from '../services/uploadReservations'
 
 const BATCH_SIZE = 100
 
 export async function cleanupExpired(env: Env): Promise<JobExecutionResult> {
   const startedAtMs = Date.now()
   const now = new Date().toISOString()
-  await ensureFilesMultipartUploadIdColumn(env.DB)
   const { results } = await env.DB.prepare(
     `SELECT id, r2_key, upload_status, multipart_upload_id FROM files
      WHERE expires_at < ? AND upload_status IN ('pending','uploading','completed') AND deleted_at IS NULL
@@ -60,12 +58,12 @@ export async function cleanupExpired(env: Env): Promise<JobExecutionResult> {
       } else {
         await deleteObject(loaded.config, r2Key)
       }
-      await env.DB.prepare(
-        `UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?`
-      )
-        .bind(now, row.id)
-        .run()
-      await releaseUploadReservation(env.DB, String(row.id))
+      await env.DB.batch([
+        env.DB.prepare(
+          `UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?`
+        ).bind(now, row.id),
+        prepareReleaseUploadReservation(env.DB, String(row.id), now),
+      ])
       succeeded += 1
       deletedFiles += 1
     } catch (error) {
