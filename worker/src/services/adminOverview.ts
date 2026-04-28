@@ -1,6 +1,5 @@
 import type { Env } from '../config/env'
 import { SYSTEM_DEFAULT_R2_CONFIG_ID_KEY } from './r2'
-import { ensureJobRunsTable } from './dbSchema'
 import { formatBytes } from '../utils/format'
 
 export type AdminOverviewRisk = {
@@ -188,7 +187,6 @@ export async function getAdminOverviewData(env: Env): Promise<{
   const defaultConfigId = defaultConfigIdValue ? String(defaultConfigIdValue) : null
   const hasUploadConfig = configCount > 0
 
-  await ensureJobRunsTable(env.DB)
   const latestFailedJob = await env.DB.prepare(
     `SELECT job_name, status, finished_at, error_message FROM job_runs WHERE status IN ('failed','partial') ORDER BY created_at DESC LIMIT 1`
   ).first<{
