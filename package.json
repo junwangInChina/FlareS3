@@ -5,14 +5,16 @@
     "dev:worker": "npm --prefix worker run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev": "npm run dev:worker & npm run dev:frontend",
-    "audit:frontend:prod": "npm --prefix frontend audit --omit=dev --audit-level=high",
-    "audit:worker:prod": "npm --prefix worker audit --omit=dev --audit-level=high",
+    "audit:frontend:prod": "npm --prefix frontend audit --omit=dev --audit-level=moderate",
+    "audit:worker:prod": "npm --prefix worker audit --omit=dev --audit-level=moderate",
     "audit:prod": "npm run audit:worker:prod && npm run audit:frontend:prod",
     "test": "npm --prefix worker run test && node --test frontend/tests/*.test.js",
     "lint": "npm --prefix worker run lint && npm --prefix frontend run lint",
     "format:check": "npm --prefix worker run format:check && npm --prefix frontend run format:check",
     "format": "npm --prefix worker run format && npm --prefix frontend run format",
     "typecheck": "npm --prefix worker exec -- tsc -p worker/tsconfig.json --noEmit",
-    "build": "npm --prefix frontend run build"
+    "build": "npm --prefix frontend run build",
+    "dry-run:worker": "npm --prefix worker run deploy:dry-run && npm --prefix worker run deploy:full:dry-run",
+    "verify:release": "npm run audit:prod && npm run lint && npm run typecheck && npm run test && npm run build && npm run dry-run:worker"
   }
 }
