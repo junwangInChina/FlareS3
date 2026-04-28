@@ -1,7 +1,6 @@
 import type { Env } from '../config/env'
 import type { AuthUser } from '../middleware/authSession'
 import { calcPresignedDownloadUrlTtlSeconds, getUser, jsonResponse, parseJson } from './utils'
-import { ensureFilesTable, ensureFileSharesTable } from '../services/dbSchema'
 import { hashPassword, verifyPassword } from '../services/password'
 import {
   clearSharePasswordFailedAttempts,
@@ -44,9 +43,6 @@ async function loadFileAndAuthorize(
   if (!fileId) {
     return { response: jsonResponse({ error: 'id 不能为空' }, 400) }
   }
-
-  await ensureFilesTable(env.DB)
-  await ensureFileSharesTable(env.DB)
 
   const file = await env.DB.prepare(
     'SELECT id, owner_id, filename, upload_status, expires_at FROM files WHERE id = ? AND upload_status != ? LIMIT 1'
@@ -399,9 +395,6 @@ async function resolveFileShareRecord(
   env: Env,
   code: string
 ): Promise<ResolveFileShareRecordResult> {
-  await ensureFilesTable(env.DB)
-  await ensureFileSharesTable(env.DB)
-
   const row = await env.DB.prepare(
     `SELECT s.id AS share_id, s.file_id, s.share_code, s.password_hash, s.expires_at AS share_expires_at, s.max_views, s.views,
             f.filename, f.r2_key, f.expires_at AS file_expires_at, f.upload_status, f.deleted_at,
