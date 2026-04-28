@@ -1,5 +1,3 @@
-import { ensureJobRunsTable } from './dbSchema'
-
 export type JobRunStatus = 'running' | 'success' | 'partial' | 'failed'
 
 export type JobExecutionResult = {
@@ -84,8 +82,6 @@ export async function startJobRun(
   jobName: string,
   startedAt: string = new Date().toISOString()
 ): Promise<string> {
-  await ensureJobRunsTable(db)
-
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
 
@@ -105,8 +101,6 @@ export async function finishJobRun(
   id: string,
   result: JobExecutionResult
 ): Promise<void> {
-  await ensureJobRunsTable(db)
-
   await db
     .prepare(
       `UPDATE job_runs
@@ -128,8 +122,6 @@ export async function listJobRuns(
   db: D1Database,
   options: { page?: number; limit?: number } = {}
 ): Promise<{ total: number; items: JobRunListItem[] }> {
-  await ensureJobRunsTable(db)
-
   const page = Math.max(1, Number(options.page || 1))
   const limit = Math.min(100, Math.max(1, Number(options.limit || 20)))
   const offset = (page - 1) * limit
