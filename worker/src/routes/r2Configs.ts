@@ -6,7 +6,6 @@ import { formatBytes } from '../utils/format'
 import {
   LEGACY_R2_CONFIG_ID,
   SYSTEM_DEFAULT_R2_CONFIG_ID_KEY,
-  ensureR2ConfigStorage,
   listR2ConfigOptions,
   loadR2ConfigById,
   setDefaultR2ConfigId,
@@ -140,8 +139,6 @@ export async function createConfig(request: Request, env: Env): Promise<Response
       return jsonResponse({ error: 'quota_bytes 必须为大于 0 的数字' }, 400)
     }
 
-    await ensureR2ConfigStorage(env)
-
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
     const accessEnc = await encryptString(body.access_key_id, masterKey)
@@ -202,8 +199,6 @@ export async function updateConfig(request: Request, env: Env, id: string): Prom
   }
 
   try {
-    await ensureR2ConfigStorage(env)
-
     const existing = await env.DB.prepare(
       'SELECT id, name, endpoint, bucket_name, quota_bytes, access_key_id_enc, secret_access_key_enc FROM r2_configs WHERE id = ? LIMIT 1'
     )
