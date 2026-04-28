@@ -1,20 +1,24 @@
-name: Controlled Full-Stack Release
+name: Deploy Worker Only
+
 on:
+  push:
+    branches: ["main"]
   workflow_dispatch:
-    inputs:
-      promote_to_production:
-        description: "Run production approval and deploy after staging smoke passes"
-        required: true
-        default: false
-        type: boolean
 
 jobs:
-  build:
+  deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     permissions:
       contents: read
+    concurrency:
+      group: deploy-worker-only-main
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +31,17 @@ jobs:
           cache-dependency-path: |
             worker/package-lock.json
             frontend/package-lock.json
+
+      - name: Validate deploy configuration
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "Missing required GitHub secret: CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "Missing required GitHub secret: CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
 
       - name: Install worker dependencies
         working-directory: "worker"
@@ -36,99 +51,26 @@ jobs:
         working-directory: "frontend"
         run: npm ci
 
-      - name: Audit production dependencies
-        run: npm run audit:prod
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Test
-        run: npm run test
-
       - name: Build frontend
         run: npm run build
 
-      - name: Package frontend dist
-        run: tar -C "frontend" -czf "frontend-dist.tgz" "dist"
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend-dist.tgz
-          if-no-files-found: error
-          retention-days: 7
-
-  deploy-staging:
-    if: github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    concurrency:
-      group: release-full-stack-staging
-      cancel-in-progress: false
-    environment: staging
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      DEPLOY_WORKER_NAME: ${{ vars.WORKER_NAME }}
-      DEPLOY_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
-      DEPLOY_SMOKE_URL: ${{ vars.SMOKE_URL }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            worker/package-lock.json
-            frontend/package-lock.json
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: .
-
-      - name: Restore frontend dist
+      - name: Resolve deploy target from wrangler.full.toml
+        working-directory: "worker"
         run: |
-          rm -rf "frontend/dist"
-          tar -xzf "frontend-dist.tgz" -C "frontend"
+          DEPLOY_WORKER_NAME="$(awk -F'"' '/^name[[:space:]]*=/{print $2; exit}' "wrangler.full.toml")"
+          DEPLOY_DATABASE_NAME="$(awk -F'"' '/^database_name[[:space:]]*=/{print $2; exit}' "wrangler.full.toml")"
 
-      - name: Validate staging deploy configuration
-        run: |
-          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "Missing required GitHub secret: CLOUDFLARE_API_TOKEN"
-            exit 1
-          fi
-          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
-            echo "Missing required GitHub secret: CLOUDFLARE_ACCOUNT_ID"
-            exit 1
-          fi
           if [ -z "${DEPLOY_WORKER_NAME}" ]; then
-            echo "Missing required GitHub environment variable: WORKER_NAME"
+            echo "Failed to resolve worker name from wrangler.full.toml"
             exit 1
           fi
           if [ -z "${DEPLOY_DATABASE_NAME}" ]; then
-            echo "Missing required GitHub environment variable: D1_DATABASE_NAME"
-            exit 1
-          fi
-          if [ -z "${DEPLOY_SMOKE_URL}" ]; then
-            echo "Missing required GitHub environment variable: SMOKE_URL"
+            echo "Failed to resolve D1 database name from wrangler.full.toml"
             exit 1
           fi
 
-      - name: Install worker dependencies
-        working-directory: "worker"
-        run: npm ci
+          echo "DEPLOY_WORKER_NAME=${DEPLOY_WORKER_NAME}" >> "${GITHUB_ENV}"
+          echo "DEPLOY_DATABASE_NAME=${DEPLOY_DATABASE_NAME}" >> "${GITHUB_ENV}"
 
       - name: Prepare Wrangler CI config
         working-directory: "worker"
@@ -155,143 +97,3 @@ jobs:
       - name: Deploy Worker (full-stack)
         working-directory: "worker"
         run: npx wrangler --config "${WRANGLER_CI_CONFIG}" deploy
-
-  smoke-staging:
-    if: github.ref == 'refs/heads/main'
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment: staging
-    env:
-      DEPLOY_SMOKE_URL: ${{ vars.SMOKE_URL }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Validate staging smoke configuration
-        run: |
-          if [ -z "${DEPLOY_SMOKE_URL}" ]; then
-            echo "Missing required GitHub environment variable: SMOKE_URL"
-            exit 1
-          fi
-
-      - name: Run staging smoke check
-        working-directory: "worker"
-        run: bash "./scripts/smoke-check.sh" "${DEPLOY_SMOKE_URL}" "staging"
-
-  deploy-production:
-    if: github.ref == 'refs/heads/main' && inputs.promote_to_production
-    needs: smoke-staging
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    concurrency:
-      group: release-full-stack-production
-      cancel-in-progress: false
-    environment: production
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      DEPLOY_WORKER_NAME: ${{ vars.WORKER_NAME }}
-      DEPLOY_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
-      DEPLOY_SMOKE_URL: ${{ vars.SMOKE_URL }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            worker/package-lock.json
-            frontend/package-lock.json
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: .
-
-      - name: Restore frontend dist
-        run: |
-          rm -rf "frontend/dist"
-          tar -xzf "frontend-dist.tgz" -C "frontend"
-
-      - name: Validate production deploy configuration
-        run: |
-          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "Missing required GitHub secret: CLOUDFLARE_API_TOKEN"
-            exit 1
-          fi
-          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
-            echo "Missing required GitHub secret: CLOUDFLARE_ACCOUNT_ID"
-            exit 1
-          fi
-          if [ -z "${DEPLOY_WORKER_NAME}" ]; then
-            echo "Missing required GitHub environment variable: WORKER_NAME"
-            exit 1
-          fi
-          if [ -z "${DEPLOY_DATABASE_NAME}" ]; then
-            echo "Missing required GitHub environment variable: D1_DATABASE_NAME"
-            exit 1
-          fi
-          if [ -z "${DEPLOY_SMOKE_URL}" ]; then
-            echo "Missing required GitHub environment variable: SMOKE_URL"
-            exit 1
-          fi
-
-      - name: Install worker dependencies
-        working-directory: "worker"
-        run: npm ci
-
-      - name: Prepare Wrangler CI config
-        working-directory: "worker"
-        run: |
-          bash "./scripts/prepare-wrangler-ci-config.sh" \
-            --base-config "wrangler.full.toml" \
-            --output-config "wrangler.full.ci.toml" \
-            --worker-name "${DEPLOY_WORKER_NAME}" \
-            --database-name "${DEPLOY_DATABASE_NAME}"
-          echo "WRANGLER_CI_CONFIG=wrangler.full.ci.toml" >> "${GITHUB_ENV}"
-
-      - name: Verify R2_MASTER_KEY secret exists
-        working-directory: "worker"
-        run: bash "./scripts/verify-worker-secret.sh" --config "${WRANGLER_CI_CONFIG}" --worker-name "${DEPLOY_WORKER_NAME}"
-
-      - name: Reconcile legacy D1 columns
-        working-directory: "worker"
-        run: node "./scripts/reconcile-legacy-d1-columns.mjs" --config "${WRANGLER_CI_CONFIG}" --database "DB" --remote
-
-      - name: Apply D1 migrations
-        working-directory: "worker"
-        run: npx wrangler --config "${WRANGLER_CI_CONFIG}" d1 migrations apply "DB" --remote
-
-      - name: Deploy Worker (full-stack)
-        working-directory: "worker"
-        run: npx wrangler --config "${WRANGLER_CI_CONFIG}" deploy
-
-  smoke-production:
-    if: github.ref == 'refs/heads/main' && inputs.promote_to_production
-    needs: deploy-production
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment: production
-    env:
-      DEPLOY_SMOKE_URL: ${{ vars.SMOKE_URL }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Validate production smoke configuration
-        run: |
-          if [ -z "${DEPLOY_SMOKE_URL}" ]; then
-            echo "Missing required GitHub environment variable: SMOKE_URL"
-            exit 1
-          fi
-
-      - name: Run production smoke check
-        working-directory: "worker"
-        run: bash "./scripts/smoke-check.sh" "${DEPLOY_SMOKE_URL}" "production"

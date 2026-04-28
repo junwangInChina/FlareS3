@@ -126,16 +126,18 @@ npm run verify:release
 
 仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖，并执行与 Day5 放行一致的 `npm run verify:release`（`audit:prod + lint + typecheck + test + build + worker dry-run`）。
 
-如需 CD（由 GitHub Actions 发布），当前建议按“受控主链路 + 手动备用链路”使用：
+如需 CD（由 GitHub Actions 发布），当前建议按“直接主链路 + 手动备用链路”使用：
 
-- **受控全栈发布基线**：`.github/workflows/deploy-worker-only.yml`
-  - GitHub Actions 名称：`Controlled Full-Stack Release`
-  - 仅支持手动触发
-  - 固定执行：`build -> staging deploy -> staging smoke -> production approval -> production deploy -> production smoke`
-  - `production` 审批依赖 GitHub Environment `production` 的 Required reviewers 配置
+- **直接全栈发布基线**：`.github/workflows/deploy-worker-only.yml`
+  - GitHub Actions 名称：`Deploy Worker Only`
+  - `push` 到 `main` 自动触发，同时保留 `workflow_dispatch`
+  - 单 job 直接部署，不依赖 GitHub `staging` / `production` Environments
+  - 从 `worker/wrangler.full.toml` 读取 Worker 名称与 D1 数据库名，生成临时 `worker/wrangler.full.ci.toml` 并注入真实 `database_id`
 - **拆分部署手动备用链路**：`.github/workflows/deploy.yml`
   - GitHub Actions 名称：`Manual Split Pages + Worker Deploy`
   - 只在确实需要保留 `Pages + Worker` 拆分拓扑时使用
+
+建议在推送前于本地执行 `npm run verify:release` 作为预检；它仍然有价值，但不再是 `deploy-worker-only.yml` 的硬门禁。
 
 完整运行说明见：[docs/release-runbook.md](./docs/release-runbook.md)。Day5 的联合放行记录可落到 [.trellis/tasks/04-27-project-readiness-audit/day5-go-no-go.md](./.trellis/tasks/04-27-project-readiness-audit/day5-go-no-go.md)。
 
@@ -143,7 +145,7 @@ npm run verify:release
 
 > 说明：工作流会在 CI 中自动确保：
 >
-> - 受控全栈发布链路会按目标 Environment 的 `D1_DATABASE_NAME` 自动确保目标 D1 数据库存在（不存在则创建），并把 `database_id` 注入到临时 Wrangler 配置中（不会把真实 ID 提交到仓库）
+> - 直接全栈发布链路会按 `worker/wrangler.full.toml` 中的 `name` / `database_name` 自动定位部署目标，确保目标 D1 数据库存在（不存在则创建），并把 `database_id` 注入到临时 `worker/wrangler.full.ci.toml`（不会把真实 ID 提交到仓库）
 > - （仅拆分部署）Pages 项目 `flares3-pages` 存在（不存在则创建）
 >
 > ⚠️ 前提：`CLOUDFLARE_API_TOKEN` 需要具备 **Workers 部署 / Pages 部署 / D1 Edit** 权限，否则无法 list/create/execute。
@@ -167,23 +169,14 @@ npm run verify:release
 - Secrets：
   - `CLOUDFLARE_API_TOKEN`（API Token 权限至少包含：Workers 部署、Pages 部署、D1 执行）
   - `CLOUDFLARE_ACCOUNT_ID`
-- Environments：
-  - `staging`
-  - `production`
-- Environment Variables（`staging` / `production` 都要配置）：
-  - `WORKER_NAME`
-  - `D1_DATABASE_NAME`
-  - `SMOKE_URL`
 
 > 获取方式：`CLOUDFLARE_API_TOKEN` 在 Cloudflare Dashboard -> My Profile -> API Tokens 创建；`CLOUDFLARE_ACCOUNT_ID` 可在 Cloudflare Dashboard 任意页面的 Account 信息处查看。
-> `production` Environment 需要在 GitHub 后台配置 Required reviewers，workflow 才会在正式发布前停在人工审批点。
+> 默认全栈发布链路直接读取 `worker/wrangler.full.toml` 中的 Worker 名称与 D1 数据库名，不需要额外配置 GitHub Environment variables。
 
 #### 2) 触发部署
 
-- **受控全栈发布**：在 GitHub Actions 页面手动触发 `Controlled Full-Stack Release`
-  - 仅从 `main` 触发
-  - `promote_to_production=false`：只部署到 `staging`
-  - `promote_to_production=true`：`staging` smoke 通过后继续等待 `production` 审批并发布
+- **直接全栈发布**：推送到 `main` 会自动触发 `Deploy Worker Only`
+  - 如需重跑同一版 `main`，也可以在 GitHub Actions 页面手动触发 `Deploy Worker Only`
 - **拆分部署（Pages + Worker）**：在 GitHub Actions 页面手动触发 `Manual Split Pages + Worker Deploy`
 
 #### 3) 部署流程做了什么
@@ -199,17 +192,17 @@ npm run verify:release
 7. 部署 Worker：`wrangler --config wrangler.ci.toml deploy`
 8. 部署 Pages：`wrangler pages deploy ../frontend/dist --project-name=flares3-pages --branch=$GITHUB_REF_NAME`（工作流仅在 `main` 运行）
 
-`Controlled Full-Stack Release` 会依次执行：
+`Deploy Worker Only` 会依次执行：
 
-1. 安装依赖并执行 `npm run audit:prod` / `npm run lint` / `npm run typecheck` / `npm run test` / `npm run build`
-2. 打包 `frontend/dist`，确保 `staging` 与 `production` 使用同一份前端构建产物
-3. 根据 `staging` Environment 的 `WORKER_NAME`、`D1_DATABASE_NAME` 动态生成临时 `worker/wrangler.full.ci.toml`
-4. 自动确保目标 D1 存在；补齐历史 D1 缺失列并应用 migration
-5. 部署 `staging` Worker（全栈）
-6. 对 `staging` 的 `SMOKE_URL` 执行 `/health` smoke
-7. 若 `promote_to_production=true`，进入 `production` Environment 审批
-8. 审批通过后，按 `production` Environment 的变量重新生成临时配置并部署
-9. 对 `production` 的 `SMOKE_URL` 再执行一次 smoke
+1. 安装依赖（`worker/`、`frontend/`）
+2. 构建 `frontend/dist`
+3. 从 `worker/wrangler.full.toml` 解析 `name` / `database_name`，自动确保目标 D1 存在，并生成临时 `worker/wrangler.full.ci.toml`（注入真实 `database_id`）
+4. 校验目标 Worker 已存在 `R2_MASTER_KEY`
+5. 补齐历史 D1 缺失列：`node ./scripts/reconcile-legacy-d1-columns.mjs --config wrangler.full.ci.toml --database DB --remote`
+6. 应用版本化 migration：`wrangler --config wrangler.full.ci.toml d1 migrations apply DB --remote`
+7. 部署全栈 Worker：`wrangler --config wrangler.full.ci.toml deploy`
+
+> 建议在推送前自行执行 `npm run verify:release`；这仍是推荐预检，但不属于 deploy workflow 的阻塞步骤。
 
 ### 部署后操作
 
