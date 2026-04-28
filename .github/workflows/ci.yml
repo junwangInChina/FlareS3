@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,34 +28,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
 
-      - name: Security audit (worker prod deps)
-        run: |
-          set -euo pipefail
-          npm --prefix worker audit --omit=dev --audit-level=high
-
-      - name: Security audit (frontend prod deps)
-        run: |
-          set -euo pipefail
-          npm --prefix frontend audit --omit=dev --audit-level=high
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Test
-        run: npm run test
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Worker bundle dry-run
-        working-directory: "worker"
-        run: |
-          set -euo pipefail
-          npx wrangler deploy --dry-run
-          npx wrangler deploy --config wrangler.full.toml --dry-run
+      - name: Day5 release gate
+        run: npm run verify:release
 
       - name: Format check (non-blocking)
         continue-on-error: true
