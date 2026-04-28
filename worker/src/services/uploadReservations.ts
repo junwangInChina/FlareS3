@@ -1,6 +1,5 @@
 import type { Env } from '../config/env'
 import { getTotalStorage } from '../config/env'
-import { ensureUploadReservationsTable } from './dbSchema'
 import { uploadConfigCapacityExceededError, userQuotaExceededError } from './uploadErrors'
 
 type ReserveUploadCapacityInput = {
@@ -28,7 +27,6 @@ export async function getCompletedUserUsedSpace(db: D1Database, userId: string):
 }
 
 export async function getReservedUserSpace(db: D1Database, userId: string): Promise<number> {
-  await ensureUploadReservationsTable(db)
   const result = await db
     .prepare(
       "SELECT COALESCE(SUM(reserved_bytes), 0) AS reservedUsed FROM upload_reservations WHERE user_id = ? AND status = 'active'"
@@ -61,7 +59,6 @@ export async function getCompletedConfigUsedSpace(
 }
 
 export async function getReservedConfigSpace(db: D1Database, configId: string): Promise<number> {
-  await ensureUploadReservationsTable(db)
   const result = await db
     .prepare(
       "SELECT COALESCE(SUM(reserved_bytes), 0) AS reservedUsed FROM upload_reservations WHERE r2_config_id = ? AND status = 'active'"
@@ -98,7 +95,6 @@ export async function reserveUploadCapacity(
   input: ReserveUploadCapacityInput
 ): Promise<void> {
   const { fileId, userId, userQuotaBytes, r2ConfigId, declaredSize } = input
-  await ensureUploadReservationsTable(env.DB)
   const now = new Date().toISOString()
   const quotaBytes = await getUploadConfigQuotaBytes(env, r2ConfigId)
   const result = await env.DB
@@ -178,16 +174,39 @@ export async function reserveUploadCapacity(
 async function transitionUploadReservation(
   db: D1Database,
   fileId: string,
-  nextStatus: 'consumed' | 'released'
+  nextStatus: 'consumed' | 'released',
+  updatedAt: string = new Date().toISOString()
 ): Promise<void> {
-  await ensureUploadReservationsTable(db)
-  const now = new Date().toISOString()
-  await db
+  await prepareUploadReservationTransition(db, fileId, nextStatus, updatedAt).run()
+}
+
+export function prepareUploadReservationTransition(
+  db: D1Database,
+  fileId: string,
+  nextStatus: 'consumed' | 'released',
+  updatedAt: string = new Date().toISOString()
+): D1PreparedStatement {
+  return db
     .prepare(
       "UPDATE upload_reservations SET status = ?, updated_at = ? WHERE file_id = ? AND status = 'active'"
     )
-    .bind(nextStatus, now, fileId)
-    .run()
+    .bind(nextStatus, updatedAt, fileId)
+}
+
+export function prepareConsumeUploadReservation(
+  db: D1Database,
+  fileId: string,
+  updatedAt: string = new Date().toISOString()
+): D1PreparedStatement {
+  return prepareUploadReservationTransition(db, fileId, 'consumed', updatedAt)
+}
+
+export function prepareReleaseUploadReservation(
+  db: D1Database,
+  fileId: string,
+  updatedAt: string = new Date().toISOString()
+): D1PreparedStatement {
+  return prepareUploadReservationTransition(db, fileId, 'released', updatedAt)
 }
 
 export async function consumeUploadReservation(db: D1Database, fileId: string): Promise<void> {
