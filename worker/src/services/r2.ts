@@ -15,7 +15,6 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { Env } from '../config/env'
 import { DEFAULT_TOTAL_STORAGE } from '../config/env'
 import { decryptString } from './crypto'
-import { ensureR2ConfigsTable } from './dbSchema'
 export const LEGACY_R2_CONFIG_ID = 'legacy'
 export const SYSTEM_DEFAULT_R2_CONFIG_ID_KEY = 'r2_default_config_id'
 export const SYSTEM_LEGACY_FILES_CONFIG_ID_KEY = 'r2_legacy_files_config_id'
@@ -50,10 +49,6 @@ export type R2ConfigSummary = {
   quotaBytes: number
   createdAt?: string
   updatedAt?: string
-}
-
-export async function ensureR2ConfigStorage(env: Env): Promise<void> {
-  await ensureR2ConfigsTable(env.DB)
 }
 
 async function getSystemConfigValue(db: D1Database, key: string): Promise<string | null> {
@@ -135,7 +130,6 @@ async function getDbConfigById(
   masterKey: string,
   id: string
 ): Promise<R2Config | null> {
-  await ensureR2ConfigsTable(db)
   const row = await db
     .prepare(
       'SELECT endpoint, bucket_name, access_key_id_enc, secret_access_key_enc FROM r2_configs WHERE id = ? LIMIT 1'
@@ -161,7 +155,6 @@ async function getDbConfigById(
 }
 
 export async function listDbR2Configs(db: D1Database): Promise<R2ConfigSummary[]> {
-  await ensureR2ConfigsTable(db)
   const rows = await db
     .prepare(
       'SELECT id, name, endpoint, bucket_name, quota_bytes, created_at, updated_at FROM r2_configs ORDER BY created_at DESC'
