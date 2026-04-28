@@ -8,10 +8,13 @@ export type AuditEntry = {
   metadata?: Record<string, unknown>
 }
 
-export async function logAudit(db: D1Database, entry: AuditEntry): Promise<void> {
+export function prepareAuditLogInsert(
+  db: D1Database,
+  entry: AuditEntry,
+  createdAt: string = new Date().toISOString()
+): D1PreparedStatement {
   const id = crypto.randomUUID()
-  const createdAt = new Date().toISOString()
-  await db
+  return db
     .prepare(
       `INSERT INTO audit_logs (id, actor_user_id, action, target_type, target_id, ip, user_agent, metadata, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -27,5 +30,8 @@ export async function logAudit(db: D1Database, entry: AuditEntry): Promise<void>
       entry.metadata ? JSON.stringify(entry.metadata) : null,
       createdAt
     )
-    .run()
+}
+
+export async function logAudit(db: D1Database, entry: AuditEntry): Promise<void> {
+  await prepareAuditLogInsert(db, entry).run()
 }
