@@ -1,6 +1,5 @@
 import type { Env } from '../config/env'
 import { jsonResponse, parseJson, getUser } from './utils'
-import { ensureTextsTable } from '../services/dbSchema'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 
@@ -19,8 +18,6 @@ function clampString(value: string, maxLength: number): string {
 export async function listTexts(request: Request, env: Env): Promise<Response> {
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
-
-  await ensureTextsTable(env.DB)
 
   const url = new URL(request.url)
   const page = Math.max(1, Number(url.searchParams.get('page') || 1))
@@ -80,8 +77,6 @@ export async function getText(request: Request, env: Env, textId: string): Promi
   if (!user) return jsonResponse({ error: '未授权' }, 401)
   if (!textId) return jsonResponse({ error: 'id 不能为空' }, 400)
 
-  await ensureTextsTable(env.DB)
-
   const row = await env.DB.prepare(
     `SELECT t.id, t.owner_id, u.username AS owner_username, t.title, t.content, t.created_at, t.updated_at
      FROM texts t
@@ -106,8 +101,6 @@ export async function getText(request: Request, env: Env, textId: string): Promi
 export async function createText(request: Request, env: Env): Promise<Response> {
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
-
-  await ensureTextsTable(env.DB)
 
   let body: { title?: unknown; content?: unknown }
   try {
@@ -158,8 +151,6 @@ export async function updateText(request: Request, env: Env, textId: string): Pr
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
   if (!textId) return jsonResponse({ error: 'id 不能为空' }, 400)
-
-  await ensureTextsTable(env.DB)
 
   const existing = await env.DB.prepare(
     'SELECT id, owner_id FROM texts WHERE id = ? AND deleted_at IS NULL LIMIT 1'
@@ -240,8 +231,6 @@ export async function deleteText(request: Request, env: Env, textId: string): Pr
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
   if (!textId) return jsonResponse({ error: 'id 不能为空' }, 400)
-
-  await ensureTextsTable(env.DB)
 
   const existing = await env.DB.prepare(
     'SELECT id, owner_id FROM texts WHERE id = ? AND deleted_at IS NULL LIMIT 1'
