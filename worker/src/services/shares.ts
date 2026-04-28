@@ -1,12 +1,5 @@
 import type { Env } from '../config/env'
 import type { AuthUser } from '../middleware/authSession'
-import {
-  ensureFilesTable,
-  ensureFileSharesTable,
-  ensureTextsTable,
-  ensureTextSharesTable,
-  ensureTextOneTimeSharesTable,
-} from './dbSchema'
 
 export type ShareRecordType = 'file' | 'text' | 'text_one_time'
 export type ShareRecordStatus = 'active' | 'expired' | 'exhausted' | 'consumed'
@@ -317,12 +310,6 @@ export async function listShareItems(
   user: AuthUser,
   filters: ShareListFilters
 ): Promise<{ items: ShareListItem[]; total: number }> {
-  await ensureFilesTable(env.DB)
-  await ensureFileSharesTable(env.DB)
-  await ensureTextsTable(env.DB)
-  await ensureTextSharesTable(env.DB)
-  await ensureTextOneTimeSharesTable(env.DB)
-
   const [fileItems, textItems, textOneTimeItems] = await Promise.all([
     queryFileShares(env.DB),
     queryTextShares(env.DB),
