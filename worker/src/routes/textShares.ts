@@ -1,7 +1,6 @@
 import type { Env } from '../config/env'
 import type { AuthUser } from '../middleware/authSession'
 import { getUser, jsonResponse, parseJson } from './utils'
-import { ensureTextsTable, ensureTextSharesTable } from '../services/dbSchema'
 import { hashPassword, verifyPassword } from '../services/password'
 import {
   clearSharePasswordFailedAttempts,
@@ -39,9 +38,6 @@ async function loadTextAndAuthorize(
   if (!textId) {
     return { response: jsonResponse({ error: 'id 不能为空' }, 400) }
   }
-
-  await ensureTextsTable(env.DB)
-  await ensureTextSharesTable(env.DB)
 
   const text = await env.DB.prepare(
     'SELECT id, owner_id, title FROM texts WHERE id = ? AND deleted_at IS NULL LIMIT 1'
@@ -341,9 +337,6 @@ function formatDateTimeLocal(isoString: string | null): string {
 }
 
 async function resolveShareRecord(env: Env, code: string): Promise<ResolveShareRecordResult> {
-  await ensureTextsTable(env.DB)
-  await ensureTextSharesTable(env.DB)
-
   const share = await env.DB.prepare(
     `SELECT s.id, s.text_id, s.share_code, s.password_hash, s.expires_at, s.max_views, s.views,
             t.title AS text_title, t.content AS text_content, t.deleted_at AS text_deleted_at,
