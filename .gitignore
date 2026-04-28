@@ -14,3 +14,16 @@ docs/
 .test-dist/
 *test*
 .superpowers/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+
+AGENTS.md
+.agents/
+.codex/
+.claude/
+.trellis/
