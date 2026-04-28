@@ -1,5 +1,4 @@
 import type { Env } from '../config/env'
-import { ensureTextsTable, ensureTextOneTimeSharesTable } from '../services/dbSchema'
 import { getUser, jsonResponse } from './utils'
 import { renderContentPage, renderMessagePage } from './textShares'
 import { generateRandomCode } from '../utils/random'
@@ -40,9 +39,6 @@ async function loadTextAndAuthorize(
   const user = getUser(request)
   if (!user) return { response: jsonResponse({ error: '未授权' }, 401) }
   if (!textId) return { response: jsonResponse({ error: 'id 不能为空' }, 400) }
-
-  await ensureTextsTable(env.DB)
-  await ensureTextOneTimeSharesTable(env.DB)
 
   const text = await env.DB.prepare(
     'SELECT id, owner_id, title FROM texts WHERE id = ? AND deleted_at IS NULL LIMIT 1'
@@ -156,9 +152,6 @@ export async function tryViewTextOneTimeShare(
   code: string
 ): Promise<Response | null> {
   if (!code) return null
-
-  await ensureTextsTable(env.DB)
-  await ensureTextOneTimeSharesTable(env.DB)
 
   const share = await env.DB.prepare(
     `SELECT s.id, s.text_id, s.share_code, s.expires_at, s.consumed_at,
