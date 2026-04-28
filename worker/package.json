@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "wrangler dev --port 18787",
     "deploy": "wrangler deploy",
+    "deploy:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs WRANGLER_SEND_METRICS=false wrangler deploy --dry-run",
     "deploy:full": "wrangler deploy --config wrangler.full.toml",
+    "deploy:full:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs WRANGLER_SEND_METRICS=false wrangler deploy --config wrangler.full.toml --dry-run",
     "test:build": "rm -rf .test-dist && tsc -p tsconfig.test.json --outDir .test-dist && node -e \"require('fs').writeFileSync('.test-dist/package.json', '{\\\"type\\\":\\\"commonjs\\\"}\\n')\"",
     "test": "npm run test:build && WORKER_TEST_OUTDIR=$PWD/.test-dist node --test tests/*.test.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -20,10 +22,10 @@
     "itty-router": "^4.0.0"
   },
   "overrides": {
-    "fast-xml-parser": "5.5.11"
+    "fast-xml-parser": "5.7.2"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240909.0",
+    "@cloudflare/workers-types": "^4.20260426.1",
     "@types/bcryptjs": "^2.4.6",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
@@ -31,6 +33,6 @@
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",
     "typescript": "^5.5.4",
-    "wrangler": "^3.88.0"
+    "wrangler": "^4.85.0"
   }
 }
