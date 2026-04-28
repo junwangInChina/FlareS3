@@ -7,9 +7,10 @@ import {
   generatePreviewUrl,
   resolveR2ConfigForKey,
 } from '../services/r2'
-import { logAudit } from '../services/audit'
+import { logAudit, prepareAuditLogInsert } from '../services/audit'
+import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
 import { getClientIp } from '../middleware/rateLimit'
-import { releaseUploadReservation } from '../services/uploadReservations'
+import { prepareReleaseUploadReservation } from '../services/uploadReservations'
 
 const ALLOWED_SORT_FIELDS: Record<string, string> = {
   created_at: 'f.created_at',
@@ -512,26 +513,26 @@ export async function restoreFile(request: Request, env: Env, fileId: string): P
   }
 
   const now = new Date().toISOString()
-  await env.DB.prepare(
-    "UPDATE files SET upload_status = 'completed', deleted_at = NULL, multipart_upload_id = NULL WHERE id = ?"
-  )
-    .bind(fileId)
-    .run()
-
-  await env.DB.prepare(
-    'UPDATE delete_queue SET processed_at = ? WHERE file_id = ? AND processed_at IS NULL'
-  )
-    .bind(now, fileId)
-    .run()
-
-  await logAudit(env.DB, {
-    actorUserId: user.id,
-    action: 'FILE_RESTORE',
-    targetType: 'file',
-    targetId: fileId,
-    ip: getClientIp(request),
-    userAgent: request.headers.get('User-Agent') || undefined,
-  })
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE files SET upload_status = 'completed', deleted_at = NULL, multipart_upload_id = NULL WHERE id = ?"
+    ).bind(fileId),
+    env.DB.prepare(
+      'UPDATE delete_queue SET processed_at = ? WHERE file_id = ? AND processed_at IS NULL'
+    ).bind(now, fileId),
+    prepareAuditLogInsert(
+      env.DB,
+      {
+        actorUserId: user.id,
+        action: 'FILE_RESTORE',
+        targetType: 'file',
+        targetId: fileId,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('User-Agent') || undefined,
+      },
+      now
+    ),
+  ])
 
   return jsonResponse({ success: true })
 }
@@ -560,32 +561,23 @@ export async function permanentlyDeleteFile(
     return jsonResponse({ error: '请先将文件移入回收站' }, 400)
   }
 
-  const queuedRow = await env.DB.prepare(
-    'SELECT id FROM delete_queue WHERE file_id = ? AND processed_at IS NULL LIMIT 1'
-  )
-    .bind(fileId)
-    .first('id')
-
-  let queued = false
-  if (!queuedRow) {
-    const now = new Date().toISOString()
-    await env.DB.prepare(
-      'INSERT INTO delete_queue (id, file_id, r2_key, created_at) VALUES (?, ?, ?, ?)'
-    )
-      .bind(crypto.randomUUID(), fileId, file.r2_key, now)
-      .run()
-    queued = true
-  }
-
-  await logAudit(env.DB, {
-    actorUserId: user.id,
-    action: 'FILE_DELETE_PERMANENT',
-    targetType: 'file',
-    targetId: fileId,
-    ip: getClientIp(request),
-    userAgent: request.headers.get('User-Agent') || undefined,
-    metadata: { queued },
-  })
+  const now = new Date().toISOString()
+  const [queueInsertResult] = await env.DB.batch([
+    prepareEnqueueFileDeletionIfNeeded(env.DB, { id: fileId, r2_key: String(file.r2_key) }, now),
+    prepareAuditLogInsert(
+      env.DB,
+      {
+        actorUserId: user.id,
+        action: 'FILE_DELETE_PERMANENT',
+        targetType: 'file',
+        targetId: fileId,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('User-Agent') || undefined,
+      },
+      now
+    ),
+  ])
+  const queued = Number(queueInsertResult?.meta?.changes || 0) > 0
 
   return jsonResponse({ success: true, queued })
 }
@@ -611,22 +603,25 @@ export async function deleteFile(request: Request, env: Env, fileId: string): Pr
   }
 
   const now = new Date().toISOString()
-  await env.DB.prepare(
-    "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
-  )
-    .bind(now, fileId)
-    .run()
-  await releaseUploadReservation(env.DB, fileId)
-
-  await logAudit(env.DB, {
-    actorUserId: user.id,
-    action: 'FILE_DELETE',
-    targetType: 'file',
-    targetId: fileId,
-    ip: getClientIp(request),
-    userAgent: request.headers.get('User-Agent') || undefined,
-    metadata: { recycleBin: true },
-  })
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
+    ).bind(now, fileId),
+    prepareReleaseUploadReservation(env.DB, fileId, now),
+    prepareAuditLogInsert(
+      env.DB,
+      {
+        actorUserId: user.id,
+        action: 'FILE_DELETE',
+        targetType: 'file',
+        targetId: fileId,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('User-Agent') || undefined,
+        metadata: { recycleBin: true },
+      },
+      now
+    ),
+  ])
 
   return jsonResponse({ success: true, queued: false, recycled: true })
 }
