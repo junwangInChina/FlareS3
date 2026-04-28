@@ -5,15 +5,13 @@ import {
   abortMultipartUpload,
   summarizeS3Error,
 } from '../services/r2'
-import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
-import { releaseUploadReservation } from '../services/uploadReservations'
+import { prepareReleaseUploadReservation } from '../services/uploadReservations'
 
 const BATCH_SIZE = 100
 
 export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> {
   const startedAtMs = Date.now()
-  await ensureFilesMultipartUploadIdColumn(env.DB)
   const { results } = await env.DB.prepare(
     `SELECT id, file_id, r2_key FROM delete_queue WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT ?`
   )
@@ -82,11 +80,11 @@ export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> 
       continue
     }
 
-    await releaseUploadReservation(env.DB, fileId)
-    await env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId).run()
-    await env.DB.prepare('UPDATE delete_queue SET processed_at = ? WHERE id = ?')
-      .bind(now, queueId)
-      .run()
+    await env.DB.batch([
+      prepareReleaseUploadReservation(env.DB, fileId, now),
+      env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId),
+      env.DB.prepare('UPDATE delete_queue SET processed_at = ? WHERE id = ?').bind(now, queueId),
+    ])
     succeeded += 1
   }
 
