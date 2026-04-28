@@ -16,9 +16,8 @@ import {
   sanitizeFilename,
   summarizeS3Error,
 } from '../services/r2'
-import { logAudit } from '../services/audit'
+import { logAudit, prepareAuditLogInsert } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
-import { ensureFilesMultipartUploadIdColumn } from '../services/dbSchema'
 import { generateRandomCode } from '../utils/random'
 import {
   isUploadConfigPolicyError,
@@ -45,8 +44,10 @@ import {
   uploadObjectSizeInvalidError,
   uploadObjectSizeMismatchError,
 } from '../services/uploadErrors'
+import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
 import {
-  consumeUploadReservation,
+  prepareConsumeUploadReservation,
+  prepareReleaseUploadReservation,
   releaseUploadReservation,
   reserveUploadCapacity,
 } from '../services/uploadReservations'
@@ -142,12 +143,12 @@ function formatD1ErrorMessage(error: unknown): string {
 
 async function markFileUploadDeleted(env: Env, fileId: string): Promise<void> {
   const now = new Date().toISOString()
-  await env.DB.prepare(
-    "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
-  )
-    .bind(now, fileId)
-    .run()
-  await releaseUploadReservation(env.DB, fileId)
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
+    ).bind(now, fileId),
+    prepareReleaseUploadReservation(env.DB, fileId, now),
+  ])
 }
 
 async function deleteUploadedObjectIfPresent(
@@ -457,10 +458,12 @@ export async function confirmUpload(request: Request, env: Env): Promise<Respons
       return sizeValidation.response
     }
 
-    await env.DB.prepare('UPDATE files SET size = ?, upload_status = ? WHERE id = ?')
-      .bind(sizeValidation.actualSize, 'completed', body.file_id)
-      .run()
-    await consumeUploadReservation(env.DB, body.file_id)
+    const now = new Date().toISOString()
+    await env.DB.batch([
+      env.DB.prepare('UPDATE files SET size = ?, upload_status = ? WHERE id = ?')
+        .bind(sizeValidation.actualSize, 'completed', body.file_id),
+      prepareConsumeUploadReservation(env.DB, body.file_id, now),
+    ])
 
     let downloadUrl = `/api/files/${body.file_id}/download`
     const allowDirect = Number(file.require_login) === 0
@@ -572,7 +575,6 @@ export async function initMultipart(request: Request, env: Env): Promise<Respons
       throw error
     }
 
-    await ensureFilesMultipartUploadIdColumn(env.DB)
     await env.DB.prepare('UPDATE files SET upload_status = ?, multipart_upload_id = ? WHERE id = ?')
       .bind('uploading', uploadId, file.id)
       .run()
@@ -606,7 +608,6 @@ export async function presignMultipart(request: Request, env: Env): Promise<Resp
       part_number: number
     }>(request)
 
-    await ensureFilesMultipartUploadIdColumn(env.DB)
     const file = await env.DB.prepare(
       'SELECT id, owner_id, r2_key, expires_at, upload_status, multipart_upload_id FROM files WHERE id = ?'
     )
@@ -674,7 +675,6 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
       parts?: Array<{ part_number: number; etag: string }>
     }>(request)
 
-    await ensureFilesMultipartUploadIdColumn(env.DB)
     const file = await env.DB.prepare(
       'SELECT id, owner_id, filename, r2_key, expires_at, short_code, require_login, upload_status, multipart_upload_id, size FROM files WHERE id = ?'
     )
@@ -752,12 +752,13 @@ export async function completeMultipart(request: Request, env: Env): Promise<Res
       return sizeValidation.response
     }
 
-    await env.DB.prepare(
-      'UPDATE files SET size = ?, upload_status = ?, multipart_upload_id = NULL WHERE id = ?'
-    )
-      .bind(sizeValidation.actualSize, 'completed', file.id)
-      .run()
-    await consumeUploadReservation(env.DB, String(file.id))
+    const now = new Date().toISOString()
+    await env.DB.batch([
+      env.DB.prepare(
+        'UPDATE files SET size = ?, upload_status = ?, multipart_upload_id = NULL WHERE id = ?'
+      ).bind(sizeValidation.actualSize, 'completed', file.id),
+      prepareConsumeUploadReservation(env.DB, String(file.id), now),
+    ])
 
     let downloadUrl = `/api/files/${file.id}/download`
     const allowDirect = Number(file.require_login) === 0
@@ -806,7 +807,6 @@ export async function abortMultipart(request: Request, env: Env): Promise<Respon
       return uploadErrorResponse(multipartFileIdRequiredError())
     }
 
-    await ensureFilesMultipartUploadIdColumn(env.DB)
     const file = await env.DB.prepare(
       'SELECT id, owner_id, r2_key, upload_status, multipart_upload_id FROM files WHERE id = ? LIMIT 1'
     )
@@ -856,35 +856,37 @@ export async function abortMultipart(request: Request, env: Env): Promise<Respon
     }
 
     const now = new Date().toISOString()
-    if (queued) {
-      await env.DB.prepare(
-        "UPDATE files SET upload_status = 'deleted', deleted_at = ? WHERE id = ?"
-      )
-        .bind(now, fileId)
-        .run()
-      await env.DB.prepare(
-        'INSERT INTO delete_queue (id, file_id, r2_key, created_at) VALUES (?, ?, ?, ?)'
-      )
-        .bind(crypto.randomUUID(), fileId, r2Key, now)
-        .run()
-    } else {
-      await env.DB.prepare(
-        "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
-      )
-        .bind(now, fileId)
-        .run()
-    }
-    await releaseUploadReservation(env.DB, fileId)
+    const statements: D1PreparedStatement[] = queued
+      ? [
+          env.DB.prepare(
+            "UPDATE files SET upload_status = 'deleted', deleted_at = ? WHERE id = ?"
+          ).bind(now, fileId),
+          prepareEnqueueFileDeletionIfNeeded(env.DB, { id: fileId, r2_key: r2Key }, now),
+          prepareReleaseUploadReservation(env.DB, fileId, now),
+        ]
+      : [
+          env.DB.prepare(
+            "UPDATE files SET upload_status = 'deleted', deleted_at = ?, multipart_upload_id = NULL WHERE id = ?"
+          ).bind(now, fileId),
+          prepareReleaseUploadReservation(env.DB, fileId, now),
+        ]
 
-    await logAudit(env.DB, {
-      actorUserId: user.id,
-      action: 'UPLOAD_ABORT',
-      targetType: 'file',
-      targetId: fileId,
-      ip: getClientIp(request),
-      userAgent: request.headers.get('User-Agent') || undefined,
-      metadata: { queued },
-    })
+    statements.push(
+      prepareAuditLogInsert(
+        env.DB,
+        {
+          actorUserId: user.id,
+          action: 'UPLOAD_ABORT',
+          targetType: 'file',
+          targetId: fileId,
+          ip: getClientIp(request),
+          userAgent: request.headers.get('User-Agent') || undefined,
+          metadata: { queued },
+        },
+        now
+      )
+    )
+    await env.DB.batch(statements)
 
     return jsonResponse({ success: true, queued })
   } catch (error) {
