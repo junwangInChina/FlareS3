@@ -10,6 +10,8 @@ export default {
     dark: 'Dark',
     light: 'Light',
     logout: 'Log out',
+    logoutConfirmTitle: 'Confirm log out',
+    logoutConfirmText: 'You will need to sign in again to continue. Are you sure you want to log out?',
     cancel: 'Cancel',
     apply: 'Apply',
     close: 'Close',

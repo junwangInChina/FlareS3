@@ -11,6 +11,7 @@ import dashboard from './pages/dashboard'
 import texts from './pages/texts'
 import mount from './pages/mount'
 import shares from './pages/shares'
+import more from './pages/more'
 
 export default {
   ...common,
@@ -26,4 +27,5 @@ export default {
   ...texts,
   ...mount,
   ...shares,
+  ...more,
 }

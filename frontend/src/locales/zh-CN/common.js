@@ -10,6 +10,8 @@ export default {
     dark: '黑夜',
     light: '白天',
     logout: '退出登录',
+    logoutConfirmTitle: '确认退出登录',
+    logoutConfirmText: '退出后需要重新登录才能继续访问，确认要退出登录吗？',
     cancel: '取消',
     apply: '应用',
     close: '关闭',

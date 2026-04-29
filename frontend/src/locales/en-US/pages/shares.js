@@ -29,6 +29,11 @@ export default {
       owner: 'Owner',
       actions: 'Actions',
     },
+    viewMode: {
+      ariaLabel: 'View mode',
+      table: 'Table view',
+      card: 'Card view',
+    },
     types: {
       file: 'File share',
       text: 'Document share',
@@ -66,7 +71,8 @@ export default {
       batchDisableMessage:
         'Disable the {count} selected shares? These links will no longer be accessible.',
       regenerateTitle: 'Regenerate one-time share',
-      regenerateMessage: 'Regenerate this {type} for “{name}”? The previous link will immediately become invalid.',
+      regenerateMessage:
+        'Regenerate this {type} for “{name}”? The previous link will immediately become invalid.',
     },
     state: {
       loading: 'Loading...',

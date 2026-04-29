@@ -29,6 +29,11 @@ export default {
       owner: '归属用户',
       actions: '操作',
     },
+    viewMode: {
+      ariaLabel: '视图模式',
+      table: '表格视图',
+      card: '卡片视图',
+    },
     types: {
       file: '文件分享',
       text: '文档分享',
