@@ -12,4 +12,14 @@
 #app {
   min-height: 100vh;
 }
+
+@media (max-width: 768px) {
+  html,
+  body,
+  #app {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
 </style>
