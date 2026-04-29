@@ -11,58 +11,65 @@
 
         <div class="audit-actions">
           <div class="filter-row">
-            <div class="filter-item action">
-              <Select v-model="filters.action" :options="actionOptions" size="small" />
+            <div class="filter-row-primary">
+              <div class="filter-item action">
+                <Select v-model="filters.action" :options="actionOptions" size="small" />
+              </div>
+
+              <div class="filter-item actor">
+                <Select
+                  v-model="filters.actor_user_id"
+                  :options="actorOptions"
+                  size="small"
+                  :disabled="usersLoading"
+                />
+              </div>
+
+              <div class="filter-item created-range">
+                <DateRangePicker
+                  v-model:startValue="filters.created_from_date"
+                  v-model:endValue="filters.created_to_date"
+                  size="small"
+                  clearable
+                />
+              </div>
             </div>
 
-            <div class="filter-item actor">
-              <Select
-                v-model="filters.actor_user_id"
-                :options="actorOptions"
+            <div class="filter-row-secondary">
+              <Button
+                type="default"
                 size="small"
-                :disabled="usersLoading"
-              />
-            </div>
-
-            <div class="filter-item created-range">
-              <DateRangePicker
-                v-model:startValue="filters.created_from_date"
-                v-model:endValue="filters.created_to_date"
+                class="audit-search-btn"
+                :loading="loading && activeAction === 'search'"
+                :disabled="loading"
+                @click="handleSearch"
+              >
+                <Search :size="16" style="margin-right: 6px" />
+                {{ t('common.search') }}
+              </Button>
+              <Button
+                type="default"
                 size="small"
-                clearable
-              />
+                class="audit-refresh-btn"
+                :loading="loading && activeAction === 'refresh'"
+                :disabled="loading"
+                @click="handleRefresh"
+              >
+                <RefreshCw :size="16" style="margin-right: 6px" />
+                {{ t('common.refresh') }}
+              </Button>
+
+              <Button
+                type="danger"
+                size="small"
+                class="audit-delete-btn"
+                :disabled="loading || deleting || selectedIds.length === 0"
+                @click="handleBatchDelete"
+              >
+                <Trash2 :size="16" style="margin-right: 6px" />
+                {{ t('audit.actions.deleteSelected', { count: selectedIds.length }) }}
+              </Button>
             </div>
-
-            <Button
-              type="default"
-              size="small"
-              :loading="loading && activeAction === 'search'"
-              :disabled="loading"
-              @click="handleSearch"
-            >
-              <Search :size="16" style="margin-right: 6px" />
-              {{ t('common.search') }}
-            </Button>
-            <Button
-              type="default"
-              size="small"
-              :loading="loading && activeAction === 'refresh'"
-              :disabled="loading"
-              @click="handleRefresh"
-            >
-              <RefreshCw :size="16" style="margin-right: 6px" />
-              {{ t('common.refresh') }}
-            </Button>
-
-            <Button
-              type="danger"
-              size="small"
-              :disabled="loading || deleting || selectedIds.length === 0"
-              @click="handleBatchDelete"
-            >
-              <Trash2 :size="16" style="margin-right: 6px" />
-              {{ t('audit.actions.deleteSelected', { count: selectedIds.length }) }}
-            </Button>
           </div>
         </div>
       </header>
@@ -615,6 +622,11 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.filter-row-primary,
+.filter-row-secondary {
+  display: contents;
+}
+
 .filter-item.action {
   width: 160px;
 }
@@ -625,6 +637,15 @@ onMounted(() => {
 
 .filter-item.created-range {
   width: 280px;
+}
+
+.filter-item.action,
+.filter-item.actor,
+.filter-item.created-range,
+.audit-search-btn,
+.audit-refresh-btn,
+.audit-delete-btn {
+  min-width: 0;
 }
 
 :deep(.audit-table .brutal-table) {
@@ -660,14 +681,75 @@ onMounted(() => {
   color: var(--nb-ink);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  .audit-page {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
   .audit-header {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .audit-title-group,
+  .audit-subtitle,
+  .audit-actions,
+  .audit-content,
+  .audit-header,
+  .filter-row,
+  .filter-row-primary,
+  .filter-row-secondary {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .audit-actions {
     justify-content: flex-start;
     width: 100%;
+    align-items: stretch;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-row-primary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: var(--nb-space-sm);
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-row-secondary {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.85fr) minmax(0, 1.3fr);
+    gap: var(--nb-space-sm);
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-item.action,
+  .filter-item.actor,
+  .filter-item.created-range,
+  .audit-search-btn,
+  .audit-refresh-btn,
+  .audit-delete-btn {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .audit-search-btn,
+  .audit-refresh-btn,
+  .audit-delete-btn {
+    padding-right: 8px;
+    padding-left: 8px;
+    font-size: 12px;
   }
 }
 </style>

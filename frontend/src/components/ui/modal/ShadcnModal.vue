@@ -132,4 +132,31 @@ const handleOpenChange = (open) => {
   justify-content: flex-end;
   padding-top: 16px;
 }
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 16px;
+  }
+
+  .modal-header {
+    gap: 12px;
+  }
+
+  .modal-body {
+    padding-top: 12px;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding-top: 12px;
+  }
+
+  :deep(.modal-footer > *) {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

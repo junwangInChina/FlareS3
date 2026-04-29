@@ -80,4 +80,36 @@ defineProps({
 .card-body + .card-footer {
   padding-top: 0;
 }
+
+@media (max-width: 768px) {
+  .shadcn-card,
+  .card-header,
+  .card-body,
+  .card-footer,
+  .header-extra {
+    min-width: 0;
+  }
+
+  .shadcn-card {
+    width: 100%;
+  }
+
+  .card-header,
+  .card-body,
+  .card-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .card-header {
+    gap: 12px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .card-body,
+  .card-footer {
+    padding-bottom: 16px;
+  }
+}
 </style>

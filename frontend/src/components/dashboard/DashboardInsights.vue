@@ -730,7 +730,7 @@ const getTextFreshnessColumns = (segments) => {
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .dashboard-insights-grid {
     grid-template-columns: 1fr;
   }

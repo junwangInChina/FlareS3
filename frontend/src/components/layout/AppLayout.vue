@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import BrutalSidebar from './BrutalSidebar.vue'
+import MobileTabbar from './MobileTabbar.vue'
 
 defineProps({
   maxWidth: { type: String, default: '100%' },
@@ -33,13 +34,15 @@ watch(sidebarCollapsed, (value) => {
 
 <template>
   <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-    <BrutalSidebar v-model:collapsed="sidebarCollapsed" />
+    <BrutalSidebar v-model:collapsed="sidebarCollapsed" class="layout-sidebar" />
 
     <main class="main-content">
       <div class="content-container" :style="{ maxWidth }">
         <slot></slot>
       </div>
     </main>
+
+    <MobileTabbar />
   </div>
 </template>
 
@@ -47,6 +50,10 @@ watch(sidebarCollapsed, (value) => {
 .app-layout {
   min-height: 100vh;
   background: var(--nb-bg);
+  --app-mobile-tabbar-height: 72px;
+  --app-mobile-tabbar-offset: calc(
+    var(--app-mobile-tabbar-height) + env(safe-area-inset-bottom, 0px)
+  );
 }
 
 .main-content {
@@ -77,13 +84,36 @@ watch(sidebarCollapsed, (value) => {
 }
 
 @media (max-width: 768px) {
-  .main-content {
-    margin-left: 72px;
+  .app-layout,
+  .content-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  .layout-sidebar {
+    display: none;
+  }
+
+  .main-content,
+  .sidebar-collapsed .main-content {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: var(--nb-space-md);
+    padding-bottom: calc(var(--nb-space-xl) + var(--app-mobile-tabbar-offset));
+    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* shadcn/ui theme: Reduce padding on mobile */
   :root[data-ui-theme='shadcn'] .main-content {
     padding: var(--nb-space-md);
+    padding-bottom: calc(var(--nb-space-xl) + var(--app-mobile-tabbar-offset));
   }
 }
 </style>

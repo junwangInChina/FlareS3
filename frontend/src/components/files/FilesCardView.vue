@@ -436,13 +436,130 @@ const handleCardClick = (row) => {
   font-family: var(--nb-font-mono);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .files-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .files-cards-section,
+  .file-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .file-card :deep(.card-header),
+  .file-card :deep(.card-body),
+  .file-card :deep(.card-footer),
+  .file-card :deep(.header-extra) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .file-card :deep(.card-header) {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .file-card :deep(.header-extra) {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .file-card :deep(.card-header) > * {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .file-card-actions {
     opacity: 1;
+    gap: 4px;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .icon-btn {
+    flex-shrink: 0;
+  }
+
+  .file-card-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .file-card-title {
+    width: 100%;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .file-card-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .file-card-body,
+  .file-card-lines,
+  .file-card-line,
+  .file-card-value,
+  .file-card-footer,
+  .file-card-footer-code {
+    min-width: 0;
+  }
+
+  .file-card-size {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .file-card-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 2px;
+  }
+
+  .file-card-value {
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: initial;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    text-align: left;
+  }
+
+  .file-card-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .file-card-footer-time {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .file-card-footer-code {
+    text-align: left;
+    word-break: break-word;
   }
 }
 </style>

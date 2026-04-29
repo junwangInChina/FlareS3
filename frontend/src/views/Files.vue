@@ -71,6 +71,8 @@
             <Button
               type="default"
               size="small"
+              class="files-search-btn"
+              :block="isMobile"
               :loading="filesStore.loading && activeAction === 'search'"
               :disabled="filesStore.loading || deleting"
               @click="handleSearch"
@@ -81,6 +83,8 @@
             <Button
               type="default"
               size="small"
+              class="files-refresh-btn"
+              :block="isMobile"
               :loading="filesStore.loading && activeAction === 'refresh'"
               :disabled="filesStore.loading || deleting"
               @click="handleRefresh"
@@ -100,6 +104,7 @@
                 type="ghost"
                 size="small"
                 class="advanced-filters-btn"
+                :block="isMobile"
                 :class="{ 'is-active': showAdvancedFilters || hasAdvancedFiltersActive }"
                 :disabled="filesStore.loading || deleting"
                 :aria-label="
@@ -113,7 +118,7 @@
               </Button>
             </Tooltip>
 
-            <div class="filter-item view-mode">
+            <div v-if="!isMobile" class="filter-item view-mode">
               <div class="view-mode-toggle" role="group" aria-label="View mode">
                 <Tooltip :content="t('files.viewMode.table')">
                   <Button
@@ -266,6 +271,7 @@ import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TableCellText from '../components/ui/table/TableCellText.vue'
 import { useMessage } from '../composables/useMessage'
+import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
 import { canManageFileShare, getFileStatusState, isFileDeleted } from '../utils/files.js'
 
 const authStore = useAuthStore()
@@ -325,15 +331,11 @@ const deleteConfirmText = computed(() =>
     : t('files.confirmDelete')
 )
 
-const viewModeKey = 'flares3:files-view-mode'
-const viewMode = ref('table')
-
-const setViewMode = (mode) => {
-  if (mode !== 'table' && mode !== 'card') {
-    return
-  }
-  viewMode.value = mode
-}
+const { isMobile, viewMode, setViewMode } = useResponsiveViewMode({
+  storageKey: 'flares3:files-view-mode',
+  desktopDefault: 'table',
+  mobileDefault: 'card',
+})
 
 const usersLoading = ref(false)
 const users = ref([])
@@ -870,25 +872,8 @@ const handleUploaded = () => {
 }
 
 onMounted(() => {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem(viewModeKey)
-    if (stored === 'table' || stored === 'card') {
-      viewMode.value = stored
-    }
-  }
-
   loadFiles({ mode: 'active' })
   loadUsers()
-})
-
-watch(viewMode, (value) => {
-  if (typeof window === 'undefined') {
-    return
-  }
-  if (value !== 'table' && value !== 'card') {
-    return
-  }
-  window.localStorage.setItem(viewModeKey, value)
 })
 
 watch(
@@ -896,6 +881,16 @@ watch(
   (mode) => {
     if (mode === 'trash') {
       filters.value.upload_status = 'deleted'
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  [isMobile, viewMode],
+  ([mobile, mode]) => {
+    if (mobile && mode !== 'card') {
+      setViewMode('card')
     }
   },
   { immediate: true }
@@ -1079,35 +1074,123 @@ watch(
   color: var(--nb-muted-foreground, var(--nb-gray-600));
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  .files-page {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
   .files-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  .files-title-group,
+  .files-title-row,
+  .files-subtitle,
+  .files-actions,
+  .files-content,
+  .files-header,
+  .filter-row,
+  .filter-row.main,
+  .filter-row.advanced {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .files-actions {
     justify-content: flex-start;
-    width: 100%;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .files-title-row {
+    flex-wrap: wrap;
   }
 
   .filter-row {
     justify-content: flex-start;
-    width: 100%;
     flex-wrap: wrap;
   }
 
   .filter-row.main {
-    overflow-x: visible;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: var(--nb-space-sm);
+    overflow-x: hidden;
+  }
+
+  .filter-row.advanced {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: var(--nb-space-sm);
+  }
+
+  .filter-row.main > * {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .filter-item.filename,
+  .filter-item.mode-toggle,
+  .filter-item.created-range {
+    grid-column: 1 / -1;
+  }
+
+  .filter-row.advanced > *,
   .filter-item.owner,
   .filter-item.status,
   .filter-item.sort,
-  .filter-item.mode-toggle,
-  .filter-item.created-range {
+  .filter-item.view-mode,
+  .files-search-btn,
+  .files-refresh-btn {
     width: 100%;
+  }
+
+  .files-mode-toggle,
+  .view-mode-toggle,
+  .advanced-filters-btn {
+    width: 100%;
+  }
+
+  .filter-item.view-mode {
+    display: none !important;
+  }
+
+  .files-mode-btn,
+  .view-mode-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .filter-row.main :deep(.tooltip-trigger),
+  .filter-row.main :deep(.brutal-tooltip-trigger) {
+    grid-column: 3;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .filter-row.main :deep(.brutal-input-wrapper),
+  .filter-row.main :deep(.shadcn-input-wrapper),
+  .filter-row.main :deep(.brutal-select-wrapper),
+  .filter-row.main :deep(.shadcn-select-wrapper),
+  .filter-row.main :deep(.date-range-picker),
+  .filter-row.main :deep(.brutal-input-control),
+  .filter-row.main :deep(.shadcn-input-control),
+  .filter-row.main :deep(.brutal-select-trigger),
+  .filter-row.main :deep(.shadcn-select-trigger),
+  .filter-row.main :deep(.date-range-trigger),
+  .filter-row.advanced :deep(.brutal-select-wrapper),
+  .filter-row.advanced :deep(.shadcn-select-wrapper),
+  .filter-row.advanced :deep(.brutal-select-trigger),
+  .filter-row.advanced :deep(.shadcn-select-trigger) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 }
 </style>

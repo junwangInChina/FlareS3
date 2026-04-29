@@ -267,7 +267,7 @@ const formatDateTime = (value) => {
   font-size: 13px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .job-run-heading {
     flex-direction: column;
   }

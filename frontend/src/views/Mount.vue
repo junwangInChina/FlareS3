@@ -35,6 +35,8 @@
             <Button
               type="default"
               size="small"
+              class="mount-action-btn"
+              :block="isMobile"
               :disabled="loading || !selectedConfigId"
               @click="handleApplyPrefix"
             >
@@ -45,6 +47,8 @@
             <Button
               type="default"
               size="small"
+              class="mount-action-btn"
+              :block="isMobile"
               :loading="loading && activeAction === 'refresh'"
               :disabled="loading || !selectedConfigId"
               @click="handleRefresh"
@@ -53,7 +57,7 @@
               {{ t('common.refresh') }}
             </Button>
 
-            <div class="filter-item view-mode">
+            <div v-if="!isMobile" class="filter-item view-mode">
               <div
                 class="view-mode-toggle"
                 role="group"
@@ -258,6 +262,7 @@ import TableCellText from '../components/ui/table/TableCellText.vue'
 import Alert from '../components/ui/alert/Alert.vue'
 import Modal from '../components/ui/modal/Modal.vue'
 import { useMessage } from '../composables/useMessage'
+import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
 import MountTableView from '../components/mount/MountTableView.vue'
 import MountCardView from '../components/mount/MountCardView.vue'
 import MountedObjectPreviewModal from '../components/mount/MountedObjectPreviewModal.vue'
@@ -282,7 +287,11 @@ const activeAction = ref('')
 const loadRequestSerial = ref(0)
 
 const viewModeKey = 'flares3:mount-view-mode'
-const viewMode = ref('table')
+const { isMobile, viewMode, setViewMode } = useResponsiveViewMode({
+  storageKey: viewModeKey,
+  desktopDefault: 'table',
+  mobileDefault: 'card',
+})
 
 const previewModalVisible = ref(false)
 const previewKey = ref('')
@@ -303,13 +312,6 @@ const deleteConfirmText = computed(() => {
   const key = pendingDeleteIsFolder.value ? 'mount.confirmDeleteFolder' : 'mount.confirmDelete'
   return t(key, { name: pendingDeleteName.value })
 })
-
-const setViewMode = (mode) => {
-  if (mode !== 'table' && mode !== 'card') {
-    return
-  }
-  viewMode.value = mode
-}
 
 const configOptions = computed(() =>
   configs.value.map((row) => ({
@@ -867,24 +869,7 @@ watch(
   }
 )
 
-watch(viewMode, (value) => {
-  if (typeof window === 'undefined') {
-    return
-  }
-  if (value !== 'table' && value !== 'card') {
-    return
-  }
-  window.localStorage.setItem(viewModeKey, value)
-})
-
 onMounted(async () => {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem(viewModeKey)
-    if (stored === 'table' || stored === 'card') {
-      viewMode.value = stored
-    }
-  }
-
   prefixInput.value = prefix.value
   await loadConfigs()
 
@@ -951,6 +936,10 @@ onMounted(async () => {
   align-items: center;
 }
 
+.mount-action-btn {
+  flex-shrink: 0;
+}
+
 .view-mode-toggle {
   display: inline-flex;
   gap: 2px;
@@ -985,7 +974,25 @@ onMounted(async () => {
   background: var(--accent);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  .mount-page {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  .mount-title-group,
+  .mount-title-row,
+  .mount-subtitle,
+  .mount-header,
+  .mount-actions,
+  .mount-content,
+  .mount-browser-panel,
+  .filter-row {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .mount-header {
     flex-direction: column;
     align-items: flex-start;
@@ -993,16 +1000,22 @@ onMounted(async () => {
 
   .mount-actions {
     justify-content: flex-start;
+    align-items: stretch;
     width: 100%;
   }
 
   .filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
     justify-content: flex-start;
   }
 
   .filter-item.query,
-  .filter-item.owner {
+  .filter-item.owner,
+  .mount-action-btn {
     width: 100%;
+    min-width: 0;
   }
 }
 
@@ -1059,5 +1072,19 @@ onMounted(async () => {
 
 .breadcrumb-sep {
   opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .mount-browser-header,
+  .mount-path {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .breadcrumb {
+    width: 100%;
+    min-width: 0;
+  }
 }
 </style>

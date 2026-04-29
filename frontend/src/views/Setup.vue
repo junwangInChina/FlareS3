@@ -718,14 +718,50 @@ onMounted(() => refresh())
   margin: 0 2px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .setup-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
   .setup-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .setup-actions > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .config-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .config-card-tags {
     justify-content: flex-start;
+  }
+
+  .usage-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kv-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .kv-value,
+  .kv-mono {
+    width: 100%;
+    text-align: left;
+  }
+
+  .config-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 </style>

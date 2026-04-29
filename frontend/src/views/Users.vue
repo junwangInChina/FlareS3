@@ -3,7 +3,20 @@
     <div class="users-page">
       <header class="users-header">
         <div class="users-title-group">
-          <h1 class="users-title">{{ t('users.title') }}</h1>
+          <div class="users-title-row">
+            <h1 class="users-title">{{ t('users.title') }}</h1>
+            <Button
+              v-if="authStore.isAdmin"
+              type="ghost"
+              size="small"
+              class="users-mobile-create-btn"
+              :disabled="loading"
+              :aria-label="t('users.createUser')"
+              @click="showCreateModal = true"
+            >
+              <Plus :size="18" />
+            </Button>
+          </div>
           <p class="users-subtitle">
             {{ t('users.subtitle') }}
           </p>
@@ -11,54 +24,61 @@
 
         <div class="users-actions">
           <div class="filter-row">
-            <div class="filter-item username">
-              <Select
-                v-model="filters.q"
-                :options="userOptions"
+            <div class="filter-row-primary">
+              <div class="filter-item username">
+                <Select
+                  v-model="filters.q"
+                  :options="userOptions"
+                  size="small"
+                  :disabled="userOptionsLoading"
+                />
+              </div>
+
+              <div class="filter-item status">
+                <Select v-model="filters.status" :options="statusOptions" size="small" />
+              </div>
+
+              <div class="filter-item created-range">
+                <DateRangePicker
+                  v-model:startValue="filters.created_from_date"
+                  v-model:endValue="filters.created_to_date"
+                  size="small"
+                  clearable
+                />
+              </div>
+            </div>
+
+            <div class="filter-row-secondary">
+              <Button
+                type="default"
                 size="small"
-                :disabled="userOptionsLoading"
-              />
-            </div>
-
-            <div class="filter-item status">
-              <Select v-model="filters.status" :options="statusOptions" size="small" />
-            </div>
-
-            <div class="filter-item created-range">
-              <DateRangePicker
-                v-model:startValue="filters.created_from_date"
-                v-model:endValue="filters.created_to_date"
+                class="users-search-btn"
+                :loading="loading && activeAction === 'search'"
+                :disabled="loading"
+                @click="handleSearch"
+              >
+                <Search :size="16" style="margin-right: 6px" />
+                {{ t('common.search') }}
+              </Button>
+              <Button
+                type="default"
                 size="small"
-                clearable
-              />
+                class="users-refresh-btn"
+                :loading="loading && activeAction === 'refresh'"
+                :disabled="loading"
+                @click="handleRefresh"
+              >
+                <RefreshCw :size="16" style="margin-right: 6px" />
+                {{ t('common.refresh') }}
+              </Button>
             </div>
-
-            <Button
-              type="default"
-              size="small"
-              :loading="loading && activeAction === 'search'"
-              :disabled="loading"
-              @click="handleSearch"
-            >
-              <Search :size="16" style="margin-right: 6px" />
-              {{ t('common.search') }}
-            </Button>
-            <Button
-              type="default"
-              size="small"
-              :loading="loading && activeAction === 'refresh'"
-              :disabled="loading"
-              @click="handleRefresh"
-            >
-              <RefreshCw :size="16" style="margin-right: 6px" />
-              {{ t('common.refresh') }}
-            </Button>
           </div>
 
           <Button
             v-if="authStore.isAdmin"
             type="primary"
             size="small"
+            class="users-desktop-create-btn"
             :disabled="loading"
             @click="showCreateModal = true"
           >
@@ -783,12 +803,31 @@ onMounted(() => {
   min-width: 0;
 }
 
+.users-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--nb-space-sm);
+}
+
 .users-title {
   margin: 0;
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
   font-weight: var(--nb-heading-font-weight, 900);
   font-size: var(--nb-font-size-2xl);
   line-height: 1.2;
+}
+
+.users-mobile-create-btn {
+  display: none;
+  height: 32px;
+  padding: 0 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.users-mobile-create-btn :deep(svg) {
+  width: 18px;
+  height: 18px;
 }
 
 .users-subtitle {
@@ -813,6 +852,11 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.filter-row-primary,
+.filter-row-secondary {
+  display: contents;
+}
+
 .filter-item.username {
   width: 160px;
 }
@@ -823,6 +867,14 @@ onMounted(() => {
 
 .filter-item.created-range {
   width: 280px;
+}
+
+.filter-item.username,
+.filter-item.status,
+.filter-item.created-range,
+.users-search-btn,
+.users-refresh-btn {
+  min-width: 0;
 }
 
 .users-content {
@@ -864,14 +916,97 @@ onMounted(() => {
   color: var(--nb-ink);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  .users-page {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
   .users-header {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .users-title-group,
+  .users-title-row,
+  .users-subtitle,
+  .users-actions {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .users-content,
+  .users-header,
+  .filter-row,
+  .filter-row-primary,
+  .filter-row-secondary {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .users-title-row {
+    justify-content: flex-start;
+  }
+
+  .users-mobile-create-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
   .users-actions {
     justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-row-primary {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: var(--nb-space-sm);
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-row-secondary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--nb-space-sm);
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-item.username,
+  .filter-item.status,
+  .filter-item.created-range,
+  .users-search-btn,
+  .users-refresh-btn {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .users-desktop-create-btn {
+    display: none;
+  }
+
+  .filter-row-primary :deep(.brutal-select-wrapper),
+  .filter-row-primary :deep(.shadcn-select-wrapper),
+  .filter-row-primary :deep(.date-range-picker),
+  .filter-row-primary :deep(.brutal-select-trigger),
+  .filter-row-primary :deep(.shadcn-select-trigger),
+  .filter-row-primary :deep(.date-range-trigger) {
+    width: 100%;
+    min-width: 0;
+    min-inline-size: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 }
 </style>

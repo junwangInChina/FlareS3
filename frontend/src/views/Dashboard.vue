@@ -3,7 +3,20 @@
     <div class="dashboard-page">
       <header class="dashboard-header">
         <div class="dashboard-title-group">
-          <h1 class="dashboard-title">{{ t('dashboard.title') }}</h1>
+          <div class="dashboard-title-row">
+            <h1 class="dashboard-title">{{ t('dashboard.title') }}</h1>
+            <Button
+              type="ghost"
+              size="small"
+              class="dashboard-mobile-refresh-btn"
+              :loading="loading && activeAction === 'refresh'"
+              :disabled="loading"
+              :aria-label="t('dashboard.actions.refresh')"
+              @click="handleRefresh"
+            >
+              <RefreshCw :size="18" />
+            </Button>
+          </div>
           <p class="dashboard-subtitle">{{ t('dashboard.subtitle') }}</p>
         </div>
 
@@ -135,12 +148,31 @@ onMounted(() => {
   min-width: 0;
 }
 
+.dashboard-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--nb-space-sm);
+}
+
 .dashboard-title {
   margin: 0;
   font-family: var(--nb-heading-font-family, var(--nb-font-mono));
   font-weight: var(--nb-heading-font-weight, 900);
   font-size: var(--nb-font-size-2xl);
   line-height: 1.2;
+}
+
+.dashboard-mobile-refresh-btn {
+  display: none;
+  height: 32px;
+  padding: 0 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-mobile-refresh-btn :deep(svg) {
+  width: 18px;
+  height: 18px;
 }
 
 .dashboard-subtitle {
@@ -156,15 +188,32 @@ onMounted(() => {
   gap: var(--nb-space-sm);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .dashboard-actions {
-    justify-content: flex-start;
+  .dashboard-title-group,
+  .dashboard-title-row,
+  .dashboard-subtitle {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-title-row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .dashboard-mobile-refresh-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .dashboard-actions {
+    display: none;
   }
 }
 </style>

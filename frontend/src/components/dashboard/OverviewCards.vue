@@ -112,7 +112,7 @@ const cards = computed(() =>
   word-break: break-word;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .overview-grid {
     grid-template-columns: 1fr;
   }

@@ -135,4 +135,32 @@ const close = () => {
 .modal-leave-to .modal-content {
   transform: scale(0.9) translateY(-20px);
 }
+
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: var(--nb-space-sm);
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 16px);
+  }
+
+  .modal-header {
+    padding: var(--nb-space-sm) var(--nb-space-md);
+  }
+
+  .modal-body {
+    padding: var(--nb-space-md);
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  :deep(.modal-footer > *) {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

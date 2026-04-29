@@ -8,7 +8,7 @@
         </div>
 
         <div class="shares-actions">
-          <div class="filter-row">
+          <div class="filter-row" :class="{ 'has-owner-filter': authStore.isAdmin }">
             <div class="filter-item query">
               <Input
                 v-model="filters.q"
@@ -63,6 +63,7 @@
             <Button
               type="default"
               size="small"
+              class="shares-search-btn"
               :loading="loading && activeAction === 'search'"
               :disabled="loading || batchDisableSubmitting"
               @click="handleSearch"
@@ -74,6 +75,7 @@
             <Button
               type="default"
               size="small"
+              class="shares-refresh-btn"
               :loading="loading && activeAction === 'refresh'"
               :disabled="loading || batchDisableSubmitting"
               @click="handleRefresh"
@@ -85,7 +87,7 @@
             <Button
               type="ghost"
               size="small"
-              class="shares-quick-btn"
+              class="shares-quick-btn shares-expired-btn"
               :class="{ 'is-active': expiredGovernanceActive }"
               :loading="loading && activeAction === 'focus-expired'"
               :disabled="loading || batchDisableSubmitting"
@@ -97,7 +99,7 @@
             <Button
               type="ghost"
               size="small"
-              class="shares-quick-btn"
+              class="shares-quick-btn shares-expiring-btn"
               :class="{ 'is-active': expiringGovernanceActive }"
               :loading="loading && activeAction === 'focus-expiring'"
               :disabled="loading || batchDisableSubmitting"
@@ -109,6 +111,7 @@
             <Button
               type="danger"
               size="small"
+              class="shares-batch-disable-btn"
               :loading="batchDisableSubmitting"
               :disabled="loading || batchDisableSubmitting || selectedSharesCount === 0"
               @click="handleBatchDisable"
@@ -121,7 +124,7 @@
       </header>
 
       <section class="shares-content">
-        <Card class="shares-table-card">
+        <Card v-if="!isMobile" class="shares-table-card">
           <Table
             v-if="loading || items.length"
             class="shares-table"
@@ -133,6 +136,32 @@
           <div v-else class="shares-state">
             {{ emptyStateText }}
           </div>
+
+          <Pagination
+            v-if="pagination.itemCount > 0"
+            :page="pagination.page"
+            :page-size="pagination.pageSize"
+            :total="pagination.itemCount"
+            @update:page="changePage"
+            @update:page-size="changePageSize"
+          />
+        </Card>
+
+        <Card v-else class="shares-table-card">
+          <SharesCardView
+            :shares="items"
+            :selected-ids="selectedIds"
+            :loading="loading || Boolean(activeAction)"
+            :initial-loading="loading"
+            :is-admin="authStore.isAdmin"
+            :empty-state-text="emptyStateText"
+            @copy-link="copyShareLink"
+            @open-link="openShareLink"
+            @edit="openEditShare"
+            @disable="openConfirmAction('disable', $event)"
+            @regenerate="openConfirmAction('regenerate', $event)"
+            @toggle-select="toggleRowSelection"
+          />
 
           <Pagination
             v-if="pagination.itemCount > 0"
@@ -206,8 +235,10 @@ import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TableCellText from '../components/ui/table/TableCellText.vue'
 import FileShareModal from '../components/files/FileShareModal.vue'
+import SharesCardView from '../components/shares/SharesCardView.vue'
 import TextShareModal from '../components/texts/TextShareModal.vue'
 import { useMessage } from '../composables/useMessage'
+import { useIsMobile } from '../composables/useViewport.js'
 import {
   createDefaultShareFilters,
   DEFAULT_SHARE_SORT_KEY,
@@ -242,6 +273,7 @@ const activeAction = ref('')
 const shareFiltersStorageKey = 'flares3:shares:filters'
 
 const filters = ref(createDefaultShareFilters())
+const isMobile = useIsMobile()
 
 const ownersLoading = ref(false)
 const owners = ref([])
@@ -1178,15 +1210,152 @@ watch(
   word-break: break-word;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  .shares-page {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
   .shares-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  .shares-title-group,
+  .shares-subtitle,
+  .shares-actions,
+  .shares-content,
+  .shares-header,
+  .filter-row {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .shares-actions {
     justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-flow: row;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: var(--nb-space-sm);
+  }
+
+  .filter-item.query,
+  .filter-item.owner,
+  .filter-item.type,
+  .filter-item.status,
+  .filter-item.owner-select,
+  .filter-item.sort,
+  .filter-item.expires-range,
+  .shares-search-btn,
+  .shares-refresh-btn,
+  .shares-expired-btn,
+  .shares-expiring-btn,
+  .shares-batch-disable-btn {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .filter-item.query {
+    grid-column: 1 / span 2;
+    grid-row: 1;
+  }
+
+  .filter-item.owner {
+    grid-column: 3 / span 2;
+    grid-row: 1;
+  }
+
+  .filter-row:not(.has-owner-filter) .filter-item.query {
+    grid-column: 1 / -1;
+  }
+
+  .filter-item.type {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .filter-item.status {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .filter-item.owner-select {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .filter-item.sort {
+    grid-column: 4;
+    grid-row: 2;
+  }
+
+  .filter-row:not(.has-owner-filter) .filter-item.sort {
+    grid-column: 3 / -1;
+  }
+
+  .filter-item.expires-range {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .shares-expired-btn {
+    grid-column: 1 / span 2;
+    grid-row: 4;
+  }
+
+  .shares-expiring-btn {
+    grid-column: 3 / span 2;
+    grid-row: 4;
+  }
+
+  .shares-search-btn {
+    grid-column: 1;
+    grid-row: 5;
+  }
+
+  .shares-refresh-btn {
+    grid-column: 2;
+    grid-row: 5;
+  }
+
+  .shares-batch-disable-btn {
+    grid-column: 3 / -1;
+    grid-row: 5;
+  }
+
+  .shares-search-btn,
+  .shares-refresh-btn,
+  .shares-expired-btn,
+  .shares-expiring-btn,
+  .shares-batch-disable-btn {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .filter-row :deep(.brutal-input-wrapper),
+  .filter-row :deep(.shadcn-input-wrapper),
+  .filter-row :deep(.brutal-select-wrapper),
+  .filter-row :deep(.shadcn-select-wrapper),
+  .filter-row :deep(.date-range-picker),
+  .filter-row :deep(.brutal-input-control),
+  .filter-row :deep(.shadcn-input-control),
+  .filter-row :deep(.brutal-select-trigger),
+  .filter-row :deep(.shadcn-select-trigger),
+  .filter-row :deep(.date-range-trigger) {
+    width: 100%;
+    min-width: 0;
+    min-inline-size: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 }
 </style>

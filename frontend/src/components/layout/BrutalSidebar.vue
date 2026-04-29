@@ -5,7 +5,9 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../../stores/auth'
 import { useThemeStore } from '../../stores/theme'
 import { toggleLocale } from '../../locales'
+import { useLogoutConfirm } from '../../composables/useLogoutConfirm.js'
 import { buildSidebarMenuItems } from '../../utils/navigation.js'
+import LogoutConfirmModal from '../auth/LogoutConfirmModal.vue'
 import Modal from '../ui/modal/Modal.vue'
 import FormItem from '../ui/form-item/FormItem.vue'
 import Button from '../ui/button/Button.vue'
@@ -107,11 +109,10 @@ const toggleCollapse = () => {
   emit('update:collapsed', !props.collapsed)
 }
 
-const handleLogout = async () => {
-  closeUserMenu()
-  await authStore.logout()
-  router.push('/login')
-}
+const { logoutConfirmVisible, logoutSubmitting, openLogoutConfirm, confirmLogout } =
+  useLogoutConfirm({
+    beforeOpen: closeUserMenu,
+  })
 
 const themeLabel = computed(() => (themeStore.isDark ? t('common.dark') : t('common.light')))
 const themeTitle = computed(() =>
@@ -386,7 +387,7 @@ const logoLetters = computed(() => logoText.split(''))
             {{ languageLabel }}
           </Button>
 
-          <Button type="default" size="small" block @click="handleLogout">
+          <Button type="default" size="small" block @click="openLogoutConfirm">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
               <path
                 d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
@@ -456,6 +457,12 @@ const logoLetters = computed(() => logoText.split(''))
           <Button type="primary" @click="applyUiTheme">{{ t('common.apply') }}</Button>
         </template>
       </Modal>
+
+      <LogoutConfirmModal
+        v-model:show="logoutConfirmVisible"
+        :loading="logoutSubmitting"
+        @confirm="confirmLogout"
+      />
     </div>
   </aside>
 </template>

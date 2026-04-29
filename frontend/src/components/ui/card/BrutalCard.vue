@@ -76,4 +76,29 @@ defineProps({
   border-top: var(--nb-border);
   background-color: var(--nb-gray-100);
 }
+
+@media (max-width: 768px) {
+  .brutal-card,
+  .card-header,
+  .card-body,
+  .card-footer,
+  .header-extra {
+    min-width: 0;
+  }
+
+  .brutal-card {
+    width: 100%;
+  }
+
+  .card-header {
+    align-items: flex-start;
+    gap: var(--nb-space-sm);
+    padding: var(--nb-space-md);
+  }
+
+  .card-body,
+  .card-footer {
+    padding: var(--nb-space-md);
+  }
+}
 </style>

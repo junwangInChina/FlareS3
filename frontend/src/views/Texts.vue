@@ -5,6 +5,17 @@
         <div class="texts-title-group">
           <div class="texts-title-row">
             <h1 class="texts-title">{{ t('texts.title') }}</h1>
+            <Button
+              v-if="isMobile"
+              type="ghost"
+              size="small"
+              class="texts-mobile-create-btn"
+              :disabled="loading"
+              :aria-label="t('texts.createText')"
+              @click="openCreate"
+            >
+              <Plus :size="18" />
+            </Button>
           </div>
           <p class="texts-subtitle">
             {{ t('texts.subtitle') }}
@@ -12,7 +23,7 @@
         </div>
 
         <div class="texts-actions">
-          <div class="filter-row">
+          <div class="filter-row" :class="{ 'has-owner-filter': authStore.isAdmin }">
             <div class="filter-item query">
               <Input
                 v-model="filters.q"
@@ -35,6 +46,8 @@
             <Button
               type="default"
               size="small"
+              class="texts-search-btn"
+              :block="isMobile"
               :loading="loading && activeAction === 'search'"
               :disabled="loading"
               @click="handleSearch"
@@ -46,6 +59,8 @@
             <Button
               type="default"
               size="small"
+              class="texts-refresh-btn"
+              :block="isMobile"
               :loading="loading && activeAction === 'refresh'"
               :disabled="loading"
               @click="handleRefresh"
@@ -54,7 +69,7 @@
               {{ t('common.refresh') }}
             </Button>
 
-            <div class="filter-item view-mode">
+            <div v-if="!isMobile" class="filter-item view-mode">
               <div class="view-mode-toggle" role="group" aria-label="View mode">
                 <Tooltip :content="t('texts.viewMode.table')">
                   <Button
@@ -86,7 +101,13 @@
             </div>
           </div>
 
-          <Button type="primary" size="small" :disabled="loading" @click="openCreate">
+          <Button
+            v-if="!isMobile"
+            type="primary"
+            size="small"
+            :disabled="loading"
+            @click="openCreate"
+          >
             <Plus :size="16" style="margin-right: 6px" />
             {{ t('texts.createText') }}
           </Button>
@@ -205,6 +226,7 @@ import TextViewModal from '../components/texts/TextViewModal.vue'
 import TextShareModal from '../components/texts/TextShareModal.vue'
 import TextQrModal from '../components/texts/TextQrModal.vue'
 import { useMessage } from '../composables/useMessage'
+import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -226,15 +248,11 @@ const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 
 const filters = ref({ q: '', owner_id: '' })
 
-const viewModeKey = 'flares3:texts-view-mode'
-const viewMode = ref('table')
-
-const setViewMode = (mode) => {
-  if (mode !== 'table' && mode !== 'card') {
-    return
-  }
-  viewMode.value = mode
-}
+const { isMobile, viewMode, setViewMode } = useResponsiveViewMode({
+  storageKey: 'flares3:texts-view-mode',
+  desktopDefault: 'table',
+  mobileDefault: 'card',
+})
 
 const usersLoading = ref(false)
 const users = ref([])
@@ -604,25 +622,19 @@ const handleDelete = (row) => {
 }
 
 onMounted(() => {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem(viewModeKey)
-    if (stored === 'table' || stored === 'card') {
-      viewMode.value = stored
-    }
-  }
   loadTexts()
   loadUsers()
 })
 
-watch(viewMode, (value) => {
-  if (typeof window === 'undefined') {
-    return
-  }
-  if (value !== 'table' && value !== 'card') {
-    return
-  }
-  window.localStorage.setItem(viewModeKey, value)
-})
+watch(
+  [isMobile, viewMode],
+  ([mobile, mode]) => {
+    if (mobile && mode !== 'card') {
+      setViewMode('card')
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -655,6 +667,19 @@ watch(viewMode, (value) => {
   font-weight: var(--nb-heading-font-weight, 900);
   font-size: var(--nb-font-size-2xl);
   line-height: 1.2;
+}
+
+.texts-mobile-create-btn {
+  display: none;
+  height: 32px;
+  padding: 0 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.texts-mobile-create-btn :deep(svg) {
+  width: 18px;
+  height: 18px;
 }
 
 .texts-subtitle {
@@ -743,24 +768,84 @@ watch(viewMode, (value) => {
   color: var(--nb-ink);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  .texts-page {
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
   .texts-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  .texts-title-group,
+  .texts-title-row,
+  .texts-subtitle,
+  .texts-actions,
+  .texts-content,
+  .texts-header,
+  .filter-row {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .texts-title-row {
+    justify-content: flex-start;
+  }
+
+  .texts-mobile-create-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
   .texts-actions {
     justify-content: flex-start;
-    width: 100%;
+    align-items: stretch;
   }
 
   .filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     justify-content: flex-start;
+    align-items: stretch;
+    gap: var(--nb-space-sm);
+  }
+
+  .filter-row.has-owner-filter .filter-item.query,
+  .filter-row.has-owner-filter .filter-item.owner {
+    grid-row: 1;
+  }
+
+  .filter-row:not(.has-owner-filter) .filter-item.query {
+    grid-column: 1 / -1;
   }
 
   .filter-item.query,
-  .filter-item.owner {
+  .filter-item.owner,
+  .texts-search-btn,
+  .texts-refresh-btn {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .filter-item.view-mode {
+    display: none !important;
+  }
+
+  .filter-row :deep(.brutal-input-wrapper),
+  .filter-row :deep(.shadcn-input-wrapper),
+  .filter-row :deep(.brutal-select-wrapper),
+  .filter-row :deep(.shadcn-select-wrapper),
+  .filter-row :deep(.brutal-input-control),
+  .filter-row :deep(.shadcn-input-control),
+  .filter-row :deep(.brutal-select-trigger),
+  .filter-row :deep(.shadcn-select-trigger) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 }
 </style>
