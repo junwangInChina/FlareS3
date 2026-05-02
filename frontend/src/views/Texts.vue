@@ -115,40 +115,49 @@
       </header>
 
       <section class="texts-content">
-        <TextsTableView
-          v-if="viewMode === 'table'"
-          :columns="columns"
-          :data="texts"
-          :loading="loading"
-          :total="pagination.itemCount"
-          :page="pagination.page"
-          :page-size="pagination.pageSize"
-          :disabled="loading"
-          @update:page="changePage"
-          @update:page-size="changePageSize"
+        <PageSkeleton
+          v-if="initialPageLoading"
+          :variant="viewMode === 'table' ? 'table' : 'cards'"
+          :columns="columns.length"
+          :cards="6"
         />
 
-        <TextsCardView
-          v-else
-          :texts="texts"
-          :loading="loading"
-          :initial-loading="loading"
-          :deleting="deleting"
-          :deleting-id="deletingId"
-          :has-more="hasMore"
-          :active-action="activeAction"
-          :normalize-id="normalizeId"
-          :build-preview="buildPreview"
-          :format-bytes="formatBytes"
-          :format-date-time="formatDateTime"
-          :detect-file-type="detectFileType"
-          @view="openView"
-          @qrcode="openQrCode"
-          @share="openShare"
-          @edit="openEdit"
-          @delete="handleDelete"
-          @load-more="loadMore"
-        />
+        <template v-else>
+          <TextsTableView
+            v-if="viewMode === 'table'"
+            :columns="columns"
+            :data="texts"
+            :loading="loading"
+            :total="pagination.itemCount"
+            :page="pagination.page"
+            :page-size="pagination.pageSize"
+            :disabled="loading"
+            @update:page="changePage"
+            @update:page-size="changePageSize"
+          />
+
+          <TextsCardView
+            v-else
+            :texts="texts"
+            :loading="loading"
+            :initial-loading="initialPageLoading"
+            :deleting="deleting"
+            :deleting-id="deletingId"
+            :has-more="hasMore"
+            :active-action="activeAction"
+            :normalize-id="normalizeId"
+            :build-preview="buildPreview"
+            :format-bytes="formatBytes"
+            :format-date-time="formatDateTime"
+            :detect-file-type="detectFileType"
+            @view="openView"
+            @qrcode="openQrCode"
+            @share="openShare"
+            @edit="openEdit"
+            @delete="handleDelete"
+            @load-more="loadMore"
+          />
+        </template>
       </section>
 
       <TextFormModal v-model:show="createModalVisible" mode="create" @success="handleFormSuccess" />
@@ -214,6 +223,7 @@ import { useThemeStore } from '../stores/theme'
 import AppLayout from '../components/layout/AppLayout.vue'
 import TextsTableView from '../components/texts/TextsTableView.vue'
 import TextsCardView from '../components/texts/TextsCardView.vue'
+import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import Button from '../components/ui/button/Button.vue'
 import Modal from '../components/ui/modal/Modal.vue'
 import Input from '../components/ui/input/Input.vue'
@@ -235,6 +245,7 @@ const { t, locale } = useI18n({ useScope: 'global' })
 
 const texts = ref([])
 const loading = ref(false)
+const hasLoadedOnce = ref(false)
 const activeAction = ref('')
 const deletingId = ref('')
 
@@ -314,6 +325,7 @@ const detectFileType = (row) => {
 }
 
 const hasMore = computed(() => texts.value.length < pagination.value.itemCount)
+const initialPageLoading = computed(() => loading.value && !hasLoadedOnce.value)
 
 const columns = computed(() => {
   const base = [
@@ -457,6 +469,7 @@ const loadTexts = async ({ page = pagination.value.page, append = false } = {}) 
     pagination.value.itemCount = Number(result.total || 0)
     pagination.value.page = Number(result.page || page)
     pagination.value.pageSize = Number(result.limit || pagination.value.pageSize)
+    hasLoadedOnce.value = true
   } catch (error) {
     message.error(t('texts.messages.loadFailed'))
   } finally {

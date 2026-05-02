@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="loading" class="mount-state">
+    <div v-if="initialLoading && rows.length === 0" class="mount-state">
       {{ t('mount.state.loading') }}
     </div>
     <div v-else-if="rows.length === 0" class="mount-state">
@@ -154,6 +154,10 @@ defineProps({
     required: true,
   },
   loading: {
+    type: Boolean,
+    default: false,
+  },
+  initialLoading: {
     type: Boolean,
     default: false,
   },

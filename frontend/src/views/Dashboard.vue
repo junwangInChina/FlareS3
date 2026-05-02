@@ -34,28 +34,25 @@
         </div>
       </header>
 
-      <OverviewCards
-        :metrics="overview.metrics"
-        :setup="overview.setup"
-        :loading="loading && !loadedOnce"
-      />
+      <PageSkeleton v-if="initialPageLoading" variant="dashboard" />
 
-      <DashboardInsights
-        :metrics="overview.metrics"
-        :setup="overview.setup"
-        :loading="loading && !loadedOnce"
-      />
+      <template v-else>
+        <OverviewCards :metrics="overview.metrics" :setup="overview.setup" />
+
+        <DashboardInsights :metrics="overview.metrics" :setup="overview.setup" />
+      </template>
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Button from '../components/ui/button/Button.vue'
+import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import DashboardInsights from '../components/dashboard/DashboardInsights.vue'
 import OverviewCards from '../components/dashboard/OverviewCards.vue'
 import { useMessage } from '../composables/useMessage'
@@ -93,6 +90,7 @@ const overview = ref(defaultOverview())
 const loading = ref(false)
 const loadedOnce = ref(false)
 const activeAction = ref('')
+const initialPageLoading = computed(() => loading.value && !loadedOnce.value)
 
 const normalizeOverview = (payload) => ({
   metrics: {

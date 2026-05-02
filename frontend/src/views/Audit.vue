@@ -75,7 +75,9 @@
       </header>
 
       <section class="audit-content">
-        <Card class="audit-table-card">
+        <PageSkeleton v-if="initialPageLoading" variant="table" :columns="columns.length" />
+
+        <Card v-else class="audit-table-card">
           <Table class="audit-table" :columns="columns" :data="logs" :loading="loading" />
 
           <Pagination
@@ -121,6 +123,7 @@ import { useThemeStore } from '../stores/theme'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
 import Button from '../components/ui/button/Button.vue'
+import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import Select from '../components/ui/select/Select.vue'
 import Table from '../components/ui/table/Table.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
@@ -135,6 +138,7 @@ const { t, locale, te } = useI18n({ useScope: 'global' })
 const themeStore = useThemeStore()
 const logs = ref([])
 const loading = ref(false)
+const hasLoadedOnce = ref(false)
 const activeAction = ref('')
 const filters = ref({ action: '', actor_user_id: '', created_from_date: '', created_to_date: '' })
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
@@ -146,6 +150,7 @@ const pendingDeleteIds = ref([])
 
 const users = ref([])
 const usersLoading = ref(false)
+const initialPageLoading = computed(() => loading.value && !hasLoadedOnce.value)
 
 const knownActions = [
   'BOOTSTRAP_ADMIN',
@@ -524,6 +529,7 @@ const loadLogs = async () => {
     logs.value = result.logs || []
     pagination.value.itemCount = result.total
     selectedIds.value = []
+    hasLoadedOnce.value = true
   } catch (error) {
     message.error(t('audit.loadLogsFailed'))
   } finally {

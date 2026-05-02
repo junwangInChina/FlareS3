@@ -172,35 +172,44 @@
       </header>
 
       <section class="files-content">
-        <FilesTableView
-          v-if="viewMode === 'table'"
-          :columns="columns"
-          :data="filesStore.files"
-          :loading="tableLoading"
-          :total="filesStore.total"
-          :page="pagination.page"
-          :page-size="pagination.pageSize"
-          :disabled="filesStore.loading || deleting"
-          @update:page="changePage"
-          @update:page-size="changePageSize"
+        <PageSkeleton
+          v-if="tableLoading"
+          :variant="viewMode === 'table' ? 'table' : 'cards'"
+          :columns="columns.length"
+          :cards="6"
         />
 
-        <FilesCardView
-          v-else
-          :files="filesStore.files"
-          :loading="filesStore.loading || deleting"
-          :initial-loading="tableLoading"
-          :has-more="hasMore"
-          :active-action="activeAction"
-          :is-admin="authStore.isAdmin"
-          :is-trash-mode="isTrashMode"
-          @show-info="showFileInfo"
-          @share="showFileShare"
-          @delete="handleDelete"
-          @restore="handleRestore"
-          @delete-permanent="handleDeletePermanent"
-          @load-more="loadMore"
-        />
+        <template v-else>
+          <FilesTableView
+            v-if="viewMode === 'table'"
+            :columns="columns"
+            :data="filesStore.files"
+            :loading="tableLoading"
+            :total="filesStore.total"
+            :page="pagination.page"
+            :page-size="pagination.pageSize"
+            :disabled="filesStore.loading || deleting"
+            @update:page="changePage"
+            @update:page-size="changePageSize"
+          />
+
+          <FilesCardView
+            v-else
+            :files="filesStore.files"
+            :loading="filesStore.loading || deleting"
+            :initial-loading="tableLoading"
+            :has-more="hasMore"
+            :active-action="activeAction"
+            :is-admin="authStore.isAdmin"
+            :is-trash-mode="isTrashMode"
+            @show-info="showFileInfo"
+            @share="showFileShare"
+            @delete="handleDelete"
+            @restore="handleRestore"
+            @delete-permanent="handleDeletePermanent"
+            @load-more="loadMore"
+          />
+        </template>
       </section>
 
       <FileInfoModal v-model:show="showInfoModal" :file="selectedFile" />
@@ -270,6 +279,7 @@ import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TableCellText from '../components/ui/table/TableCellText.vue'
+import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import { useMessage } from '../composables/useMessage'
 import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
 import { canManageFileShare, getFileStatusState, isFileDeleted } from '../utils/files.js'

@@ -124,54 +124,63 @@
       </header>
 
       <section class="shares-content">
-        <Card v-if="!isMobile" class="shares-table-card">
-          <Table
-            v-if="loading || items.length"
-            class="shares-table"
-            :columns="columns"
-            :data="items"
-            :loading="loading"
-          />
+        <PageSkeleton
+          v-if="initialPageLoading"
+          :variant="isMobile ? 'cards' : 'table'"
+          :columns="columns.length"
+          :cards="6"
+        />
 
-          <div v-else class="shares-state">
-            {{ emptyStateText }}
-          </div>
+        <template v-else>
+          <Card v-if="!isMobile" class="shares-table-card">
+            <Table
+              v-if="loading || items.length"
+              class="shares-table"
+              :columns="columns"
+              :data="items"
+              :loading="loading"
+            />
 
-          <Pagination
-            v-if="pagination.itemCount > 0"
-            :page="pagination.page"
-            :page-size="pagination.pageSize"
-            :total="pagination.itemCount"
-            @update:page="changePage"
-            @update:page-size="changePageSize"
-          />
-        </Card>
+            <div v-else class="shares-state">
+              {{ emptyStateText }}
+            </div>
 
-        <Card v-else class="shares-table-card">
-          <SharesCardView
-            :shares="items"
-            :selected-ids="selectedIds"
-            :loading="loading || Boolean(activeAction)"
-            :initial-loading="loading"
-            :is-admin="authStore.isAdmin"
-            :empty-state-text="emptyStateText"
-            @copy-link="copyShareLink"
-            @open-link="openShareLink"
-            @edit="openEditShare"
-            @disable="openConfirmAction('disable', $event)"
-            @regenerate="openConfirmAction('regenerate', $event)"
-            @toggle-select="toggleRowSelection"
-          />
+            <Pagination
+              v-if="pagination.itemCount > 0"
+              :page="pagination.page"
+              :page-size="pagination.pageSize"
+              :total="pagination.itemCount"
+              @update:page="changePage"
+              @update:page-size="changePageSize"
+            />
+          </Card>
 
-          <Pagination
-            v-if="pagination.itemCount > 0"
-            :page="pagination.page"
-            :page-size="pagination.pageSize"
-            :total="pagination.itemCount"
-            @update:page="changePage"
-            @update:page-size="changePageSize"
-          />
-        </Card>
+          <Card v-else class="shares-table-card">
+            <SharesCardView
+              :shares="items"
+              :selected-ids="selectedIds"
+              :loading="loading || Boolean(activeAction)"
+              :initial-loading="initialPageLoading"
+              :is-admin="authStore.isAdmin"
+              :empty-state-text="emptyStateText"
+              @copy-link="copyShareLink"
+              @open-link="openShareLink"
+              @edit="openEditShare"
+              @disable="openConfirmAction('disable', $event)"
+              @regenerate="openConfirmAction('regenerate', $event)"
+              @toggle-select="toggleRowSelection"
+            />
+
+            <Pagination
+              v-if="pagination.itemCount > 0"
+              :page="pagination.page"
+              :page-size="pagination.pageSize"
+              :total="pagination.itemCount"
+              @update:page="changePage"
+              @update:page-size="changePageSize"
+            />
+          </Card>
+        </template>
       </section>
 
       <FileShareModal
@@ -225,6 +234,7 @@ import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
 import Button from '../components/ui/button/Button.vue'
+import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import DateRangePicker from '../components/ui/date-range-picker/DateRangePicker.vue'
 import Input from '../components/ui/input/Input.vue'
 import Modal from '../components/ui/modal/Modal.vue'
@@ -268,6 +278,7 @@ const message = useMessage()
 const items = ref([])
 const loading = ref(false)
 const loadFailed = ref(false)
+const hasLoadedOnce = ref(false)
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 const activeAction = ref('')
 const shareFiltersStorageKey = 'flares3:shares:filters'
@@ -361,6 +372,9 @@ const emptyStateText = computed(() => {
   if (hasActiveFilters.value) return t('shares.state.filteredEmpty')
   return t('shares.state.empty')
 })
+const initialPageLoading = computed(
+  () => !hasLoadedOnce.value && (loading.value || ownersLoading.value)
+)
 const pageRowIds = computed(() => items.value.map((item) => toShareSelectionKey(item)).filter(Boolean))
 const selectedIdSet = computed(() => new Set(selectedIds.value.map((id) => normalizeText(id)).filter(Boolean)))
 const selectedShares = computed(() => collectSelectedShares(items.value, selectedIds.value))
@@ -538,6 +552,7 @@ async function loadShares() {
 
     items.value = result.items || []
     pagination.value.itemCount = total
+    hasLoadedOnce.value = true
   } catch (error) {
     loadFailed.value = true
     items.value = []

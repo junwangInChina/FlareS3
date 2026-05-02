@@ -12,7 +12,7 @@ defineProps({
 
 <template>
   <div class="brutal-table-wrapper">
-    <div v-if="loading" class="loading-overlay">
+    <div v-if="loading && data.length === 0" class="loading-overlay">
       <div class="loader"></div>
     </div>
     <table class="brutal-table">

@@ -96,25 +96,79 @@
       </header>
 
       <section class="mount-content">
-        <Alert
-          v-if="!configsLoading && configs.length === 0"
-          type="info"
-          :title="t('mount.state.noConfigsTitle')"
-        >
-          {{ t('mount.state.noConfigsContent') }}
-        </Alert>
-
-        <Alert
-          v-else-if="!configsLoading && !selectedConfigId"
-          type="info"
-          :title="t('mount.state.noConfigSelectedTitle')"
-        >
-          {{ t('mount.state.noConfigSelectedContent') }}
-        </Alert>
+        <PageSkeleton
+          v-if="initialPageLoading"
+          :variant="viewMode === 'table' ? 'table' : 'cards'"
+          :columns="columns.length"
+          :cards="6"
+          min-card-width="220px"
+        />
 
         <template v-else>
-          <Card v-if="viewMode === 'table'" class="mount-browser-card">
-            <template #header>
+          <Alert
+            v-if="!configsLoading && configs.length === 0"
+            type="info"
+            :title="t('mount.state.noConfigsTitle')"
+          >
+            {{ t('mount.state.noConfigsContent') }}
+          </Alert>
+
+          <Alert
+            v-else-if="!configsLoading && !selectedConfigId"
+            type="info"
+            :title="t('mount.state.noConfigSelectedTitle')"
+          >
+            {{ t('mount.state.noConfigSelectedContent') }}
+          </Alert>
+
+          <template v-else>
+            <Card v-if="viewMode === 'table'" class="mount-browser-card">
+              <template #header>
+                <div class="mount-browser-header">
+                  <div class="mount-path">
+                    <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goRoot">
+                      <Home :size="16" />
+                      <span class="btn-label">{{ t('mount.actions.root') }}</span>
+                    </Button>
+
+                    <div class="breadcrumb">
+                      <span class="breadcrumb-root" :class="{ clickable: prefix }" @click="goRoot"
+                        >/</span
+                      >
+                      <template v-for="(item, index) in breadcrumbItems" :key="item.prefix">
+                        <span v-if="index > 0" class="breadcrumb-sep">/</span>
+                        <span
+                          class="breadcrumb-item clickable"
+                          @click="navigateToPrefix(item.prefix)"
+                        >
+                          {{ item.label }}
+                        </span>
+                      </template>
+                    </div>
+
+                    <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goUp">
+                      <ArrowUp :size="16" />
+                      <span class="btn-label">{{ t('mount.actions.up') }}</span>
+                    </Button>
+                  </div>
+                </div>
+              </template>
+
+              <MountTableView :columns="columns" :data="tableData" :loading="loading || deleting" />
+
+              <Pagination
+                :page="pageNumber"
+                :page-size="limit"
+                :total="paginationTotal"
+                :display-total="paginationDisplayTotal"
+                :page-size-options="pageSizeOptions"
+                :disabled="loading || deleting || !selectedConfigId"
+                @update:page="handlePaginationPageChange"
+                @update:page-size="handlePaginationPageSizeChange"
+              />
+            </Card>
+
+            <div v-else class="mount-browser-panel">
               <div class="mount-browser-header">
                 <div class="mount-path">
                   <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goRoot">
@@ -128,10 +182,7 @@
                     >
                     <template v-for="(item, index) in breadcrumbItems" :key="item.prefix">
                       <span v-if="index > 0" class="breadcrumb-sep">/</span>
-                      <span
-                        class="breadcrumb-item clickable"
-                        @click="navigateToPrefix(item.prefix)"
-                      >
+                      <span class="breadcrumb-item clickable" @click="navigateToPrefix(item.prefix)">
                         {{ item.label }}
                       </span>
                     </template>
@@ -143,66 +194,26 @@
                   </Button>
                 </div>
               </div>
-            </template>
 
-            <MountTableView :columns="columns" :data="tableData" :loading="loading || deleting" />
-
-            <Pagination
-              :page="pageNumber"
-              :page-size="limit"
-              :total="paginationTotal"
-              :display-total="paginationDisplayTotal"
-              :page-size-options="pageSizeOptions"
-              :disabled="loading || deleting || !selectedConfigId"
-              @update:page="handlePaginationPageChange"
-              @update:page-size="handlePaginationPageSizeChange"
-            />
-          </Card>
-
-          <div v-else class="mount-browser-panel">
-            <div class="mount-browser-header">
-              <div class="mount-path">
-                <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goRoot">
-                  <Home :size="16" />
-                  <span class="btn-label">{{ t('mount.actions.root') }}</span>
-                </Button>
-
-                <div class="breadcrumb">
-                  <span class="breadcrumb-root" :class="{ clickable: prefix }" @click="goRoot"
-                    >/</span
-                  >
-                  <template v-for="(item, index) in breadcrumbItems" :key="item.prefix">
-                    <span v-if="index > 0" class="breadcrumb-sep">/</span>
-                    <span class="breadcrumb-item clickable" @click="navigateToPrefix(item.prefix)">
-                      {{ item.label }}
-                    </span>
-                  </template>
-                </div>
-
-                <Button type="ghost" size="small" :disabled="loading || !prefix" @click="goUp">
-                  <ArrowUp :size="16" />
-                  <span class="btn-label">{{ t('mount.actions.up') }}</span>
-                </Button>
-              </div>
+              <MountCardView
+                :rows="tableData"
+                :loading="loading"
+                :initial-loading="initialPageLoading"
+                :has-more="canNext"
+                :active-action="activeAction"
+                :deleting="deleting"
+                :deleting-key="deletingKey"
+                :is-preview-supported="isPreviewSupported"
+                :format-bytes="formatBytes"
+                :format-date-time="formatDateTime"
+                @open-folder="openFolder"
+                @preview="openPreview"
+                @download="downloadObject"
+                @delete="handleDeleteObject"
+                @load-more="nextPage"
+              />
             </div>
-
-            <MountCardView
-              :rows="tableData"
-              :loading="loading"
-              :has-more="canNext"
-              :active-action="activeAction"
-              :deleting="deleting"
-              :deleting-key="deletingKey"
-              :is-preview-supported="isPreviewSupported"
-              :format-bytes="formatBytes"
-              :format-date-time="formatDateTime"
-              @open-folder="openFolder"
-              @preview="openPreview"
-              @download="downloadObject"
-              @delete="handleDeleteObject"
-              @load-more="nextPage"
-            />
-          </div>
+          </template>
         </template>
       </section>
 
@@ -254,6 +265,7 @@ import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
 import Pagination from '../components/ui/pagination/Pagination.vue'
+import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import Select from '../components/ui/select/Select.vue'
 import Input from '../components/ui/input/Input.vue'
 import Button from '../components/ui/button/Button.vue'
@@ -273,6 +285,7 @@ const message = useMessage()
 const configsLoading = ref(false)
 const configs = ref([])
 const selectedConfigId = ref('')
+const hasLoadedOnce = ref(false)
 
 const prefix = ref('')
 const prefixInput = ref('')
@@ -338,6 +351,7 @@ const paginationDisplayTotal = computed(() => {
   const seen = Math.max(0, (page - 1) * pageSize + count)
   return canNext.value ? `${seen}+` : seen
 })
+const initialPageLoading = computed(() => !hasLoadedOnce.value && (configsLoading.value || loading.value))
 
 const normalizePrefix = (value) => {
   const raw = String(value || '').trim()
@@ -452,6 +466,7 @@ const loadObjects = async () => {
     if (requestSerial !== loadRequestSerial.value) return false
 
     listResult.value = result
+    hasLoadedOnce.value = true
     return true
   } catch (error) {
     if (requestSerial === loadRequestSerial.value) {
