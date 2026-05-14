@@ -44,6 +44,7 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
     source: string
     endpoint: string
     bucket_name: string
+    access_key_id?: string
     usedSpace: number
     totalSpace: number
     usedSpaceFormatted: string
@@ -92,6 +93,7 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
       source: option.source,
       endpoint: loaded.config.endpoint,
       bucket_name: loaded.config.bucketName,
+      access_key_id: loaded.config.accessKeyId,
       usedSpace,
       totalSpace,
       usedSpaceFormatted: formatBytes(usedSpace),

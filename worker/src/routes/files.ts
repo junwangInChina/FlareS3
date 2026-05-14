@@ -8,6 +8,7 @@ import {
   resolveR2ConfigForKey,
 } from '../services/r2'
 import { logAudit, prepareAuditLogInsert } from '../services/audit'
+import { createProvider } from '../services/storage/factory'
 import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
 import { getClientIp } from '../middleware/rateLimit'
 import { prepareReleaseUploadReservation } from '../services/uploadReservations'
@@ -46,6 +47,12 @@ function formatDuration(ms: number): string {
   if (days > 0) return `${days}天 ${remHours}小时 ${remMinutes}分钟`
   if (hours > 0) return `${hours}小时 ${remMinutes}分钟`
   return `${remMinutes}分钟`
+}
+
+function getExplicitProviderConfigId(file: { r2_key?: unknown; config_id?: unknown }): string | null {
+  const configId = String(file.config_id || '').trim()
+  if (!configId) return null
+  return extractR2ConfigIdFromKey(String(file.r2_key || '')) ? null : configId
 }
 
 export async function listFiles(request: Request, env: Env): Promise<Response> {
@@ -100,7 +107,7 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
   const total = Number(totalRow || 0)
 
   const rows = await env.DB.prepare(
-    `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login
+    `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.config_id
      FROM files f
      LEFT JOIN users u ON u.id = f.owner_id
      ${whereClause}
@@ -124,25 +131,34 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
         Number.isFinite(expiresAt) &&
         now < expiresAt
       ) {
-        const loaded = await resolveR2ConfigForKey(env, String(row.r2_key))
-        if (loaded) {
-          try {
-            const ttl = calcPresignedDownloadUrlTtlSeconds(new Date(expiresAt), now)
-            downloadUrl = await generateDownloadUrl(
-              loaded.config,
-              String(row.r2_key),
-              String(row.filename),
-              ttl
-            )
-          } catch (error) {
+        const explicitProviderConfigId = getExplicitProviderConfigId(row)
+        if (explicitProviderConfigId) {
+          downloadUrl = `/api/files/${row.id}/download`
+        } else {
+          const loaded = await resolveR2ConfigForKey(env, String(row.r2_key))
+          if (loaded) {
+            try {
+              const ttl = calcPresignedDownloadUrlTtlSeconds(new Date(expiresAt), now)
+              downloadUrl = await generateDownloadUrl(
+                loaded.config,
+                String(row.r2_key),
+                String(row.filename),
+                ttl
+              )
+            } catch (error) {
+              downloadUrl = `/api/files/${row.id}/download`
+            }
+          } else {
             downloadUrl = `/api/files/${row.id}/download`
           }
         }
       }
 
+      const r2ConfigId = extractR2ConfigIdFromKey(String(row.r2_key)) || String((row as any).config_id || '')
+
       return {
         ...row,
-        r2_config_id: extractR2ConfigIdFromKey(String(row.r2_key)),
+        r2_config_id: r2ConfigId,
         remaining_time: remaining,
         download_url: downloadUrl,
       }
@@ -205,7 +221,7 @@ export async function listTrashFiles(request: Request, env: Env): Promise<Respon
   const total = Number(totalRow || 0)
 
   const rows = await env.DB.prepare(
-    `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.deleted_at
+    `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.deleted_at, f.config_id
      FROM files f
      LEFT JOIN users u ON u.id = f.owner_id
      ${whereClause}
@@ -217,7 +233,7 @@ export async function listTrashFiles(request: Request, env: Env): Promise<Respon
 
   const files = (rows.results || []).map((row) => ({
     ...row,
-    r2_config_id: extractR2ConfigIdFromKey(String(row.r2_key)),
+    r2_config_id: extractR2ConfigIdFromKey(String(row.r2_key)) || String((row as any).config_id || ''),
     remaining_time: '-',
     download_url: '',
   }))
@@ -232,7 +248,7 @@ export async function listTrashFiles(request: Request, env: Env): Promise<Respon
 
 export async function downloadFile(request: Request, env: Env, fileId: string): Promise<Response> {
   const file = await env.DB.prepare(
-    `SELECT f.id, f.owner_id, f.filename, f.r2_key, f.expires_at, f.upload_status, f.require_login,
+    `SELECT f.id, f.owner_id, f.filename, f.r2_key, f.expires_at, f.upload_status, f.require_login, f.config_id,
             u.status AS owner_status
      FROM files f
      LEFT JOIN users u ON u.id = f.owner_id
@@ -271,28 +287,54 @@ export async function downloadFile(request: Request, env: Env, fileId: string): 
     return jsonResponse({ error: '无权限' }, 403)
   }
 
-  const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
-  if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+  const r2Key = String(file.r2_key)
+  const explicitProviderConfigId = getExplicitProviderConfigId(file)
+  if (explicitProviderConfigId) {
+    const provider = await createProvider(env, explicitProviderConfigId)
+    if (!provider) return jsonResponse({ error: '存储配置未找到' }, 503)
 
-  const ttl = calcPresignedDownloadUrlTtlSeconds(expiresAt)
-  const downloadUrl = await generateDownloadUrl(
-    loaded.config,
-    String(file.r2_key),
-    String(file.filename),
-    ttl
-  )
+    try {
+      const result = await provider.download(r2Key, String(file.filename), 3600)
 
-  await logAudit(env.DB, {
-    actorUserId: user?.id,
-    action: 'FILE_DOWNLOAD',
-    targetType: 'file',
-    targetId: fileId,
-    ip: getClientIp(request),
-    userAgent: request.headers.get('User-Agent') || undefined,
-    metadata: { require_login: Number(file.require_login) },
-  })
+      await logAudit(env.DB, {
+        actorUserId: user?.id,
+        action: 'FILE_DOWNLOAD',
+        targetType: 'file',
+        targetId: fileId,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('User-Agent') || undefined,
+        metadata: { require_login: Number(file.require_login) },
+      })
 
-  return redirect(downloadUrl, 302)
+      if (result.kind === 'redirect') {
+        return redirect(result.url, 302)
+      }
+      return result.response
+    } catch (error) {
+      return jsonResponse({ error: `文件下载失败：${formatUpstreamFetchError(error)}` }, 502)
+    }
+  }
+
+  const loaded = await resolveR2ConfigForKey(env, r2Key)
+
+  if (loaded) {
+    const ttl = calcPresignedDownloadUrlTtlSeconds(expiresAt)
+    const downloadUrl = await generateDownloadUrl(loaded.config, r2Key, String(file.filename), ttl)
+
+    await logAudit(env.DB, {
+      actorUserId: user?.id,
+      action: 'FILE_DOWNLOAD',
+      targetType: 'file',
+      targetId: fileId,
+      ip: getClientIp(request),
+      userAgent: request.headers.get('User-Agent') || undefined,
+      metadata: { require_login: Number(file.require_login) },
+    })
+
+    return redirect(downloadUrl, 302)
+  }
+
+  return jsonResponse({ error: '存储配置未找到' }, 503)
 }
 
 const ARCHIVE_MIME_TYPES = new Set([
@@ -388,7 +430,7 @@ export async function previewFile(request: Request, env: Env, fileId: string): P
   if (!user) return jsonResponse({ error: '未授权' }, 401)
 
   const file = await env.DB.prepare(
-    `SELECT id, owner_id, filename, r2_key, content_type, expires_at, upload_status FROM files WHERE id = ? LIMIT 1`
+    `SELECT id, owner_id, filename, r2_key, content_type, expires_at, upload_status, config_id FROM files WHERE id = ? LIMIT 1`
   )
     .bind(fileId)
     .first()
@@ -423,8 +465,30 @@ export async function previewFile(request: Request, env: Env, fileId: string): P
     return jsonResponse({ error: '不支持预览该文件类型' }, 415)
   }
 
-  const loaded = await resolveR2ConfigForKey(env, String(file.r2_key))
-  if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+  const r2Key = String(file.r2_key)
+  const explicitProviderConfigId = getExplicitProviderConfigId(file)
+  if (explicitProviderConfigId) {
+    const provider = await createProvider(env, explicitProviderConfigId)
+    if (!provider) return jsonResponse({ error: '存储配置未找到' }, 503)
+
+    try {
+      const result = await provider.preview(
+        r2Key,
+        String(file.filename),
+        600,
+        mode.kind === 'redirect' ? mode.responseContentType : undefined
+      )
+      if (result.kind === 'redirect') {
+        return redirect(result.url, 302)
+      }
+      return result.response
+    } catch (error) {
+      return jsonResponse({ error: `生成预览链接失败：${formatUpstreamFetchError(error)}` }, 502)
+    }
+  }
+
+  const loaded = await resolveR2ConfigForKey(env, r2Key)
+  if (!loaded) return jsonResponse({ error: '存储配置未找到' }, 503)
 
   const ttl = calcPresignedDownloadUrlTtlSeconds(expiresAt)
   let previewUrl = ''
@@ -483,7 +547,7 @@ export async function restoreFile(request: Request, env: Env, fileId: string): P
   if (!user) return jsonResponse({ error: '未授权' }, 401)
 
   const file = await env.DB.prepare(
-    'SELECT id, owner_id, r2_key, expires_at, upload_status, deleted_at FROM files WHERE id = ? LIMIT 1'
+    'SELECT id, owner_id, r2_key, expires_at, upload_status, deleted_at, config_id FROM files WHERE id = ? LIMIT 1'
   )
     .bind(fileId)
     .first()
@@ -504,13 +568,40 @@ export async function restoreFile(request: Request, env: Env, fileId: string): P
   }
 
   const r2Key = String(file.r2_key)
-  const loaded = await resolveR2ConfigForKey(env, r2Key)
-  if (!loaded) return jsonResponse({ error: 'R2 未配置' }, 503)
+  const explicitProviderConfigId = getExplicitProviderConfigId(file)
+  if (explicitProviderConfigId) {
+    const provider = await createProvider(env, explicitProviderConfigId)
+    if (!provider) return jsonResponse({ error: '存储配置未找到' }, 503)
 
-  const objectExists = await checkObjectExists(loaded.config, r2Key)
-  if (!objectExists) {
-    return jsonResponse({ error: '文件对象不存在，无法恢复' }, 409)
+    const exists = await provider.checkExists(r2Key)
+    if (!exists) {
+      return jsonResponse({ error: '文件对象不存在，无法恢复' }, 409)
+    }
+
+    const now = new Date().toISOString()
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE files SET upload_status = 'completed', deleted_at = NULL, multipart_upload_id = NULL WHERE id = ?"
+      ).bind(fileId),
+      prepareReleaseUploadReservation(env.DB, fileId, now),
+      prepareAuditLogInsert(
+        env.DB,
+        {
+          actorUserId: user.id,
+          action: 'FILE_RESTORE',
+          targetType: 'file',
+          targetId: fileId,
+          ip: getClientIp(request),
+          userAgent: request.headers.get('User-Agent') || undefined,
+        },
+        now
+      ),
+    ])
+    return jsonResponse({ success: true })
   }
+
+  const loaded = await resolveR2ConfigForKey(env, r2Key)
+  if (!loaded) return jsonResponse({ error: '存储配置未找到' }, 503)
 
   const now = new Date().toISOString()
   await env.DB.batch([
@@ -537,6 +628,81 @@ export async function restoreFile(request: Request, env: Env, fileId: string): P
   return jsonResponse({ success: true })
 }
 
+export async function permanentlyDeleteTrashFiles(request: Request, env: Env): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const { results } = await env.DB.prepare(
+    `SELECT id, owner_id, r2_key, upload_status, deleted_at, config_id
+     FROM files
+     WHERE owner_id = ? AND upload_status = 'deleted' AND deleted_at IS NOT NULL`
+  )
+    .bind(user.id)
+    .all()
+
+  const files = results || []
+  const now = new Date().toISOString()
+  const ip = getClientIp(request)
+  const userAgent = request.headers.get('User-Agent') || undefined
+  let deleted = 0
+  let queued = 0
+
+  for (const file of files) {
+    const fileId = String(file.id)
+    const r2Key = String(file.r2_key)
+    const explicitProviderConfigId = getExplicitProviderConfigId(file)
+
+    if (explicitProviderConfigId) {
+      const provider = await createProvider(env, explicitProviderConfigId)
+      if (!provider) return jsonResponse({ error: '存储配置未找到' }, 503)
+
+      try {
+        await provider.delete(r2Key)
+      } catch {
+        // 远端文件可能已不存在，永久删除继续清理本地记录。
+      }
+
+      const batchResults = await env.DB.batch([
+        prepareReleaseUploadReservation(env.DB, fileId, now),
+        env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId),
+        prepareAuditLogInsert(
+          env.DB,
+          {
+            actorUserId: user.id,
+            action: 'FILE_DELETE_PERMANENT',
+            targetType: 'file',
+            targetId: fileId,
+            ip,
+            userAgent,
+          },
+          now
+        ),
+      ])
+      deleted += Number(batchResults?.[1]?.meta?.changes || 0)
+      continue
+    }
+
+    const [queueInsertResult] = await env.DB.batch([
+      prepareEnqueueFileDeletionIfNeeded(env.DB, { id: fileId, r2_key: r2Key }, now),
+      prepareAuditLogInsert(
+        env.DB,
+        {
+          actorUserId: user.id,
+          action: 'FILE_DELETE_PERMANENT',
+          targetType: 'file',
+          targetId: fileId,
+          ip,
+          userAgent,
+        },
+        now
+      ),
+    ])
+    queued += Number(queueInsertResult?.meta?.changes || 0)
+  }
+
+  return jsonResponse({ success: true, deleted, queued, total: files.length })
+}
+
 export async function permanentlyDeleteFile(
   request: Request,
   env: Env,
@@ -546,7 +712,7 @@ export async function permanentlyDeleteFile(
   if (!user) return jsonResponse({ error: '未授权' }, 401)
 
   const file = await env.DB.prepare(
-    'SELECT id, owner_id, r2_key, upload_status, deleted_at FROM files WHERE id = ? LIMIT 1'
+    'SELECT id, owner_id, r2_key, upload_status, deleted_at, config_id FROM files WHERE id = ? LIMIT 1'
   )
     .bind(fileId)
     .first()
@@ -562,8 +728,41 @@ export async function permanentlyDeleteFile(
   }
 
   const now = new Date().toISOString()
+  const r2Key = String(file.r2_key)
+  const explicitProviderConfigId = getExplicitProviderConfigId(file)
+
+  if (explicitProviderConfigId) {
+    const provider = await createProvider(env, explicitProviderConfigId)
+    if (!provider) return jsonResponse({ error: '存储配置未找到' }, 503)
+
+    try {
+      await provider.delete(r2Key)
+    } catch {
+      // 远端文件可能已不存在，永久删除继续清理本地记录。
+    }
+
+    await env.DB.batch([
+      prepareReleaseUploadReservation(env.DB, fileId, now),
+      env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId),
+      prepareAuditLogInsert(
+        env.DB,
+        {
+          actorUserId: user.id,
+          action: 'FILE_DELETE_PERMANENT',
+          targetType: 'file',
+          targetId: fileId,
+          ip: getClientIp(request),
+          userAgent: request.headers.get('User-Agent') || undefined,
+        },
+        now
+      ),
+    ])
+
+    return jsonResponse({ success: true, queued: false })
+  }
+
   const [queueInsertResult] = await env.DB.batch([
-    prepareEnqueueFileDeletionIfNeeded(env.DB, { id: fileId, r2_key: String(file.r2_key) }, now),
+    prepareEnqueueFileDeletionIfNeeded(env.DB, { id: fileId, r2_key: r2Key }, now),
     prepareAuditLogInsert(
       env.DB,
       {

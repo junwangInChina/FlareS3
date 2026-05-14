@@ -1,16 +1,7 @@
 import type { Env } from '../config/env'
 import { jsonResponse, redirect, getUser } from './utils'
-import {
-  checkObjectExists,
-  deleteObject,
-  deleteObjectsByPrefix,
-  generateDownloadUrl,
-  generatePreviewUrl,
-  listObjectsV2,
-  loadR2ConfigById,
-  type R2Config,
-  summarizeS3Error,
-} from '../services/r2'
+import { createProvider } from '../services/storage/factory'
+import { StorageError, type StorageProvider } from '../services/storage/types'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 
@@ -76,19 +67,17 @@ function resolvePreviewModeByExtension(extension: string): PreviewMode | null {
   return null
 }
 
-function formatListError(error: unknown): { status: number; message: string } {
-  const summary = summarizeS3Error(error)
-  const parts = [
-    summary.code,
-    typeof summary.httpStatusCode === 'number' ? `HTTP ${summary.httpStatusCode}` : null,
-    summary.message,
-  ].filter(Boolean)
-
-  if (!parts.length) {
-    return { status: 502, message: '读取对象列表失败' }
+function formatStorageError(error: unknown): { status: number; message: string } {
+  if (error instanceof StorageError) {
+    const parts = [
+      error.code,
+      typeof error.httpStatusCode === 'number' ? `HTTP ${error.httpStatusCode}` : null,
+      error.message,
+    ].filter(Boolean)
+    if (!parts.length) return { status: 502, message: '存储操作失败' }
+    return { status: error.httpStatusCode || 502, message: `存储操作失败（${parts.join(' / ')}）` }
   }
-
-  return { status: 502, message: `读取对象列表失败（${parts.join(' / ')}）` }
+  return { status: 502, message: '存储操作失败' }
 }
 
 function formatUpstreamFetchError(error: unknown): string {
@@ -98,28 +87,14 @@ function formatUpstreamFetchError(error: unknown): string {
   return message.slice(0, 200)
 }
 
-function formatCheckObjectError(error: unknown): string {
-  const summary = summarizeS3Error(error)
-  const parts = [
-    summary.code,
-    typeof summary.httpStatusCode === 'number' ? `HTTP ${summary.httpStatusCode}` : null,
-    summary.message,
-  ].filter(Boolean)
-
-  if (!parts.length) {
-    return '检查对象失败'
-  }
-
-  return `检查对象失败（${parts.join(' / ')}）`
-}
-
-async function ensureMountedObjectExists(config: R2Config, key: string): Promise<Response | null> {
+async function ensureMountedObjectExists(provider: StorageProvider, key: string): Promise<Response | null> {
   try {
-    const exists = await checkObjectExists(config, key)
+    const exists = await provider.checkExists(key)
     if (exists) return null
     return jsonResponse({ error: '对象不存在' }, 404)
   } catch (error) {
-    return jsonResponse({ error: formatCheckObjectError(error) }, 502)
+    const formatted = formatStorageError(error)
+    return jsonResponse({ error: `检查对象失败（${formatted.message}）` }, formatted.status)
   }
 }
 
@@ -134,17 +109,17 @@ export async function listMountedObjects(request: Request, env: Env): Promise<Re
   const continuationToken = normalizeToken(url.searchParams.get('continuation_token'))
   const limit = clampNumber(url.searchParams.get('limit'), 1, 500, 100)
 
-  const loaded = await loadR2ConfigById(env, configId)
-  if (!loaded) {
+  const provider = await createProvider(env, configId)
+  if (!provider) {
     return jsonResponse({ error: '配置不存在或不可用' }, 404)
   }
 
   try {
-    const result = await listObjectsV2(loaded.config, {
+    const result = await provider.list({
       prefix,
       delimiter: '/',
-      maxKeys: limit,
       continuationToken: continuationToken || undefined,
+      maxKeys: limit,
     })
 
     return jsonResponse({
@@ -160,8 +135,8 @@ export async function listMountedObjects(request: Request, env: Env): Promise<Re
       objects: result.contents,
     })
   } catch (error) {
-    const formatted = formatListError(error)
-    return jsonResponse({ error: formatted.message }, formatted.status)
+    const formatted = formatStorageError(error)
+    return jsonResponse({ error: `读取对象列表失败（${formatted.message}）` }, formatted.status)
   }
 }
 
@@ -178,19 +153,22 @@ export async function downloadMountedObject(request: Request, env: Env): Promise
     return jsonResponse({ error: '缺少 key' }, 400)
   }
 
-  const loaded = await loadR2ConfigById(env, configId)
-  if (!loaded) {
+  const provider = await createProvider(env, configId)
+  if (!provider) {
     return jsonResponse({ error: '配置不存在或不可用' }, 404)
   }
 
-  const missingResponse = await ensureMountedObjectExists(loaded.config, key)
+  const missingResponse = await ensureMountedObjectExists(provider, key)
   if (missingResponse) return missingResponse
 
   const filename = getBasename(key) || 'file'
 
   try {
-    const downloadUrl = await generateDownloadUrl(loaded.config, key, filename, 3600)
-    return redirect(downloadUrl, 302)
+    const result = await provider.download(key, filename, 3600)
+    if (result.kind === 'redirect') {
+      return redirect(result.url, 302)
+    }
+    return result.response
   } catch (error) {
     const message = formatUpstreamFetchError(error)
     return jsonResponse({ error: `生成下载链接失败：${message}` }, 502)
@@ -210,12 +188,12 @@ export async function previewMountedObject(request: Request, env: Env): Promise<
     return jsonResponse({ error: '缺少 key' }, 400)
   }
 
-  const loaded = await loadR2ConfigById(env, configId)
-  if (!loaded) {
+  const provider = await createProvider(env, configId)
+  if (!provider) {
     return jsonResponse({ error: '配置不存在或不可用' }, 404)
   }
 
-  const missingResponse = await ensureMountedObjectExists(loaded.config, key)
+  const missingResponse = await ensureMountedObjectExists(provider, key)
   if (missingResponse) return missingResponse
 
   const filename = getBasename(key) || 'file'
@@ -225,57 +203,22 @@ export async function previewMountedObject(request: Request, env: Env): Promise<
     return jsonResponse({ error: '不支持预览该文件类型' }, 415)
   }
 
-  let previewUrl = ''
   try {
-    previewUrl = await generatePreviewUrl(
-      loaded.config,
+    const result = await provider.preview(
       key,
       filename,
       600,
       mode.kind === 'redirect' ? mode.responseContentType : undefined
     )
+
+    if (result.kind === 'redirect') {
+      return redirect(result.url, 302)
+    }
+
+    return result.response
   } catch (error) {
     return jsonResponse({ error: `生成预览链接失败：${formatUpstreamFetchError(error)}` }, 502)
   }
-
-  if (mode.kind === 'redirect') {
-    return redirect(previewUrl, 302)
-  }
-
-  const MAX_PREVIEW_BYTES = 200 * 1024
-  let response: Response
-  try {
-    response = await fetch(previewUrl, {
-      headers: {
-        Range: `bytes=0-${MAX_PREVIEW_BYTES - 1}`,
-      },
-    })
-  } catch (error) {
-    return jsonResponse({ error: `预览内容获取失败：${formatUpstreamFetchError(error)}` }, 502)
-  }
-
-  if (response.status === 416) {
-    try {
-      response = await fetch(previewUrl)
-    } catch (error) {
-      return jsonResponse({ error: `预览内容获取失败：${formatUpstreamFetchError(error)}` }, 502)
-    }
-  }
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    return jsonResponse({ error: text || '预览内容获取失败' }, response.status || 502)
-  }
-
-  const headers = new Headers()
-  headers.set('Content-Type', mode.responseContentType)
-  headers.set('Cache-Control', 'no-store')
-  headers.set('X-Content-Type-Options', 'nosniff')
-
-  return new Response(response.body, {
-    status: response.status,
-    headers,
-  })
 }
 
 export async function deleteMountedObject(request: Request, env: Env): Promise<Response> {
@@ -299,8 +242,8 @@ export async function deleteMountedObject(request: Request, env: Env): Promise<R
     return jsonResponse({ error: '缺少 key' }, 400)
   }
 
-  const loaded = await loadR2ConfigById(env, configId)
-  if (!loaded) {
+  const provider = await createProvider(env, configId)
+  if (!provider) {
     return jsonResponse({ error: '配置不存在或不可用' }, 404)
   }
 
@@ -309,32 +252,26 @@ export async function deleteMountedObject(request: Request, env: Env): Promise<R
 
   try {
     if (isFolder) {
-      const result = await deleteObjectsByPrefix(loaded.config, key)
+      const result = await provider.deleteByPrefix(key)
       deletedCount = Number(result.deleted_count || 0)
       if (deletedCount <= 0) {
         return jsonResponse({ error: '目录不存在或已为空' }, 404)
       }
     } else {
-      const missingResponse = await ensureMountedObjectExists(loaded.config, key)
+      const missingResponse = await ensureMountedObjectExists(provider, key)
       if (missingResponse) return missingResponse
 
-      await deleteObject(loaded.config, key)
+      await provider.delete(key)
       deletedCount = 1
     }
   } catch (error) {
-    const summary = summarizeS3Error(error)
-    if (!isFolder && (summary.httpStatusCode === 404 || summary.code === 'NoSuchKey')) {
+    if (error instanceof StorageError && (error.httpStatusCode === 404 || error.code === 'NoSuchKey')) {
       return jsonResponse({ error: '对象不存在' }, 404)
     }
 
-    const parts = [
-      summary.code,
-      typeof summary.httpStatusCode === 'number' ? `HTTP ${summary.httpStatusCode}` : null,
-      summary.message,
-    ].filter(Boolean)
-    const detail = parts.length ? `（${parts.join(' / ')}）` : ''
+    const formatted = formatStorageError(error)
     const errorPrefix = isFolder ? '删除目录失败' : '删除对象失败'
-    return jsonResponse({ error: `${errorPrefix}${detail}` }, 502)
+    return jsonResponse({ error: `${errorPrefix}（${formatted.message}）` }, formatted.status)
   }
 
   await logAudit(env.DB, {
@@ -357,4 +294,151 @@ export async function deleteMountedObject(request: Request, env: Env): Promise<R
     recursive: isFolder,
     deleted_count: deletedCount,
   })
+}
+
+// ── 上传文件 ──
+
+const MAX_MOUNT_UPLOAD_BYTES = 100 * 1024 * 1024 // 100MB
+
+export async function uploadMountedObject(request: Request, env: Env): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  const contentType = String(request.headers.get('Content-Type') || '')
+
+  let configId = ''
+  let path = ''
+  let file: File | null = null
+
+  // 支持 multipart/form-data 和 application/octet-stream
+  if (contentType.includes('multipart/form-data')) {
+    try {
+      const formData = await request.formData()
+      configId = String(formData.get('config_id') || '').trim()
+      path = String(formData.get('path') || '').trim()
+      const rawFile = formData.get('file')
+      if (rawFile instanceof File) {
+        file = rawFile
+      }
+    } catch {
+      return jsonResponse({ error: '请求格式错误' }, 400)
+    }
+  } else {
+    // application/octet-stream 或其他二进制流
+    const url = new URL(request.url)
+    configId = String(url.searchParams.get('config_id') || '').trim()
+    path = String(url.searchParams.get('path') || '').trim()
+    const filename = String(url.searchParams.get('filename') || '').trim()
+    if (!filename) {
+      return jsonResponse({ error: '缺少 filename' }, 400)
+    }
+    const body = await request.arrayBuffer()
+    file = new File([body], filename, {
+      type: contentType || 'application/octet-stream',
+    })
+  }
+
+  if (!configId) {
+    return jsonResponse({ error: '缺少 config_id' }, 400)
+  }
+
+  if (!file) {
+    return jsonResponse({ error: '缺少文件' }, 400)
+  }
+
+  const fileSize = file.size
+  if (fileSize > MAX_MOUNT_UPLOAD_BYTES) {
+    return jsonResponse({ error: `文件大小超过限制（最大 ${MAX_MOUNT_UPLOAD_BYTES / 1024 / 1024}MB）` }, 413)
+  }
+
+  // 构造 key: path + filename
+  const normalizedPath = path && !path.endsWith('/') ? `${path}/` : path
+  const key = `${normalizedPath}${file.name}`
+
+  const provider = await createProvider(env, configId)
+  if (!provider) {
+    return jsonResponse({ error: '配置不存在或不可用' }, 404)
+  }
+
+  try {
+    const body = await file.arrayBuffer()
+    const result = await provider.upload(key, body, file.type || 'application/octet-stream', fileSize)
+
+    await logAudit(env.DB, {
+      actorUserId: user.id,
+      action: 'MOUNT_OBJECT_UPLOAD',
+      targetType: 'mount_object',
+      targetId: key,
+      ip: getClientIp(request),
+      userAgent: request.headers.get('User-Agent') || undefined,
+      metadata: {
+        configId,
+        key,
+        size: fileSize,
+        contentType: file.type,
+      },
+    })
+
+    if (result.kind === 'redirect') {
+      return jsonResponse({ success: true, upload_url: result.url, key })
+    }
+
+    return jsonResponse({ success: true, key })
+  } catch (error) {
+    const formatted = formatStorageError(error)
+    return jsonResponse({ error: `上传失败（${formatted.message}）` }, formatted.status)
+  }
+}
+
+// ── 创建目录 ──
+
+export async function createMountedFolder(request: Request, env: Env): Promise<Response> {
+  const user = getUser(request)
+  if (!user) return jsonResponse({ error: '未授权' }, 401)
+
+  let configId = ''
+  let key = ''
+
+  try {
+    const body = await request.json() as { config_id?: string; key?: string }
+    configId = String(body.config_id || '').trim()
+    key = String(body.key || '').trim()
+  } catch {
+    return jsonResponse({ error: '请求格式错误' }, 400)
+  }
+
+  if (!configId) {
+    return jsonResponse({ error: '缺少 config_id' }, 400)
+  }
+
+  if (!key) {
+    return jsonResponse({ error: '缺少 key' }, 400)
+  }
+
+  const provider = await createProvider(env, configId)
+  if (!provider) {
+    return jsonResponse({ error: '配置不存在或不可用' }, 404)
+  }
+
+  try {
+    await provider.createFolder(key)
+
+    await logAudit(env.DB, {
+      actorUserId: user.id,
+      action: 'MOUNT_FOLDER_CREATE',
+      targetType: 'mount_object',
+      targetId: key,
+      ip: getClientIp(request),
+      userAgent: request.headers.get('User-Agent') || undefined,
+      metadata: {
+        configId,
+        key,
+      },
+    })
+
+    return jsonResponse({ success: true, key })
+  } catch (error) {
+    const formatted = formatStorageError(error)
+    return jsonResponse({ error: `创建目录失败（${formatted.message}）` }, formatted.status)
+  }
 }
