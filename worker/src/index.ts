@@ -23,12 +23,20 @@ import {
   testById as testR2Config,
 } from './routes/r2Configs'
 import {
+  listConfigs as listWebDAVConfigs,
+  createConfig as createWebDAVConfig,
+  updateConfig as updateWebDAVConfig,
+  deleteConfig as deleteWebDAVConfig,
+  testById as testWebDAVConfig,
+} from './routes/webdavConfigs'
+import {
   presignUpload,
   confirmUpload,
   initMultipart,
   presignMultipart,
   completeMultipart,
   abortMultipart,
+  serverUpload,
 } from './routes/upload'
 import {
   listFiles,
@@ -37,6 +45,7 @@ import {
   deleteFile,
   restoreFile,
   permanentlyDeleteFile,
+  permanentlyDeleteTrashFiles,
   previewFile,
 } from './routes/files'
 import {
@@ -44,6 +53,8 @@ import {
   downloadMountedObject,
   previewMountedObject,
   deleteMountedObject,
+  uploadMountedObject,
+  createMountedFolder,
 } from './routes/mount'
 import { shortlink } from './routes/shortlink'
 import { getStats } from './routes/stats'
@@ -55,6 +66,7 @@ import { getTextShare, upsertTextShare, deleteTextShare, viewTextShare } from '.
 import { listShares } from './routes/shares'
 import { createTextOneTimeShare, deleteTextOneTimeShare } from './routes/textOneTimeShares'
 import { getFileShare, upsertFileShare, deleteFileShare, viewFileShare } from './routes/fileShares'
+import { listAllConfigs } from './routes/storageConfigs'
 import { cleanupExpired } from './jobs/cleanupExpired'
 import { cleanupDeleteQueue } from './jobs/cleanupDeleteQueue'
 import { cleanupRetention } from './jobs/cleanupRetention'
@@ -123,6 +135,11 @@ router.post(
 )
 
 router.get(
+  '/api/storage/configs',
+  withAdmin((request, env: Env) => listAllConfigs(request, env))
+)
+
+router.get(
   '/api/r2/options',
   withAuth((request, env: Env) => listR2Options(request, env))
 )
@@ -155,6 +172,27 @@ router.post(
   withAdmin((request, env: Env) => setLegacyFilesR2Config(request, env))
 )
 
+router.get(
+  '/api/webdav/configs',
+  withAdmin((request, env: Env) => listWebDAVConfigs(request, env))
+)
+router.post(
+  '/api/webdav/configs',
+  withAdmin((request, env: Env) => createWebDAVConfig(request, env))
+)
+router.patch(
+  '/api/webdav/configs/:id',
+  withAdmin((request, env: Env) => updateWebDAVConfig(request, env, (request as any).params.id))
+)
+router.delete(
+  '/api/webdav/configs/:id',
+  withAdmin((request, env: Env) => deleteWebDAVConfig(request, env, (request as any).params.id))
+)
+router.post(
+  '/api/webdav/configs/:id/test',
+  withAdmin((request, env: Env) => testWebDAVConfig(request, env, (request as any).params.id))
+)
+
 router.post(
   '/api/upload/presign',
   withAuth((request, env: Env) => presignUpload(request, env))
@@ -179,6 +217,10 @@ router.post(
   '/api/upload/multipart/abort',
   withAuth((request, env: Env) => abortMultipart(request, env))
 )
+router.post(
+  '/api/upload/server',
+  withAuth((request, env: Env) => serverUpload(request, env))
+)
 
 router.get(
   '/api/files',
@@ -187,6 +229,10 @@ router.get(
 router.get(
   '/api/files/trash',
   withAuth((request, env: Env) => listTrashFiles(request, env))
+)
+router.delete(
+  '/api/files/trash/permanent',
+  withAuth((request, env: Env) => permanentlyDeleteTrashFiles(request, env))
 )
 router.delete(
   '/api/files/:id',
@@ -223,6 +269,14 @@ router.get(
 router.delete(
   '/api/mount/object',
   withAdmin((request, env: Env) => deleteMountedObject(request, env))
+)
+router.post(
+  '/api/mount/upload',
+  withAdmin((request, env: Env) => uploadMountedObject(request, env))
+)
+router.post(
+  '/api/mount/folder',
+  withAdmin((request, env: Env) => createMountedFolder(request, env))
 )
 
 router.get(
