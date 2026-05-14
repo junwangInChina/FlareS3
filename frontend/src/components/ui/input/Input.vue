@@ -14,6 +14,7 @@ const props = defineProps({
   rows: { type: Number, default: 3 },
   size: { type: String, default: 'medium' },
   clearable: { type: Boolean, default: false },
+  passwordToggle: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'keyup'])

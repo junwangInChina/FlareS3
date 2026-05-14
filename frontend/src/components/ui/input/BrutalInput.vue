@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
-import { X } from 'lucide-vue-next'
+import { X, Eye, EyeOff } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n({ useScope: 'global' })
@@ -15,6 +15,7 @@ const props = defineProps({
   rows: { type: Number, default: 3 },
   size: { type: String, default: 'medium' },
   clearable: { type: Boolean, default: false },
+  passwordToggle: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'keyup'])
@@ -22,6 +23,16 @@ const emit = defineEmits(['update:modelValue', 'keyup'])
 const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}`)
 
 const inputEl = ref(null)
+const passwordVisible = ref(false)
+
+const effectiveType = computed(() => {
+  if (props.type === 'password' && passwordVisible.value) return 'text'
+  return props.type
+})
+
+const togglePassword = () => {
+  passwordVisible.value = !passwordVisible.value
+}
 
 const nonClearableTypes = new Set(['textarea', 'date', 'time', 'datetime-local', 'file'])
 const supportsClear = computed(() => !nonClearableTypes.has(props.type))
@@ -45,7 +56,7 @@ const handleClear = async () => {
 </script>
 
 <template>
-  <div class="brutal-input-wrapper" :class="[`size-${size}`, { 'has-clear': reserveClearSpace }]">
+  <div class="brutal-input-wrapper" :class="[`size-${size}`, { 'has-clear': reserveClearSpace, 'has-toggle': passwordToggle }]">
     <label v-if="label" class="input-label" :for="inputId">{{ label }}</label>
     <textarea
       v-if="type === 'textarea'"
@@ -63,7 +74,7 @@ const handleClear = async () => {
       <input
         :id="inputId"
         ref="inputEl"
-        :type="type"
+        :type="effectiveType"
         class="brutal-input"
         :value="modelValue"
         :placeholder="placeholder"
@@ -72,6 +83,17 @@ const handleClear = async () => {
         @input="emit('update:modelValue', $event.target.value)"
         @keyup="emit('keyup', $event)"
       />
+      <button
+        v-if="passwordToggle && type === 'password'"
+        type="button"
+        class="brutal-input-toggle"
+        :aria-label="passwordVisible ? t('input.hidePassword') : t('input.showPassword')"
+        @mousedown.prevent
+        @click="togglePassword"
+      >
+        <EyeOff v-if="passwordVisible" :size="16" />
+        <Eye v-else :size="16" />
+      </button>
       <button
         v-if="showClear"
         type="button"
@@ -144,6 +166,45 @@ const handleClear = async () => {
 
 .brutal-input-wrapper.has-clear input.brutal-input {
   padding-right: 40px;
+}
+
+.brutal-input-wrapper.has-toggle input.brutal-input {
+  padding-right: 40px;
+}
+
+.brutal-input-wrapper.has-clear.has-toggle input.brutal-input {
+  padding-right: 68px;
+}
+
+.brutal-input-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--nb-radius);
+  color: var(--nb-gray-500);
+  cursor: pointer;
+  transition: var(--nb-transition);
+}
+
+.brutal-input-toggle:hover {
+  background: var(--nb-gray-100);
+  color: var(--nb-black);
+}
+
+.brutal-input-toggle:focus-visible {
+  box-shadow: var(--nb-focus-ring);
+}
+
+.brutal-input-wrapper.has-clear.has-toggle .brutal-input-clear {
+  right: 38px;
 }
 
 .brutal-input-clear {
