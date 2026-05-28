@@ -4,6 +4,7 @@ import { verifyPassword } from '../services/password'
 import { recordFailedAttempt, getClientIp } from '../middleware/rateLimit'
 import { logAudit } from '../services/audit'
 import { getSessionCookieName } from '../middleware/authSession'
+import { hashToken } from '../utils/token'
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60
 
@@ -18,15 +19,6 @@ function isSecureRequest(request: Request): boolean {
 function buildSessionCookie(request: Request, token: string, maxAge: number): string {
   const secure = isSecureRequest(request) ? '; Secure' : ''
   return `${getSessionCookieName()}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`
-}
-
-async function hashToken(token: string): Promise<string> {
-  const data = new TextEncoder().encode(token)
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  const bytes = new Uint8Array(digest)
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
 }
 
 export async function login(request: Request, env: Env): Promise<Response> {
@@ -108,17 +100,13 @@ export async function login(request: Request, env: Env): Promise<Response> {
         userAgent,
       }),
     ])
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         success: true,
         user: { id: user.id, username: user.username, role: user.role, status: user.status },
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Set-Cookie': buildSessionCookie(request, sessionToken, SESSION_TTL_SECONDS),
-        },
-      }
+      },
+      200,
+      { 'Set-Cookie': buildSessionCookie(request, sessionToken, SESSION_TTL_SECONDS) }
     )
   } catch (error) {
     console.error('[auth.login] failed', error)
@@ -140,11 +128,8 @@ export async function logout(request: Request, env: Env): Promise<Response> {
       .bind(new Date().toISOString(), tokenHash)
       .run()
   }
-  return new Response(JSON.stringify({ success: true }), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Set-Cookie': buildSessionCookie(request, '', 0),
-    },
+  return jsonResponse({ success: true }, 200, {
+    'Set-Cookie': buildSessionCookie(request, '', 0),
   })
 }
 
