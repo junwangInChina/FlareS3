@@ -120,6 +120,7 @@ import { RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useThemeStore } from '../stores/theme'
+import { useUserOptionsStore } from '../stores/userOptions'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
 import Button from '../components/ui/button/Button.vue'
@@ -136,6 +137,7 @@ import { useMessage } from '../composables/useMessage'
 const message = useMessage()
 const { t, locale, te } = useI18n({ useScope: 'global' })
 const themeStore = useThemeStore()
+const userOptionsStore = useUserOptionsStore()
 const logs = ref([])
 const loading = ref(false)
 const hasLoadedOnce = ref(false)
@@ -148,8 +150,8 @@ const deleting = ref(false)
 const showDeleteModal = ref(false)
 const pendingDeleteIds = ref([])
 
-const users = ref([])
-const usersLoading = ref(false)
+const users = computed(() => userOptionsStore.users)
+const usersLoading = computed(() => userOptionsStore.loading)
 const initialPageLoading = computed(() => loading.value && !hasLoadedOnce.value)
 
 const knownActions = [
@@ -474,15 +476,10 @@ const addOneDayIso = (isoString) => {
 }
 
 const loadUsers = async () => {
-  if (users.value.length) return
-  usersLoading.value = true
   try {
-    const result = await api.getUsers({ page: 1, limit: 100 })
-    users.value = (result.users || []).filter((u) => u.status !== 'deleted')
+    await userOptionsStore.fetchActiveUsers()
   } catch (error) {
     message.error(t('audit.loadUsersFailed'))
-  } finally {
-    usersLoading.value = false
   }
 }
 

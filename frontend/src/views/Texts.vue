@@ -220,6 +220,7 @@ import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
+import { useUserOptionsStore } from '../stores/userOptions'
 import AppLayout from '../components/layout/AppLayout.vue'
 import TextsTableView from '../components/texts/TextsTableView.vue'
 import TextsCardView from '../components/texts/TextsCardView.vue'
@@ -240,6 +241,7 @@ import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const userOptionsStore = useUserOptionsStore()
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
 
@@ -265,8 +267,8 @@ const { isMobile, viewMode, setViewMode } = useResponsiveViewMode({
   mobileDefault: 'card',
 })
 
-const usersLoading = ref(false)
-const users = ref([])
+const usersLoading = computed(() => userOptionsStore.loading)
+const users = computed(() => userOptionsStore.users)
 
 const ownerOptions = computed(() => [
   { label: t('texts.filters.allOwners'), value: '' },
@@ -447,16 +449,10 @@ const buildQueryParams = () => {
 
 const loadUsers = async () => {
   if (!authStore.isAdmin) return
-  if (users.value.length) return
-
-  usersLoading.value = true
   try {
-    const result = await api.getUsers({ page: 1, limit: 100 })
-    users.value = (result.users || []).filter((u) => u.status !== 'deleted')
+    await userOptionsStore.fetchActiveUsers()
   } catch (error) {
     message.error(t('texts.messages.loadUsersFailed'))
-  } finally {
-    usersLoading.value = false
   }
 }
 

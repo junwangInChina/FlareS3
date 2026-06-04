@@ -218,6 +218,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import { useUserOptionsStore } from '../stores/userOptions'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
 import Button from '../components/ui/button/Button.vue'
@@ -237,6 +238,7 @@ import { buildUserEditPayload } from '../utils/userManagement.js'
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
 const authStore = useAuthStore()
+const userOptionsStore = useUserOptionsStore()
 const users = ref([])
 const loading = ref(false)
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
@@ -249,8 +251,8 @@ const filters = ref({
   created_to_date: '',
 })
 
-const userOptionsLoading = ref(false)
-const userOptionsUsers = ref([])
+const userOptionsLoading = computed(() => userOptionsStore.loading)
+const userOptionsUsers = computed(() => userOptionsStore.users)
 const userOptions = computed(() => [
   { label: t('users.filters.allUsers'), value: '' },
   ...userOptionsUsers.value
@@ -458,15 +460,10 @@ const buildQueryParams = () => {
 }
 
 const loadUserOptions = async () => {
-  if (userOptionsUsers.value.length) return
-  userOptionsLoading.value = true
   try {
-    const result = await api.getUsers({ page: 1, limit: 100 })
-    userOptionsUsers.value = (result.users || []).filter((u) => u.status !== 'deleted')
+    await userOptionsStore.fetchActiveUsers()
   } catch (error) {
     message.error(t('users.messages.loadUserOptionsFailed'))
-  } finally {
-    userOptionsLoading.value = false
   }
 }
 
@@ -538,9 +535,8 @@ const handleCreate = async () => {
     return
   }
   try {
-    const createdUsername = createForm.value.username
     creating.value = true
-    const result = await api.createUser({
+    await api.createUser({
       username: createForm.value.username,
       password: createForm.value.password,
       role: 'user',
@@ -549,19 +545,8 @@ const handleCreate = async () => {
     message.success(t('users.messages.createSuccess'))
     showCreateModal.value = false
     createForm.value = defaultCreateForm()
-    if (createdUsername) {
-      const createdUserId = result?.user_id ? String(result.user_id) : ''
-      const exists = userOptionsUsers.value.some(
-        (u) => String(u.id) === createdUserId || u.username === createdUsername
-      )
-      if (!exists) {
-        userOptionsUsers.value.unshift({
-          id: createdUserId,
-          username: createdUsername,
-          status: 'active',
-        })
-      }
-    }
+    userOptionsStore.invalidate()
+    await userOptionsStore.fetchActiveUsers({ force: true })
     pagination.value.page = 1
     loadUsers()
   } catch (error) {
@@ -613,30 +598,6 @@ const handleResetPassword = async () => {
   }
 }
 
-const syncUserOptionEntry = (user) => {
-  const userId = String(user?.id ?? '').trim()
-  if (!userId) return
-
-  if (user?.status === 'deleted') {
-    userOptionsUsers.value = userOptionsUsers.value.filter((item) => String(item.id) !== userId)
-    return
-  }
-
-  const nextEntry = {
-    id: userId,
-    username: String(user?.username ?? userId),
-    status: String(user?.status ?? 'active'),
-  }
-
-  const index = userOptionsUsers.value.findIndex((item) => String(item.id) === userId)
-  if (index >= 0) {
-    userOptionsUsers.value.splice(index, 1, nextEntry)
-    return
-  }
-
-  userOptionsUsers.value.unshift(nextEntry)
-}
-
 const openEdit = (row) => {
   editingUser.value = { ...row }
   showEditModal.value = true
@@ -663,10 +624,8 @@ const handleEditSubmit = async (form) => {
     await api.updateUser(userId, payload)
     message.success(t('users.messages.updateSuccess'))
     showEditModal.value = false
-    syncUserOptionEntry({
-      ...currentUser,
-      ...payload,
-    })
+    userOptionsStore.invalidate()
+    await userOptionsStore.fetchActiveUsers({ force: true })
     await loadUsers()
   } catch (error) {
     message.error(error.response?.data?.error || t('users.messages.updateFailed'))
@@ -755,7 +714,8 @@ const handleDeleteConfirm = async () => {
     await api.deleteUser(userId)
     message.success(t('users.messages.userDeleted'))
     closeDeleteModal()
-    userOptionsUsers.value = userOptionsUsers.value.filter((u) => String(u.id) !== String(userId))
+    userOptionsStore.invalidate()
+    await userOptionsStore.fetchActiveUsers({ force: true })
     if (users.value.length <= 1 && pagination.value.page > 1) pagination.value.page -= 1
     loadUsers()
   } catch (error) {

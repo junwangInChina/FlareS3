@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import api from '../services/api'
+import { useUserOptionsStore } from './userOptions'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -16,6 +17,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await api.login(username, password)
         if (response.success) {
+          useUserOptionsStore().invalidate()
           this.isAuthenticated = true
           this.user = response.user
           return { success: true }
@@ -52,6 +54,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logoutLocal() {
+      useUserOptionsStore().invalidate()
       this.isAuthenticated = false
       this.user = null
     },

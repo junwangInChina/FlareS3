@@ -278,6 +278,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useFilesStore } from '../stores/files'
 import { useThemeStore } from '../stores/theme'
+import { useUserOptionsStore } from '../stores/userOptions'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import FilesTableView from '../components/files/FilesTableView.vue'
@@ -301,6 +302,7 @@ import { canManageFileShare, getFileStatusState, isFileDeleted } from '../utils/
 const authStore = useAuthStore()
 const filesStore = useFilesStore()
 const themeStore = useThemeStore()
+const userOptionsStore = useUserOptionsStore()
 const message = useMessage()
 const { t, locale } = useI18n({ useScope: 'global' })
 
@@ -364,8 +366,8 @@ const { isMobile, viewMode, setViewMode } = useResponsiveViewMode({
   mobileDefault: 'card',
 })
 
-const usersLoading = ref(false)
-const users = ref([])
+const usersLoading = computed(() => userOptionsStore.loading)
+const users = computed(() => userOptionsStore.users)
 const ownerOptions = computed(() => [
   { label: t('files.filters.allOwners'), value: '' },
   ...users.value.map((u) => ({ label: u.username, value: u.id })),
@@ -693,15 +695,10 @@ const buildQueryParams = (mode = filesStore.mode) => {
 
 const loadUsers = async () => {
   if (!authStore.isAdmin) return
-  if (users.value.length) return
-  usersLoading.value = true
   try {
-    const result = await api.getUsers({ page: 1, limit: 100 })
-    users.value = (result.users || []).filter((u) => u.status !== 'deleted')
+    await userOptionsStore.fetchActiveUsers()
   } catch (error) {
     message.error(t('files.messages.loadUsersFailed'))
-  } finally {
-    usersLoading.value = false
   }
 }
 

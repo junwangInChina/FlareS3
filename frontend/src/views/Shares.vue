@@ -230,6 +230,7 @@ import { computed, h, onMounted, ref, watch } from 'vue'
 import { Copy, ExternalLink, Pencil, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
+import { useUserOptionsStore } from '../stores/userOptions'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Card from '../components/ui/card/Card.vue'
@@ -273,6 +274,7 @@ import {
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const authStore = useAuthStore()
+const userOptionsStore = useUserOptionsStore()
 const message = useMessage()
 
 const items = ref([])
@@ -286,8 +288,8 @@ const shareFiltersStorageKey = 'flares3:shares:filters'
 const filters = ref(createDefaultShareFilters())
 const isMobile = useIsMobile()
 
-const ownersLoading = ref(false)
-const owners = ref([])
+const ownersLoading = computed(() => userOptionsStore.loading)
+const owners = computed(() => userOptionsStore.users)
 const ownerSearchQuery = ref('')
 const selectedIds = ref([])
 
@@ -528,16 +530,12 @@ function openShareLink(record) {
 }
 
 async function loadOwnerOptions() {
-  if (!authStore.isAdmin || owners.value.length) return
+  if (!authStore.isAdmin) return
 
-  ownersLoading.value = true
   try {
-    const result = await api.getUsers({ page: 1, limit: 100 })
-    owners.value = (result.users || []).filter((user) => user.status !== 'deleted')
+    await userOptionsStore.fetchActiveUsers()
   } catch (_error) {
     message.error(t('shares.messages.loadOwnersFailed'))
-  } finally {
-    ownersLoading.value = false
   }
 }
 
