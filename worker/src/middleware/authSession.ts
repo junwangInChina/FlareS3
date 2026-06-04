@@ -2,6 +2,8 @@ import type { Env } from '../config/env'
 import { hashToken } from '../utils/token'
 
 const COOKIE_NAME = 'flares3_session'
+const SESSION_CACHE_TTL_MS = 15 * 1000
+const MAX_SESSION_CACHE_ENTRIES = 500
 
 export type AuthUser = {
   id: string
@@ -10,6 +12,19 @@ export type AuthUser = {
   status: 'active' | 'disabled' | 'deleted'
   quota_bytes: number
 }
+
+type SessionLookupResult = {
+  sessionId: string
+  user: AuthUser
+  expiresAtMs: number
+}
+
+type SessionCacheEntry = SessionLookupResult & {
+  cachedAtMs: number
+}
+
+const sessionCache = new Map<string, SessionCacheEntry>()
+const sessionLookupPromises = new Map<string, Promise<SessionLookupResult | null>>()
 
 function parseCookies(request: Request): Record<string, string> {
   const header = request.headers.get('Cookie') || ''
@@ -26,20 +41,38 @@ export function getSessionCookieName(): string {
   return COOKIE_NAME
 }
 
-export async function authSessionMiddleware(
-  request: Request,
-  env: Env
-): Promise<Response | undefined> {
-  const cookies = parseCookies(request)
-  const header = request.headers.get('Authorization')
-  let token = cookies[COOKIE_NAME]
-  if (!token && header && header.startsWith('Bearer ')) {
-    token = header.replace('Bearer ', '').trim()
+export function invalidateSessionCache(tokenHash: string): void {
+  sessionCache.delete(tokenHash)
+  sessionLookupPromises.delete(tokenHash)
+}
+
+function getCachedSession(tokenHash: string): SessionLookupResult | null {
+  const cached = sessionCache.get(tokenHash)
+  if (!cached) {
+    return null
   }
-  if (!token) {
-    return
+  const now = Date.now()
+  if (now >= cached.expiresAtMs || now - cached.cachedAtMs > SESSION_CACHE_TTL_MS) {
+    sessionCache.delete(tokenHash)
+    return null
   }
-  const tokenHash = await hashToken(token)
+  return cached
+}
+
+function cacheSession(tokenHash: string, session: SessionLookupResult): void {
+  if (sessionCache.size >= MAX_SESSION_CACHE_ENTRIES) {
+    const oldestKey = sessionCache.keys().next().value
+    if (oldestKey) {
+      sessionCache.delete(oldestKey)
+    }
+  }
+  sessionCache.set(tokenHash, {
+    ...session,
+    cachedAtMs: Date.now(),
+  })
+}
+
+async function querySession(env: Env, tokenHash: string): Promise<SessionLookupResult | null> {
   const session = await env.DB.prepare(
     `SELECT s.id AS session_id,
             s.expires_at,
@@ -66,22 +99,73 @@ export async function authSessionMiddleware(
       quota_bytes: number
     }>()
   if (!session || session.revoked_at) {
-    return
+    return null
   }
   const expiresAt = new Date(String(session.expires_at))
-  if (Number.isNaN(expiresAt.getTime()) || Date.now() > expiresAt.getTime()) {
-    return
+  const expiresAtMs = expiresAt.getTime()
+  if (Number.isNaN(expiresAtMs) || Date.now() > expiresAtMs) {
+    return null
   }
   if (session.status !== 'active') {
+    return null
+  }
+  return {
+    user: {
+      id: String(session.user_id),
+      username: String(session.username),
+      role: session.role as 'admin' | 'user',
+      status: session.status as 'active' | 'disabled' | 'deleted',
+      quota_bytes: Number(session.quota_bytes),
+    },
+    sessionId: String(session.session_id),
+    expiresAtMs,
+  }
+}
+
+async function loadSession(env: Env, tokenHash: string): Promise<SessionLookupResult | null> {
+  const cached = getCachedSession(tokenHash)
+  if (cached) {
+    return cached
+  }
+
+  const pending = sessionLookupPromises.get(tokenHash)
+  if (pending) {
+    return pending
+  }
+
+  const promise = querySession(env, tokenHash)
+    .then((session) => {
+      if (session) {
+        cacheSession(tokenHash, session)
+      }
+      return session
+    })
+    .finally(() => {
+      sessionLookupPromises.delete(tokenHash)
+    })
+  sessionLookupPromises.set(tokenHash, promise)
+  return promise
+}
+
+export async function authSessionMiddleware(
+  request: Request,
+  env: Env
+): Promise<Response | undefined> {
+  const cookies = parseCookies(request)
+  const header = request.headers.get('Authorization')
+  let token = cookies[COOKIE_NAME]
+  if (!token && header && header.startsWith('Bearer ')) {
+    token = header.replace('Bearer ', '').trim()
+  }
+  if (!token) {
+    return
+  }
+  const tokenHash = await hashToken(token)
+  const session = await loadSession(env, tokenHash)
+  if (!session) {
     return
   }
   const req = request as Request & { user?: AuthUser; sessionId?: string }
-  req.user = {
-    id: String(session.user_id),
-    username: String(session.username),
-    role: session.role as 'admin' | 'user',
-    status: session.status as 'active' | 'disabled' | 'deleted',
-    quota_bytes: Number(session.quota_bytes),
-  }
-  req.sessionId = String(session.session_id)
+  req.user = session.user
+  req.sessionId = session.sessionId
 }

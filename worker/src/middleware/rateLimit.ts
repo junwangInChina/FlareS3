@@ -9,6 +9,11 @@ const SHARE_MAX_FAILED_ATTEMPTS = 5
 const SHARE_BLOCK_DURATION_MS = 10 * 60 * 1000
 const SHARE_SCOPE_PREFIX = 'share:'
 
+function shouldUsePersistentRateLimit(request: Request): boolean {
+  const url = new URL(request.url)
+  return request.method === 'POST' && url.pathname === '/api/auth/login'
+}
+
 export function getClientIp(request: Request): string {
   const cfIp = request.headers.get('CF-Connecting-IP')
   if (cfIp) return cfIp
@@ -166,6 +171,10 @@ export async function rateLimitMiddleware(
   request: Request,
   env: Env
 ): Promise<Response | undefined> {
+  if (!shouldUsePersistentRateLimit(request)) {
+    return
+  }
+
   try {
     const ip = getClientIp(request)
     if (await isBlocked(env.DB, ip)) {

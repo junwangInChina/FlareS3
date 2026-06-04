@@ -3,7 +3,7 @@ import { jsonResponse, parseJson } from './utils'
 import { verifyPassword } from '../services/password'
 import { recordFailedAttempt, getClientIp } from '../middleware/rateLimit'
 import { logAudit } from '../services/audit'
-import { getSessionCookieName } from '../middleware/authSession'
+import { getSessionCookieName, invalidateSessionCache } from '../middleware/authSession'
 import { hashToken } from '../utils/token'
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60
@@ -124,6 +124,7 @@ export async function logout(request: Request, env: Env): Promise<Response> {
   const sessionToken = token || (cookieToken ? cookieToken.split('=')[1] : '')
   if (sessionToken) {
     const tokenHash = await hashToken(sessionToken)
+    invalidateSessionCache(tokenHash)
     await env.DB.prepare('UPDATE sessions SET revoked_at = ? WHERE token_hash = ?')
       .bind(new Date().toISOString(), tokenHash)
       .run()

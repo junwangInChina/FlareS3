@@ -24,6 +24,10 @@ function isBackendPath(pathname: string): boolean {
   )
 }
 
+function shouldRunBootstrapAdmin(request: Request, pathname: string): boolean {
+  return request.method === 'POST' && pathname === '/api/auth/login'
+}
+
 async function healthResponse(env: Env): Promise<Response> {
   const timestamp = new Date().toISOString()
   let dbStatus: 'ok' | 'error' | 'unavailable' = 'unavailable'
@@ -126,7 +130,11 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
     } else {
       response = await measure(timings, 'rateLimit', () => rateLimitMiddleware(request, env))
       if (!response) {
-        response = await measure(timings, 'bootstrap', () => bootstrapAdmin(request, env))
+        response = await measure(timings, 'bootstrap', () =>
+          shouldRunBootstrapAdmin(request, pathname)
+            ? bootstrapAdmin(request, env)
+            : Promise.resolve<Response | undefined>(undefined)
+        )
       }
       if (!response) {
         response = await measure(timings, 'auth', () => authSessionMiddleware(request, env))
