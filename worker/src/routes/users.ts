@@ -6,6 +6,11 @@ import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
 import { getClientIp } from '../middleware/rateLimit'
 import { prepareReleaseUploadReservation } from '../services/uploadReservations'
 import { invalidateUserAuthTokens } from '../middleware/authSession'
+import {
+  measureRouteStep,
+  withRouteTimingHeaders,
+  type RouteTimingEntry,
+} from '../utils/routeTiming'
 
 function prepareRevokeUserSessions(
   db: D1Database,
@@ -68,6 +73,7 @@ async function isLastActiveAdmin(db: D1Database, userId: string): Promise<boolea
 }
 
 export async function listUsers(request: Request, env: Env): Promise<Response> {
+  const timings: RouteTimingEntry[] = []
   const url = new URL(request.url)
   const page = Math.max(1, Number(url.searchParams.get('page') || 1))
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 20)))
@@ -102,26 +108,34 @@ export async function listUsers(request: Request, env: Env): Promise<Response> {
   }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
-  const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM users ${whereClause}`)
-    .bind(...params)
-    .first('total')
+  const [totalRow, rows] = await Promise.all([
+    measureRouteStep(timings, 'dbCount', () =>
+      env.DB.prepare(`SELECT COUNT(*) AS total FROM users ${whereClause}`)
+        .bind(...params)
+        .first('total')
+    ),
+    measureRouteStep(timings, 'dbRows', () =>
+      env.DB.prepare(
+        `SELECT id, username, role, status, quota_bytes, created_at, last_login_at
+         FROM users ${whereClause}
+         ORDER BY created_at DESC
+         LIMIT ? OFFSET ?`
+      )
+        .bind(...params, limit, offset)
+        .all()
+    ),
+  ])
   const total = Number(totalRow || 0)
 
-  const rows = await env.DB.prepare(
-    `SELECT id, username, role, status, quota_bytes, created_at, last_login_at
-     FROM users ${whereClause}
-     ORDER BY created_at DESC
-     LIMIT ? OFFSET ?`
+  return withRouteTimingHeaders(
+    jsonResponse({
+      total,
+      page,
+      limit,
+      users: rows.results || [],
+    }),
+    timings
   )
-    .bind(...params, limit, offset)
-    .all()
-
-  return jsonResponse({
-    total,
-    page,
-    limit,
-    users: rows.results || [],
-  })
 }
 
 export async function createUser(request: Request, env: Env): Promise<Response> {

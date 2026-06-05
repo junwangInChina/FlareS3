@@ -1,5 +1,6 @@
 import type { Env } from '../config/env'
 import type { AuthUser } from '../middleware/authSession'
+import { measureRouteStep, type RouteTimingEntry } from '../utils/routeTiming'
 
 export type ShareRecordType = 'file' | 'text' | 'text_one_time'
 export type ShareRecordStatus = 'active' | 'expired' | 'exhausted' | 'consumed'
@@ -77,7 +78,11 @@ function compareNumbers(left: number, right: number, order: ShareSortOrder): num
   return order === 'asc' ? left - right : right - left
 }
 
-function compareNullableNumbers(left: number | null, right: number | null, order: ShareSortOrder): number {
+function compareNullableNumbers(
+  left: number | null,
+  right: number | null,
+  order: ShareSortOrder
+): number {
   if (left === null && right === null) return 0
   if (left === null) return 1
   if (right === null) return -1
@@ -168,7 +173,11 @@ function matchesExpiresRange(
   return true
 }
 
-function resolveStandardShareStatus(row: { expires_at?: unknown; max_views?: unknown; views?: unknown }): ShareRecordStatus {
+function resolveStandardShareStatus(row: {
+  expires_at?: unknown
+  max_views?: unknown
+  views?: unknown
+}): ShareRecordStatus {
   if (isExpired(row.expires_at)) return 'expired'
 
   const maxViews = normalizeNumber(row.max_views)
@@ -180,7 +189,10 @@ function resolveStandardShareStatus(row: { expires_at?: unknown; max_views?: unk
   return 'active'
 }
 
-function resolveOneTimeShareStatus(row: { expires_at?: unknown; consumed_at?: unknown }): ShareRecordStatus {
+function resolveOneTimeShareStatus(row: {
+  expires_at?: unknown
+  consumed_at?: unknown
+}): ShareRecordStatus {
   if (normalizeText(row.consumed_at)) return 'consumed'
   if (isExpired(row.expires_at)) return 'expired'
   return 'active'
@@ -258,47 +270,66 @@ function toTextOneTimeShareItem(row: Record<string, unknown>): ShareListItem | n
   }
 }
 
-async function queryFileShares(db: D1Database): Promise<ShareListItem[]> {
-  const rows = await db
-    .prepare(
-      `SELECT s.file_id, s.owner_id, s.share_code, s.password_hash, s.expires_at, s.max_views, s.views, s.created_at, s.updated_at,
-              f.filename, f.deleted_at AS file_deleted_at,
-              u.username AS owner_username, u.status AS owner_status
-       FROM file_shares s
-       LEFT JOIN files f ON f.id = s.file_id
-       LEFT JOIN users u ON u.id = s.owner_id`
-    )
-    .all()
+async function queryFileShares(
+  db: D1Database,
+  timings: RouteTimingEntry[] = []
+): Promise<ShareListItem[]> {
+  const rows = await measureRouteStep(timings, 'shareFileRows', () =>
+    db
+      .prepare(
+        `SELECT s.file_id, s.owner_id, s.share_code, s.password_hash, s.expires_at, s.max_views, s.views, s.created_at, s.updated_at,
+                f.filename, f.deleted_at AS file_deleted_at,
+                u.username AS owner_username, u.status AS owner_status
+         FROM file_shares s
+         LEFT JOIN files f ON f.id = s.file_id
+         LEFT JOIN users u ON u.id = s.owner_id`
+      )
+      .all()
+  )
 
-  return (rows.results || []).map((row) => toFileShareItem(row as Record<string, unknown>)).filter(Boolean) as ShareListItem[]
+  return (rows.results || [])
+    .map((row) => toFileShareItem(row as Record<string, unknown>))
+    .filter(Boolean) as ShareListItem[]
 }
 
-async function queryTextShares(db: D1Database): Promise<ShareListItem[]> {
-  const rows = await db
-    .prepare(
-      `SELECT s.text_id, s.owner_id, s.share_code, s.password_hash, s.expires_at, s.max_views, s.views, s.created_at, s.updated_at,
-              t.title AS text_title, t.deleted_at AS text_deleted_at,
-              u.username AS owner_username, u.status AS owner_status
-       FROM text_shares s
-       LEFT JOIN texts t ON t.id = s.text_id
-       LEFT JOIN users u ON u.id = s.owner_id`
-    )
-    .all()
+async function queryTextShares(
+  db: D1Database,
+  timings: RouteTimingEntry[] = []
+): Promise<ShareListItem[]> {
+  const rows = await measureRouteStep(timings, 'shareTextRows', () =>
+    db
+      .prepare(
+        `SELECT s.text_id, s.owner_id, s.share_code, s.password_hash, s.expires_at, s.max_views, s.views, s.created_at, s.updated_at,
+                t.title AS text_title, t.deleted_at AS text_deleted_at,
+                u.username AS owner_username, u.status AS owner_status
+         FROM text_shares s
+         LEFT JOIN texts t ON t.id = s.text_id
+         LEFT JOIN users u ON u.id = s.owner_id`
+      )
+      .all()
+  )
 
-  return (rows.results || []).map((row) => toTextShareItem(row as Record<string, unknown>)).filter(Boolean) as ShareListItem[]
+  return (rows.results || [])
+    .map((row) => toTextShareItem(row as Record<string, unknown>))
+    .filter(Boolean) as ShareListItem[]
 }
 
-async function queryTextOneTimeShares(db: D1Database): Promise<ShareListItem[]> {
-  const rows = await db
-    .prepare(
-      `SELECT s.text_id, s.owner_id, s.share_code, s.expires_at, s.consumed_at, s.created_at, s.updated_at,
-              t.title AS text_title, t.deleted_at AS text_deleted_at,
-              u.username AS owner_username, u.status AS owner_status
-       FROM text_one_time_shares s
-       LEFT JOIN texts t ON t.id = s.text_id
-       LEFT JOIN users u ON u.id = s.owner_id`
-    )
-    .all()
+async function queryTextOneTimeShares(
+  db: D1Database,
+  timings: RouteTimingEntry[] = []
+): Promise<ShareListItem[]> {
+  const rows = await measureRouteStep(timings, 'shareOneTimeRows', () =>
+    db
+      .prepare(
+        `SELECT s.text_id, s.owner_id, s.share_code, s.expires_at, s.consumed_at, s.created_at, s.updated_at,
+                t.title AS text_title, t.deleted_at AS text_deleted_at,
+                u.username AS owner_username, u.status AS owner_status
+         FROM text_one_time_shares s
+         LEFT JOIN texts t ON t.id = s.text_id
+         LEFT JOIN users u ON u.id = s.owner_id`
+      )
+      .all()
+  )
 
   return (rows.results || [])
     .map((row) => toTextOneTimeShareItem(row as Record<string, unknown>))
@@ -308,12 +339,13 @@ async function queryTextOneTimeShares(db: D1Database): Promise<ShareListItem[]> 
 export async function listShareItems(
   env: Env,
   user: AuthUser,
-  filters: ShareListFilters
+  filters: ShareListFilters,
+  timings: RouteTimingEntry[] = []
 ): Promise<{ items: ShareListItem[]; total: number }> {
   const [fileItems, textItems, textOneTimeItems] = await Promise.all([
-    queryFileShares(env.DB),
-    queryTextShares(env.DB),
-    queryTextOneTimeShares(env.DB),
+    queryFileShares(env.DB, timings),
+    queryTextShares(env.DB, timings),
+    queryTextOneTimeShares(env.DB, timings),
   ])
 
   const effectiveOwnerId = user.role === 'admin' ? normalizeText(filters.owner_id) : user.id
@@ -325,13 +357,17 @@ export async function listShareItems(
   const expiresFromTime = toNullableTime(filters.expires_from)
   const expiresToTime = toNullableTime(filters.expires_to)
 
-  const filtered = [...fileItems, ...textItems, ...textOneTimeItems]
-    .filter((item) => item.owner_id === effectiveOwnerId || (user.role === 'admin' && !effectiveOwnerId))
-    .filter((item) => matchesShareQuery(item, user, normalizedQuery))
-    .filter((item) => !normalizedType || item.type === normalizedType)
-    .filter((item) => !normalizedStatus || item.status === normalizedStatus)
-    .filter((item) => matchesExpiresRange(item, expiresFromTime, expiresToTime))
-    .sort((left, right) => compareShareItems(left, right, normalizedSortBy, normalizedSortOrder))
+  const filtered = await measureRouteStep(timings, 'shareFilterSort', async () =>
+    [...fileItems, ...textItems, ...textOneTimeItems]
+      .filter(
+        (item) => item.owner_id === effectiveOwnerId || (user.role === 'admin' && !effectiveOwnerId)
+      )
+      .filter((item) => matchesShareQuery(item, user, normalizedQuery))
+      .filter((item) => !normalizedType || item.type === normalizedType)
+      .filter((item) => !normalizedStatus || item.status === normalizedStatus)
+      .filter((item) => matchesExpiresRange(item, expiresFromTime, expiresToTime))
+      .sort((left, right) => compareShareItems(left, right, normalizedSortBy, normalizedSortOrder))
+  )
 
   const total = filtered.length
   const offset = (filters.page - 1) * filters.limit

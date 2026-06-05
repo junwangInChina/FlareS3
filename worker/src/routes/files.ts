@@ -12,6 +12,11 @@ import { createProvider } from '../services/storage/factory'
 import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
 import { getClientIp } from '../middleware/rateLimit'
 import { prepareReleaseUploadReservation } from '../services/uploadReservations'
+import {
+  measureRouteStep,
+  withRouteTimingHeaders,
+  type RouteTimingEntry,
+} from '../utils/routeTiming'
 
 const ALLOWED_SORT_FIELDS: Record<string, string> = {
   created_at: 'f.created_at',
@@ -49,7 +54,10 @@ function formatDuration(ms: number): string {
   return `${remMinutes}分钟`
 }
 
-function getExplicitProviderConfigId(file: { r2_key?: unknown; config_id?: unknown }): string | null {
+function getExplicitProviderConfigId(file: {
+  r2_key?: unknown
+  config_id?: unknown
+}): string | null {
   const configId = String(file.config_id || '').trim()
   if (!configId) return null
   return extractR2ConfigIdFromKey(String(file.r2_key || '')) ? null : configId
@@ -58,6 +66,7 @@ function getExplicitProviderConfigId(file: { r2_key?: unknown; config_id?: unkno
 export async function listFiles(request: Request, env: Env): Promise<Response> {
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
+  const timings: RouteTimingEntry[] = []
 
   const url = new URL(request.url)
   const page = Math.max(1, Number(url.searchParams.get('page') || 1))
@@ -101,81 +110,93 @@ export async function listFiles(request: Request, env: Env): Promise<Response> {
   const whereClause = `WHERE ${conditions.join(' AND ')}`
   const { sortColumn, sortDir } = parseSortParams(url, ALLOWED_SORT_FIELDS, 'created_at')
 
-  const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM files f ${whereClause}`)
-    .bind(...params)
-    .first('total')
+  const [totalRow, rows] = await Promise.all([
+    measureRouteStep(timings, 'dbCount', () =>
+      env.DB.prepare(`SELECT COUNT(*) AS total FROM files f ${whereClause}`)
+        .bind(...params)
+        .first('total')
+    ),
+    measureRouteStep(timings, 'dbRows', () =>
+      env.DB.prepare(
+        `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.config_id
+         FROM files f
+         LEFT JOIN users u ON u.id = f.owner_id
+         ${whereClause}
+         ORDER BY ${sortColumn} ${sortDir}
+         LIMIT ? OFFSET ?`
+      )
+        .bind(...params, limit, offset)
+        .all()
+    ),
+  ])
   const total = Number(totalRow || 0)
 
-  const rows = await env.DB.prepare(
-    `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.config_id
-     FROM files f
-     LEFT JOIN users u ON u.id = f.owner_id
-     ${whereClause}
-     ORDER BY ${sortColumn} ${sortDir}
-     LIMIT ? OFFSET ?`
-  )
-    .bind(...params, limit, offset)
-    .all()
-
   const now = Date.now()
-  const filesWithUrl = await Promise.all(
-    (rows.results || []).map(async (row) => {
-      const expiresAt = new Date(String(row.expires_at)).getTime()
-      const remaining = Number.isFinite(expiresAt) ? formatDuration(expiresAt - now) : '未知'
-      let downloadUrl = ''
-      const allowDirect = Number(row.require_login) === 0
+  const filesWithUrl = await measureRouteStep(timings, 'postProcess', () =>
+    Promise.all(
+      (rows.results || []).map(async (row) => {
+        const expiresAt = new Date(String(row.expires_at)).getTime()
+        const remaining = Number.isFinite(expiresAt) ? formatDuration(expiresAt - now) : '未知'
+        let downloadUrl = ''
+        const allowDirect = Number(row.require_login) === 0
 
-      if (
-        allowDirect &&
-        row.upload_status === 'completed' &&
-        Number.isFinite(expiresAt) &&
-        now < expiresAt
-      ) {
-        const explicitProviderConfigId = getExplicitProviderConfigId(row)
-        if (explicitProviderConfigId) {
-          downloadUrl = `/api/files/${row.id}/download`
-        } else {
-          const loaded = await resolveR2ConfigForKey(env, String(row.r2_key))
-          if (loaded) {
-            try {
-              const ttl = calcPresignedDownloadUrlTtlSeconds(new Date(expiresAt), now)
-              downloadUrl = await generateDownloadUrl(
-                loaded.config,
-                String(row.r2_key),
-                String(row.filename),
-                ttl
-              )
-            } catch (error) {
+        if (
+          allowDirect &&
+          row.upload_status === 'completed' &&
+          Number.isFinite(expiresAt) &&
+          now < expiresAt
+        ) {
+          const explicitProviderConfigId = getExplicitProviderConfigId(row)
+          if (explicitProviderConfigId) {
+            downloadUrl = `/api/files/${row.id}/download`
+          } else {
+            const loaded = await resolveR2ConfigForKey(env, String(row.r2_key))
+            if (loaded) {
+              try {
+                const ttl = calcPresignedDownloadUrlTtlSeconds(new Date(expiresAt), now)
+                downloadUrl = await generateDownloadUrl(
+                  loaded.config,
+                  String(row.r2_key),
+                  String(row.filename),
+                  ttl
+                )
+              } catch (error) {
+                downloadUrl = `/api/files/${row.id}/download`
+              }
+            } else {
               downloadUrl = `/api/files/${row.id}/download`
             }
-          } else {
-            downloadUrl = `/api/files/${row.id}/download`
           }
         }
-      }
 
-      const r2ConfigId = extractR2ConfigIdFromKey(String(row.r2_key)) || String((row as any).config_id || '')
+        const r2ConfigId =
+          extractR2ConfigIdFromKey(String(row.r2_key)) || String((row as any).config_id || '')
 
-      return {
-        ...row,
-        r2_config_id: r2ConfigId,
-        remaining_time: remaining,
-        download_url: downloadUrl,
-      }
-    })
+        return {
+          ...row,
+          r2_config_id: r2ConfigId,
+          remaining_time: remaining,
+          download_url: downloadUrl,
+        }
+      })
+    )
   )
 
-  return jsonResponse({
-    total,
-    page,
-    limit,
-    files: filesWithUrl,
-  })
+  return withRouteTimingHeaders(
+    jsonResponse({
+      total,
+      page,
+      limit,
+      files: filesWithUrl,
+    }),
+    timings
+  )
 }
 
 export async function listTrashFiles(request: Request, env: Env): Promise<Response> {
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
+  const timings: RouteTimingEntry[] = []
 
   const url = new URL(request.url)
   const page = Math.max(1, Number(url.searchParams.get('page') || 1))
@@ -215,35 +236,46 @@ export async function listTrashFiles(request: Request, env: Env): Promise<Respon
   const whereClause = `WHERE ${conditions.join(' AND ')}`
   const { sortColumn, sortDir } = parseSortParams(url, TRASH_SORT_FIELDS, 'deleted_at')
 
-  const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM files f ${whereClause}`)
-    .bind(...params)
-    .first('total')
+  const [totalRow, rows] = await Promise.all([
+    measureRouteStep(timings, 'dbCount', () =>
+      env.DB.prepare(`SELECT COUNT(*) AS total FROM files f ${whereClause}`)
+        .bind(...params)
+        .first('total')
+    ),
+    measureRouteStep(timings, 'dbRows', () =>
+      env.DB.prepare(
+        `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.deleted_at, f.config_id
+         FROM files f
+         LEFT JOIN users u ON u.id = f.owner_id
+         ${whereClause}
+         ORDER BY ${sortColumn} ${sortDir}
+         LIMIT ? OFFSET ?`
+      )
+        .bind(...params, limit, offset)
+        .all()
+    ),
+  ])
   const total = Number(totalRow || 0)
 
-  const rows = await env.DB.prepare(
-    `SELECT f.id, f.owner_id, u.username AS owner_username, f.filename, f.r2_key, f.size, f.content_type, f.expires_in, f.created_at, f.expires_at, f.upload_status, f.short_code, f.require_login, f.deleted_at, f.config_id
-     FROM files f
-     LEFT JOIN users u ON u.id = f.owner_id
-     ${whereClause}
-     ORDER BY ${sortColumn} ${sortDir}
-     LIMIT ? OFFSET ?`
+  const files = await measureRouteStep(timings, 'postProcess', async () =>
+    (rows.results || []).map((row) => ({
+      ...row,
+      r2_config_id:
+        extractR2ConfigIdFromKey(String(row.r2_key)) || String((row as any).config_id || ''),
+      remaining_time: '-',
+      download_url: '',
+    }))
   )
-    .bind(...params, limit, offset)
-    .all()
 
-  const files = (rows.results || []).map((row) => ({
-    ...row,
-    r2_config_id: extractR2ConfigIdFromKey(String(row.r2_key)) || String((row as any).config_id || ''),
-    remaining_time: '-',
-    download_url: '',
-  }))
-
-  return jsonResponse({
-    total,
-    page,
-    limit,
-    files,
-  })
+  return withRouteTimingHeaders(
+    jsonResponse({
+      total,
+      page,
+      limit,
+      files,
+    }),
+    timings
+  )
 }
 
 export async function downloadFile(request: Request, env: Env, fileId: string): Promise<Response> {

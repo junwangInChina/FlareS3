@@ -2,6 +2,11 @@ import type { Env } from '../config/env'
 import { jsonResponse, parseJson, getUser } from './utils'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
+import {
+  measureRouteStep,
+  withRouteTimingHeaders,
+  type RouteTimingEntry,
+} from '../utils/routeTiming'
 
 const MAX_TITLE_LENGTH = 200
 const MAX_CONTENT_LENGTH = 100_000
@@ -18,6 +23,7 @@ function clampString(value: string, maxLength: number): string {
 export async function listTexts(request: Request, env: Env): Promise<Response> {
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
+  const timings: RouteTimingEntry[] = []
 
   const url = new URL(request.url)
   const page = Math.max(1, Number(url.searchParams.get('page') || 1))
@@ -45,31 +51,39 @@ export async function listTexts(request: Request, env: Env): Promise<Response> {
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
-  const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM texts t ${whereClause}`)
-    .bind(...params)
-    .first('total')
+  const [totalRow, rows] = await Promise.all([
+    measureRouteStep(timings, 'dbCount', () =>
+      env.DB.prepare(`SELECT COUNT(*) AS total FROM texts t ${whereClause}`)
+        .bind(...params)
+        .first('total')
+    ),
+    measureRouteStep(timings, 'dbRows', () =>
+      env.DB.prepare(
+        `SELECT t.id, t.owner_id, u.username AS owner_username, t.title,
+                SUBSTR(t.content, 1, 200) AS content_preview,
+                LENGTH(t.content) AS content_length,
+                t.created_at, t.updated_at
+         FROM texts t
+         LEFT JOIN users u ON u.id = t.owner_id
+         ${whereClause}
+         ORDER BY t.updated_at DESC
+         LIMIT ? OFFSET ?`
+      )
+        .bind(...params, limit, offset)
+        .all()
+    ),
+  ])
   const total = Number(totalRow || 0)
 
-  const rows = await env.DB.prepare(
-    `SELECT t.id, t.owner_id, u.username AS owner_username, t.title,
-            SUBSTR(t.content, 1, 200) AS content_preview,
-            LENGTH(t.content) AS content_length,
-            t.created_at, t.updated_at
-     FROM texts t
-     LEFT JOIN users u ON u.id = t.owner_id
-     ${whereClause}
-     ORDER BY t.updated_at DESC
-     LIMIT ? OFFSET ?`
+  return withRouteTimingHeaders(
+    jsonResponse({
+      total,
+      page,
+      limit,
+      texts: rows.results || [],
+    }),
+    timings
   )
-    .bind(...params, limit, offset)
-    .all()
-
-  return jsonResponse({
-    total,
-    page,
-    limit,
-    texts: rows.results || [],
-  })
 }
 
 export async function getText(request: Request, env: Env, textId: string): Promise<Response> {

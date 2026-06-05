@@ -1,6 +1,7 @@
 import type { Env } from '../config/env'
 import { listShareItems, type ShareRecordStatus, type ShareRecordType } from '../services/shares'
 import { getUser, jsonResponse } from './utils'
+import { withRouteTimingHeaders, type RouteTimingEntry } from '../utils/routeTiming'
 
 type ShareListQuery = {
   page: number
@@ -42,14 +43,18 @@ export async function listShares(request: Request, env: Env): Promise<Response> 
   if (!user) {
     return jsonResponse({ error: '未授权' }, 401)
   }
+  const timings: RouteTimingEntry[] = []
 
   const filters = parseFilters(request)
-  const result = await listShareItems(env, user, filters)
+  const result = await listShareItems(env, user, filters, timings)
 
-  return jsonResponse({
-    total: result.total,
-    page: filters.page,
-    limit: filters.limit,
-    items: result.items,
-  })
+  return withRouteTimingHeaders(
+    jsonResponse({
+      total: result.total,
+      page: filters.page,
+      limit: filters.limit,
+      items: result.items,
+    }),
+    timings
+  )
 }
