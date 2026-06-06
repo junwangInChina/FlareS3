@@ -327,7 +327,7 @@ const toggleSelection = (record, event) => {
   color: var(--nb-danger);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .shares-cards {
     grid-template-columns: minmax(0, 1fr);
   }

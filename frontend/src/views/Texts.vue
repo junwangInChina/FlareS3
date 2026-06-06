@@ -160,20 +160,32 @@
         </template>
       </section>
 
-      <TextFormModal v-model:show="createModalVisible" mode="create" @success="handleFormSuccess" />
+      <TextFormModal
+        v-if="createModalVisible"
+        v-model:show="createModalVisible"
+        mode="create"
+        @success="handleFormSuccess"
+      />
 
       <TextFormModal
+        v-if="editModalVisible"
         v-model:show="editModalVisible"
         mode="edit"
         :text-id="editingId"
         @success="handleFormSuccess"
       />
 
-      <TextViewModal v-model:show="viewModalVisible" :text-id="viewingId" />
+      <TextViewModal v-if="viewModalVisible" v-model:show="viewModalVisible" :text-id="viewingId" />
 
-      <TextQrModal v-model:show="qrModalVisible" :text-id="qrTextId" :text-title="qrTextTitle" />
+      <TextQrModal
+        v-if="qrModalVisible"
+        v-model:show="qrModalVisible"
+        :text-id="qrTextId"
+        :text-title="qrTextTitle"
+      />
 
       <TextShareModal
+        v-if="shareModalVisible"
         v-model:show="shareModalVisible"
         :text-id="sharingId"
         :text-title="sharingTitle"
@@ -203,7 +215,7 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, ref, watch } from 'vue'
+import { computed, h, onMounted, ref, watch, defineAsyncComponent } from 'vue'
 import {
   Eye,
   FileText,
@@ -223,7 +235,6 @@ import { useThemeStore } from '../stores/theme'
 import { useUserOptionsStore } from '../stores/userOptions'
 import AppLayout from '../components/layout/AppLayout.vue'
 import TextsTableView from '../components/texts/TextsTableView.vue'
-import TextsCardView from '../components/texts/TextsCardView.vue'
 import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import Button from '../components/ui/button/Button.vue'
 import Modal from '../components/ui/modal/Modal.vue'
@@ -232,12 +243,14 @@ import Select from '../components/ui/select/Select.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TableCellText from '../components/ui/table/TableCellText.vue'
-import TextFormModal from '../components/texts/TextFormModal.vue'
-import TextViewModal from '../components/texts/TextViewModal.vue'
-import TextShareModal from '../components/texts/TextShareModal.vue'
-import TextQrModal from '../components/texts/TextQrModal.vue'
 import { useMessage } from '../composables/useMessage'
 import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
+
+const TextsCardView = defineAsyncComponent(() => import('../components/texts/TextsCardView.vue'))
+const TextFormModal = defineAsyncComponent(() => import('../components/texts/TextFormModal.vue'))
+const TextViewModal = defineAsyncComponent(() => import('../components/texts/TextViewModal.vue'))
+const TextShareModal = defineAsyncComponent(() => import('../components/texts/TextShareModal.vue'))
+const TextQrModal = defineAsyncComponent(() => import('../components/texts/TextQrModal.vue'))
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()

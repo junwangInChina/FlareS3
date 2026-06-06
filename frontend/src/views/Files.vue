@@ -226,11 +226,16 @@
         </template>
       </section>
 
-      <FileInfoModal v-model:show="showInfoModal" :file="selectedFile" />
+      <FileInfoModal v-if="showInfoModal" v-model:show="showInfoModal" :file="selectedFile" />
 
-      <FileUploadModal v-model:show="showUploadModal" @uploaded="handleUploaded" />
+      <FileUploadModal
+        v-if="showUploadModal"
+        v-model:show="showUploadModal"
+        @uploaded="handleUploaded"
+      />
 
       <FileShareModal
+        v-if="showShareModal"
         v-model:show="showShareModal"
         :file-id="sharingFileId"
         :filename="sharingFilename"
@@ -260,7 +265,7 @@
 </template>
 
 <script setup>
-import { ref, h, onMounted, computed, watch } from 'vue'
+import { ref, h, onMounted, computed, watch, defineAsyncComponent } from 'vue'
 import {
   Info,
   Trash2,
@@ -282,10 +287,6 @@ import { useUserOptionsStore } from '../stores/userOptions'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
 import FilesTableView from '../components/files/FilesTableView.vue'
-import FilesCardView from '../components/files/FilesCardView.vue'
-import FileInfoModal from '../components/files/FileInfoModal.vue'
-import FileUploadModal from '../components/files/FileUploadModal.vue'
-import FileShareModal from '../components/files/FileShareModal.vue'
 import Button from '../components/ui/button/Button.vue'
 import Modal from '../components/ui/modal/Modal.vue'
 import Select from '../components/ui/select/Select.vue'
@@ -298,6 +299,13 @@ import PageSkeleton from '../components/ui/skeleton/PageSkeleton.vue'
 import { useMessage } from '../composables/useMessage'
 import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
 import { canManageFileShare, getFileStatusState, isFileDeleted } from '../utils/files.js'
+
+const FilesCardView = defineAsyncComponent(() => import('../components/files/FilesCardView.vue'))
+const FileInfoModal = defineAsyncComponent(() => import('../components/files/FileInfoModal.vue'))
+const FileUploadModal = defineAsyncComponent(
+  () => import('../components/files/FileUploadModal.vue')
+)
+const FileShareModal = defineAsyncComponent(() => import('../components/files/FileShareModal.vue'))
 
 const authStore = useAuthStore()
 const filesStore = useFilesStore()

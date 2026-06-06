@@ -36,8 +36,7 @@ type WebDAVConfigInputBody = {
 }
 
 export async function listConfigs(_request: Request, env: Env): Promise<Response> {
-  const masterKey = String(env.R2_MASTER_KEY || '').trim()
-  const configs = await listWebDAVConfigs(env.DB, masterKey)
+  const configs = await listWebDAVConfigs(env.DB)
 
   const result = configs.map((cfg) => ({
     id: cfg.id,
@@ -45,8 +44,6 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
     type: cfg.type,
     endpoint: cfg.endpoint,
     remote_path: cfg.remote_path,
-    username: cfg.username,
-    password: cfg.password,
     quotaBytes: cfg.quotaBytes,
     quotaBytesFormatted: formatBytes(cfg.quotaBytes),
     createdAt: cfg.createdAt,

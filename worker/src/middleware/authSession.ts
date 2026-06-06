@@ -220,9 +220,18 @@ export async function authSessionMiddleware(
     if (isSignedSessionLocallyInvalidated(signedSession)) {
       return
     }
+    const tokenHash = await hashToken(token)
+    const session = await loadSession(env, tokenHash)
+    if (
+      !session ||
+      session.sessionId !== signedSession.sessionId ||
+      session.user.id !== signedSession.user.id
+    ) {
+      return
+    }
     const req = request as Request & { user?: AuthUser; sessionId?: string }
-    req.user = signedSession.user
-    req.sessionId = signedSession.sessionId
+    req.user = session.user
+    req.sessionId = session.sessionId
     return
   }
 

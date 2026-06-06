@@ -348,7 +348,7 @@ const copyTextContent = async (row) => {
   flex-shrink: 0;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .texts-cards {
     grid-template-columns: 1fr;
   }

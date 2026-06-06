@@ -10,6 +10,8 @@ type ReserveUploadCapacityInput = {
   declaredSize: number
 }
 
+export const ORPHAN_UPLOAD_RESERVATION_GRACE_MS = 15 * 60 * 1000
+
 function toNonNegativeNumber(value: unknown): number {
   const normalized = Number(value)
   return Number.isFinite(normalized) && normalized > 0 ? normalized : 0
@@ -51,9 +53,16 @@ export async function getCompletedConfigUsedSpace(
   const prefix = `flares3/${configId}/%`
   const result = await db
     .prepare(
-      "SELECT COALESCE(SUM(size), 0) AS completedUsed FROM files WHERE upload_status = 'completed' AND deleted_at IS NULL AND r2_key LIKE ?"
+      `SELECT COALESCE(SUM(size), 0) AS completedUsed
+         FROM files
+        WHERE upload_status = 'completed'
+          AND deleted_at IS NULL
+          AND (
+            config_id = ?
+            OR ((config_id IS NULL OR TRIM(config_id) = '') AND r2_key LIKE ?)
+          )`
     )
-    .bind(prefix)
+    .bind(configId, prefix)
     .first('completedUsed')
   return toNonNegativeNumber(result)
 }
@@ -68,10 +77,7 @@ export async function getReservedConfigSpace(db: D1Database, configId: string): 
   return toNonNegativeNumber(result)
 }
 
-export async function getTotalConfigUsedSpace(
-  db: D1Database,
-  configId: string
-): Promise<number> {
+export async function getTotalConfigUsedSpace(db: D1Database, configId: string): Promise<number> {
   const [completedUsed, reservedUsed] = await Promise.all([
     getCompletedConfigUsedSpace(db, configId),
     getReservedConfigSpace(db, configId),
@@ -79,14 +85,46 @@ export async function getTotalConfigUsedSpace(
   return completedUsed + reservedUsed
 }
 
+export async function cleanupOrphanUploadReservations(
+  db: D1Database,
+  nowDate: Date = new Date()
+): Promise<number> {
+  const now = nowDate.toISOString()
+  const cutoff = new Date(nowDate.getTime() - ORPHAN_UPLOAD_RESERVATION_GRACE_MS).toISOString()
+  const result = await db
+    .prepare(
+      `UPDATE upload_reservations
+          SET status = 'released', updated_at = ?
+        WHERE status = 'active'
+          AND created_at < ?
+          AND NOT EXISTS (
+            SELECT 1 FROM files WHERE files.id = upload_reservations.file_id
+          )`
+    )
+    .bind(now, cutoff)
+    .run()
+  return toNonNegativeNumber(result.meta?.changes)
+}
+
 export async function getUploadConfigQuotaBytes(env: Env, configId: string): Promise<number> {
-  const quota = await env.DB.prepare('SELECT quota_bytes FROM r2_configs WHERE id = ? LIMIT 1')
+  const r2Quota = await env.DB.prepare('SELECT quota_bytes FROM r2_configs WHERE id = ? LIMIT 1')
     .bind(configId)
     .first('quota_bytes')
-  const quotaBytes = Number(quota)
-  if (Number.isFinite(quotaBytes) && quotaBytes > 0) {
-    return quotaBytes
+  const r2QuotaBytes = Number(r2Quota)
+  if (Number.isFinite(r2QuotaBytes) && r2QuotaBytes > 0) {
+    return r2QuotaBytes
   }
+
+  const webdavQuota = await env.DB.prepare(
+    'SELECT quota_bytes FROM webdav_configs WHERE id = ? LIMIT 1'
+  )
+    .bind(configId)
+    .first('quota_bytes')
+  const webdavQuotaBytes = Number(webdavQuota)
+  if (Number.isFinite(webdavQuotaBytes) && webdavQuotaBytes > 0) {
+    return webdavQuotaBytes
+  }
+
   return getTotalStorage(env)
 }
 
@@ -97,9 +135,8 @@ export async function reserveUploadCapacity(
   const { fileId, userId, userQuotaBytes, r2ConfigId, declaredSize } = input
   const now = new Date().toISOString()
   const quotaBytes = await getUploadConfigQuotaBytes(env, r2ConfigId)
-  const result = await env.DB
-    .prepare(
-      `INSERT INTO upload_reservations
+  const result = await env.DB.prepare(
+    `INSERT INTO upload_reservations
        (file_id, user_id, r2_config_id, reserved_bytes, status, created_at, updated_at)
        SELECT ?, ?, ?, ?, 'active', ?, ?
        WHERE (
@@ -122,7 +159,12 @@ export async function reserveUploadCapacity(
          COALESCE(
            (
              SELECT SUM(size) FROM files
-             WHERE upload_status = 'completed' AND deleted_at IS NULL AND r2_key LIKE ?
+             WHERE upload_status = 'completed'
+               AND deleted_at IS NULL
+               AND (
+                 config_id = ?
+                 OR ((config_id IS NULL OR TRIM(config_id) = '') AND r2_key LIKE ?)
+               )
            ),
            0
          ) +
@@ -134,7 +176,7 @@ export async function reserveUploadCapacity(
            0
          ) + ? <= ?
        )`
-    )
+  )
     .bind(
       fileId,
       userId,
@@ -147,6 +189,7 @@ export async function reserveUploadCapacity(
       userId,
       declaredSize,
       userQuotaBytes,
+      r2ConfigId,
       `flares3/${r2ConfigId}/%`,
       r2ConfigId,
       declaredSize,

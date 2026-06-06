@@ -1,6 +1,5 @@
 import type { Env } from '../../config/env'
-import { jsonResponse, parseJson, getUser } from '../utils'
-import { loadR2ConfigById } from '../../services/r2'
+import { jsonResponse, getUser } from '../utils'
 import { prepareAuditLogInsert } from '../../services/audit'
 import { getClientIp } from '../../middleware/rateLimit'
 import { normalizeDeclaredFileSize } from '../../services/uploadValidation'
@@ -12,6 +11,7 @@ import {
 } from '../../services/uploadErrors'
 import { createProvider } from '../../services/storage/factory'
 import { prepareConsumeUploadReservation } from '../../services/uploadReservations'
+import { resolveServerUploadConfigForUser } from '../../services/uploadConfigPolicy'
 import { generateRandomCode } from '../../utils/random'
 import {
   SHORT_CODE_MAX_ATTEMPTS,
@@ -22,6 +22,8 @@ import {
   sanitizeDir,
   markFileUploadDeleted,
   createPendingUploadFileRecord,
+  createUploadConfigPolicyErrorResponse,
+  buildProviderScopedStorageKey,
 } from './helpers'
 
 const MAX_SERVER_UPLOAD_BYTES = 100 * 1024 * 1024
@@ -70,11 +72,26 @@ export async function serverUpload(request: Request, env: Env): Promise<Response
     const file = rawFile as File
     const fileSize = file.size
     if (fileSize > MAX_SERVER_UPLOAD_BYTES) {
-      return jsonResponse({ error: `文件大小超过限制（最大 ${MAX_SERVER_UPLOAD_BYTES / 1024 / 1024}MB）` }, 413)
+      return jsonResponse(
+        { error: `文件大小超过限制（最大 ${MAX_SERVER_UPLOAD_BYTES / 1024 / 1024}MB）` },
+        413
+      )
     }
 
-    const r2Loaded = await loadR2ConfigById(env, configId)
-    if (r2Loaded) {
+    let resolvedConfig
+    try {
+      resolvedConfig = await resolveServerUploadConfigForUser(env, user, configId)
+    } catch (error) {
+      const response = createUploadConfigPolicyErrorResponse(error)
+      if (response) return response
+      throw error
+    }
+
+    if (!resolvedConfig) {
+      return uploadErrorResponse(uploadConfigNotFoundError())
+    }
+
+    if (resolvedConfig.type === 'r2') {
       return jsonResponse({ error: 'R2 配置请使用预签名上传' }, 400)
     }
 
@@ -90,13 +107,20 @@ export async function serverUpload(request: Request, env: Env): Promise<Response
       return uploadErrorResponse(invalidUploadRequestError())
     }
 
-    let uploadFile: { id: string; r2Key: string; shortCode: string; expiresAt: Date; filename: string } | null = null
+    let uploadFile: {
+      id: string
+      r2Key: string
+      shortCode: string
+      expiresAt: Date
+      filename: string
+    } | null = null
     let lastError: unknown = null
     for (let attempt = 0; attempt < SHORT_CODE_MAX_ATTEMPTS; attempt += 1) {
       const baseFilename = sanitizeUploadFilename(filename)
       const resolvedFilename = buildRenamedFilename(baseFilename, attempt)
       const expiresAt = calcExpiresAt(expiresIn)
-      const r2Key = dir ? `${dir}/${resolvedFilename}` : resolvedFilename
+      const relativeKey = dir ? `${dir}/${resolvedFilename}` : resolvedFilename
+      const r2Key = buildProviderScopedStorageKey(configId, relativeKey)
       const id = crypto.randomUUID()
       const shortCode = generateRandomCode(6)
       uploadFile = { id, r2Key, shortCode, expiresAt, filename: resolvedFilename }
@@ -156,34 +180,37 @@ export async function serverUpload(request: Request, env: Env): Promise<Response
       return jsonResponse({ error: `上传失败（${formatted.message}）` }, formatted.status)
     }
 
-    const now = new Date().toISOString()
-    const updateResult = await env.DB.prepare(
-      "UPDATE files SET upload_status = 'completed', size = ? WHERE id = ? AND upload_status = 'pending'"
-    )
-      .bind(fileSize, uploadFile.id)
-      .run()
+    try {
+      const now = new Date().toISOString()
+      const [updateResult] = await env.DB.batch([
+        env.DB.prepare(
+          "UPDATE files SET upload_status = 'completed', size = ? WHERE id = ? AND upload_status = 'pending'"
+        ).bind(fileSize, uploadFile.id),
+        prepareConsumeUploadReservation(env.DB, uploadFile.id, now),
+        prepareAuditLogInsert(
+          env.DB,
+          {
+            actorUserId: user.id,
+            action: 'UPLOAD_SERVER',
+            targetType: 'file',
+            targetId: uploadFile.id,
+            ip: getClientIp(request),
+            userAgent: request.headers.get('User-Agent') || undefined,
+            metadata: { configId, key: uploadFile.r2Key, size: fileSize },
+          },
+          now
+        ),
+      ])
 
-    if (!updateResult.error) {
-      try {
-        await env.DB.batch([
-          prepareConsumeUploadReservation(env.DB, uploadFile.id, now),
-          prepareAuditLogInsert(
-            env.DB,
-            {
-              actorUserId: user.id,
-              action: 'UPLOAD_SERVER',
-              targetType: 'file',
-              targetId: uploadFile.id,
-              ip: getClientIp(request),
-              userAgent: request.headers.get('User-Agent') || undefined,
-              metadata: { configId, key: uploadFile.r2Key, size: fileSize },
-            },
-            now
-          ),
-        ])
-      } catch {
-        // reservation/audit failure non-fatal
+      if (!updateResult?.meta?.changes) {
+        throw new Error('complete_server_upload_file_record_failed')
       }
+    } catch (error) {
+      await Promise.allSettled([
+        provider.delete(uploadFile.r2Key),
+        markFileUploadDeleted(env, uploadFile.id),
+      ])
+      throw error
     }
 
     const downloadUrl = `/api/files/${uploadFile.id}/download`

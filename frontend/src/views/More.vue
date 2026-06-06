@@ -382,7 +382,7 @@ const { logoutConfirmVisible, logoutSubmitting, openLogoutConfirm, confirmLogout
   font-size: var(--nb-font-size-sm);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .more-grid {
     grid-template-columns: minmax(0, 1fr);
   }

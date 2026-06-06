@@ -20,6 +20,10 @@ export type UploadConfigOptionsResult = {
   options: UploadConfigOption[]
 }
 
+export type ServerUploadConfigResolution = {
+  type: 'r2' | 'webdav' | 'koofr'
+}
+
 export class UploadConfigPolicyError extends Error {
   readonly status: number
   readonly code: 'FORBIDDEN_CONFIG'
@@ -119,4 +123,29 @@ export async function resolveUploadConfigType(
   if (webdavLoaded) return webdavLoaded.type
 
   return null
+}
+
+export async function resolveServerUploadConfigForUser(
+  env: Env,
+  user: AuthUser,
+  requestedId: string
+): Promise<ServerUploadConfigResolution | null> {
+  const normalizedRequestedId = String(requestedId || '').trim()
+  if (!normalizedRequestedId) {
+    return null
+  }
+
+  if (user.role !== 'admin') {
+    const allowedR2 = await resolveUploadConfigForUser(env, user, normalizedRequestedId)
+    if (allowedR2?.id === normalizedRequestedId) {
+      return { type: 'r2' }
+    }
+    throw new UploadConfigPolicyError('无权使用指定上传配置', 403, 'FORBIDDEN_CONFIG')
+  }
+
+  const type = await resolveUploadConfigType(env, normalizedRequestedId)
+  if (!type) {
+    return null
+  }
+  return { type }
 }

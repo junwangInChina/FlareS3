@@ -6,13 +6,20 @@ import {
   summarizeS3Error,
 } from '../services/r2'
 import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
-import { prepareReleaseUploadReservation } from '../services/uploadReservations'
+import {
+  cleanupOrphanUploadReservations,
+  prepareReleaseUploadReservation,
+} from '../services/uploadReservations'
 
 const BATCH_SIZE = 100
 
-export async function cleanupExpired(env: Env): Promise<JobExecutionResult> {
+export async function cleanupExpired(
+  env: Env,
+  nowDate: Date = new Date()
+): Promise<JobExecutionResult> {
   const startedAtMs = Date.now()
-  const now = new Date().toISOString()
+  const now = nowDate.toISOString()
+  const orphanReservationsReleased = await cleanupOrphanUploadReservations(env.DB, nowDate)
   const { results } = await env.DB.prepare(
     `SELECT id, r2_key, upload_status, multipart_upload_id FROM files
      WHERE expires_at < ? AND upload_status IN ('pending','uploading','completed') AND deleted_at IS NULL
@@ -23,10 +30,10 @@ export async function cleanupExpired(env: Env): Promise<JobExecutionResult> {
   if (!results.length) {
     return buildJobResult('cleanupExpired', startedAtMs, {
       status: 'success',
-      processed: 0,
-      succeeded: 0,
+      processed: orphanReservationsReleased,
+      succeeded: orphanReservationsReleased,
       failed: 0,
-      details: { deletedFiles: 0, missingConfigs: 0 },
+      details: { deletedFiles: 0, missingConfigs: 0, orphanReservationsReleased },
     })
   }
 
@@ -74,12 +81,13 @@ export async function cleanupExpired(env: Env): Promise<JobExecutionResult> {
 
   return buildJobResult('cleanupExpired', startedAtMs, {
     status: failed > 0 ? (succeeded > 0 ? 'partial' : 'failed') : 'success',
-    processed: results.length,
-    succeeded,
+    processed: results.length + orphanReservationsReleased,
+    succeeded: succeeded + orphanReservationsReleased,
     failed,
     details: {
       deletedFiles,
       missingConfigs,
+      orphanReservationsReleased,
     },
   })
 }

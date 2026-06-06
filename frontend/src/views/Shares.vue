@@ -184,6 +184,7 @@
       </section>
 
       <FileShareModal
+        v-if="fileShareModalVisible"
         :show="fileShareModalVisible"
         :file-id="activeFileId"
         :filename="activeResourceName"
@@ -191,6 +192,7 @@
       />
 
       <TextShareModal
+        v-if="textShareModalVisible"
         :show="textShareModalVisible"
         :text-id="activeTextId"
         :text-title="activeResourceName"
@@ -226,7 +228,7 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, ref, watch } from 'vue'
+import { computed, h, onMounted, ref, watch, defineAsyncComponent } from 'vue'
 import { Copy, ExternalLink, Pencil, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
@@ -245,9 +247,6 @@ import Pagination from '../components/ui/pagination/Pagination.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TableCellText from '../components/ui/table/TableCellText.vue'
-import FileShareModal from '../components/files/FileShareModal.vue'
-import SharesCardView from '../components/shares/SharesCardView.vue'
-import TextShareModal from '../components/texts/TextShareModal.vue'
 import { useMessage } from '../composables/useMessage'
 import { useIsMobile } from '../composables/useViewport.js'
 import {
@@ -271,6 +270,10 @@ import {
   toShareStatusVariant,
   toShareTypeLabelKey,
 } from '../utils/shares.js'
+
+const FileShareModal = defineAsyncComponent(() => import('../components/files/FileShareModal.vue'))
+const SharesCardView = defineAsyncComponent(() => import('../components/shares/SharesCardView.vue'))
+const TextShareModal = defineAsyncComponent(() => import('../components/texts/TextShareModal.vue'))
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const authStore = useAuthStore()

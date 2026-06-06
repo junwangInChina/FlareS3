@@ -64,11 +64,19 @@
                 <Tag :type="getConfigTypeTagType(row.configType)" size="small">
                   {{ formatConfigType(row.configType) }}
                 </Tag>
-                <Tag v-if="row.configType === 'r2'" :type="getSourceTagType(row.source)" size="small">
+                <Tag
+                  v-if="row.configType === 'r2'"
+                  :type="getSourceTagType(row.source)"
+                  size="small"
+                >
                   {{ formatSource(row.source) }}
                 </Tag>
 
-                <Tag v-if="row.configType === 'r2' && row.id === r2Options.default_config_id" type="success" size="small">
+                <Tag
+                  v-if="row.configType === 'r2' && row.id === r2Options.default_config_id"
+                  type="success"
+                  size="small"
+                >
                   {{ t('setup.state.defaultTag') }}
                 </Tag>
               </div>
@@ -208,6 +216,7 @@
       </section>
 
       <StorageConfigModal
+        v-if="modalVisible"
         v-model:show="modalVisible"
         :mode="modalMode"
         :submitting="modalSubmitting"
@@ -215,13 +224,13 @@
         @submit="handleSubmit"
       />
 
-      <UsageTipsModal v-model:show="usageTipsVisible" />
+      <UsageTipsModal v-if="usageTipsVisible" v-model:show="usageTipsVisible" />
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import {
   AlertTriangle,
   Database,
@@ -235,14 +244,17 @@ import {
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import AppLayout from '../components/layout/AppLayout.vue'
-import StorageConfigModal from '../components/setup/StorageConfigModal.vue'
-import UsageTipsModal from '../components/setup/UsageTipsModal.vue'
 import Card from '../components/ui/card/Card.vue'
 import Button from '../components/ui/button/Button.vue'
 import Alert from '../components/ui/alert/Alert.vue'
 import Tag from '../components/ui/tag/Tag.vue'
 import Progress from '../components/ui/progress/Progress.vue'
 import { useMessage } from '../composables/useMessage'
+
+const StorageConfigModal = defineAsyncComponent(
+  () => import('../components/setup/StorageConfigModal.vue')
+)
+const UsageTipsModal = defineAsyncComponent(() => import('../components/setup/UsageTipsModal.vue'))
 
 const message = useMessage()
 const { t } = useI18n({ useScope: 'global' })

@@ -51,8 +51,8 @@ jobs:
         working-directory: "frontend"
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
+      - name: Release verification gate
+        run: npm run verify:release
 
       - name: Resolve deploy target from wrangler.full.toml
         working-directory: "worker"

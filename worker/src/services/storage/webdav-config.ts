@@ -30,8 +30,6 @@ export type WebDAVConfigSummary = {
   endpoint: string
   mount_id: string | null
   remote_path: string
-  username: string
-  password: string
   quotaBytes: number
   createdAt: string
   updatedAt: string
@@ -51,10 +49,10 @@ export type LoadedWebDAVConfig = {
 
 // ── 读取 ──
 
-export async function listWebDAVConfigs(db: D1Database, masterKey?: string): Promise<WebDAVConfigSummary[]> {
+export async function listWebDAVConfigs(db: D1Database): Promise<WebDAVConfigSummary[]> {
   const rows = await db
     .prepare(
-      'SELECT id, name, type, endpoint, mount_id, remote_path, quota_bytes, username_enc, password_enc, created_at, updated_at FROM webdav_configs ORDER BY created_at DESC'
+      'SELECT id, name, type, endpoint, mount_id, remote_path, quota_bytes, created_at, updated_at FROM webdav_configs ORDER BY created_at DESC'
     )
     .all<{
       id: string
@@ -64,25 +62,12 @@ export async function listWebDAVConfigs(db: D1Database, masterKey?: string): Pro
       mount_id: string | null
       remote_path: string | null
       quota_bytes: number
-      username_enc: string
-      password_enc: string
       created_at: string
       updated_at: string
     }>()
 
   const results: WebDAVConfigSummary[] = []
   for (const row of rows.results || []) {
-    let username = ''
-    let password = ''
-    if (masterKey && row.username_enc) {
-      try {
-        username = await decryptString(String(row.username_enc), masterKey)
-        password = row.password_enc ? await decryptString(String(row.password_enc), masterKey) : ''
-      } catch {
-        username = ''
-        password = ''
-      }
-    }
     results.push({
       id: String(row.id),
       name: String(row.name),
@@ -90,8 +75,6 @@ export async function listWebDAVConfigs(db: D1Database, masterKey?: string): Pro
       endpoint: String(row.endpoint),
       mount_id: row.mount_id ? String(row.mount_id) : null,
       remote_path: row.remote_path || '/',
-      username,
-      password,
       quotaBytes: Number(row.quota_bytes || DEFAULT_TOTAL_STORAGE),
       createdAt: String(row.created_at),
       updatedAt: String(row.updated_at),
@@ -100,14 +83,16 @@ export async function listWebDAVConfigs(db: D1Database, masterKey?: string): Pro
   return results
 }
 
-export async function loadWebDAVConfigById(env: Env, id: string): Promise<LoadedWebDAVConfig | null> {
+export async function loadWebDAVConfigById(
+  env: Env,
+  id: string
+): Promise<LoadedWebDAVConfig | null> {
   const masterKey = String(env.R2_MASTER_KEY || '').trim()
   if (!masterKey) return null
 
-  const row = await env.DB
-    .prepare(
-      'SELECT id, type, endpoint, mount_id, remote_path, username_enc, password_enc FROM webdav_configs WHERE id = ? LIMIT 1'
-    )
+  const row = await env.DB.prepare(
+    'SELECT id, type, endpoint, mount_id, remote_path, username_enc, password_enc FROM webdav_configs WHERE id = ? LIMIT 1'
+  )
     .bind(id)
     .first<{
       id: string
@@ -145,7 +130,10 @@ export async function loadWebDAVConfigById(env: Env, id: string): Promise<Loaded
 
 // ── 创建 ──
 
-export async function createWebDAVConfig(env: Env, body: WebDAVConfigInput): Promise<{ id: string }> {
+export async function createWebDAVConfig(
+  env: Env,
+  body: WebDAVConfigInput
+): Promise<{ id: string }> {
   const masterKey = String(env.R2_MASTER_KEY || '').trim()
   if (!masterKey) throw new StorageConfigError('缺少 R2_MASTER_KEY')
 
@@ -223,13 +211,15 @@ export async function updateWebDAVConfig(
     throw new StorageConfigError('quota_bytes 必须为大于 0 的数字')
   }
 
-  const nextMountId = nextType === 'koofr'
-    ? (body.mount_id !== undefined ? (body.mount_id || null) : (existing.mount_id || null))
-    : null
+  const nextMountId =
+    nextType === 'koofr'
+      ? body.mount_id !== undefined
+        ? body.mount_id || null
+        : existing.mount_id || null
+      : null
 
-  const nextRemotePath = body.remote_path !== undefined
-    ? (body.remote_path || '/')
-    : (existing.remote_path || '/')
+  const nextRemotePath =
+    body.remote_path !== undefined ? body.remote_path || '/' : existing.remote_path || '/'
 
   let usernameEnc = String(existing.username_enc)
   let passwordEnc = String(existing.password_enc)
@@ -248,7 +238,18 @@ export async function updateWebDAVConfig(
      SET name = ?, type = ?, endpoint = ?, mount_id = ?, remote_path = ?, quota_bytes = ?, username_enc = ?, password_enc = ?, updated_at = ?
      WHERE id = ?`
   )
-    .bind(nextName, nextType, nextEndpoint, nextMountId, nextRemotePath, nextQuotaBytes, usernameEnc, passwordEnc, now, id)
+    .bind(
+      nextName,
+      nextType,
+      nextEndpoint,
+      nextMountId,
+      nextRemotePath,
+      nextQuotaBytes,
+      usernameEnc,
+      passwordEnc,
+      now,
+      id
+    )
     .run()
 }
 

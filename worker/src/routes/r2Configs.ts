@@ -6,7 +6,7 @@ import { formatBytes } from '../utils/format'
 import {
   LEGACY_R2_CONFIG_ID,
   SYSTEM_DEFAULT_R2_CONFIG_ID_KEY,
-  listR2ConfigOptions,
+  listR2ConfigSummaries,
   loadR2ConfigById,
   setDefaultR2ConfigId,
   setLegacyFilesR2ConfigId,
@@ -44,7 +44,11 @@ export async function listOptions(request: Request, env: Env): Promise<Response>
 }
 
 export async function listConfigs(_request: Request, env: Env): Promise<Response> {
-  const { default_config_id, legacy_files_config_id, options } = await listR2ConfigOptions(env)
+  const {
+    default_config_id,
+    legacy_files_config_id,
+    configs: summaries,
+  } = await listR2ConfigSummaries(env)
   const legacyAssignedId = legacy_files_config_id || default_config_id
   const configs: Array<{
     id: string
@@ -52,7 +56,6 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
     source: string
     endpoint: string
     bucket_name: string
-    access_key_id?: string
     usedSpace: number
     totalSpace: number
     usedSpaceFormatted: string
@@ -61,47 +64,45 @@ export async function listConfigs(_request: Request, env: Env): Promise<Response
   }> = []
 
   const legacyUsedSpaceRow = await env.DB.prepare(
-    `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE} AND r2_key NOT LIKE 'flares3/%/%'`
+    `SELECT COALESCE(SUM(size), 0) AS usedSpace
+       FROM files
+      WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE}
+        AND (config_id IS NULL OR TRIM(config_id) = '')
+        AND r2_key NOT LIKE 'flares3/%/%'`
   ).first('usedSpace')
   const legacyUsedSpace = Number(legacyUsedSpaceRow || 0)
 
-  for (const option of options) {
-    const loaded = await loadR2ConfigById(env, option.id)
-    if (!loaded) {
-      continue
+  for (const summary of summaries) {
+    let totalSpace = Number(summary.quotaBytes)
+    if (!Number.isFinite(totalSpace) || totalSpace <= 0) {
+      totalSpace = getTotalStorage(env)
     }
 
-    let totalSpace = getTotalStorage(env)
-    if (option.source === 'db') {
-      const quota = await env.DB.prepare('SELECT quota_bytes FROM r2_configs WHERE id = ? LIMIT 1')
-        .bind(option.id)
-        .first('quota_bytes')
-      const quotaBytes = Number(quota)
-      if (Number.isFinite(quotaBytes) && quotaBytes > 0) {
-        totalSpace = quotaBytes
-      }
-    }
-
-    const prefix = `flares3/${option.id}/%`
+    const prefix = `flares3/${summary.id}/%`
     const usedSpaceRow = await env.DB.prepare(
-      `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE} AND r2_key LIKE ?`
+      `SELECT COALESCE(SUM(size), 0) AS usedSpace
+         FROM files
+        WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE}
+          AND (
+            config_id = ?
+            OR ((config_id IS NULL OR TRIM(config_id) = '') AND r2_key LIKE ?)
+          )`
     )
-      .bind(prefix)
+      .bind(summary.id, prefix)
       .first('usedSpace')
     let usedSpace = Number(usedSpaceRow || 0)
-    usedSpace += await getReservedConfigSpace(env.DB, option.id)
-    if (legacyAssignedId && legacyUsedSpace > 0 && option.id === legacyAssignedId) {
+    usedSpace += await getReservedConfigSpace(env.DB, summary.id)
+    if (legacyAssignedId && legacyUsedSpace > 0 && summary.id === legacyAssignedId) {
       usedSpace += legacyUsedSpace
     }
 
     const usagePercent = totalSpace ? (usedSpace / totalSpace) * 100 : 0
     configs.push({
-      id: option.id,
-      name: option.name,
-      source: option.source,
-      endpoint: loaded.config.endpoint,
-      bucket_name: loaded.config.bucketName,
-      access_key_id: loaded.config.accessKeyId,
+      id: summary.id,
+      name: summary.name,
+      source: summary.source,
+      endpoint: summary.endpoint,
+      bucket_name: summary.bucketName,
       usedSpace,
       totalSpace,
       usedSpaceFormatted: formatBytes(usedSpace),

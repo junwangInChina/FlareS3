@@ -21,20 +21,29 @@ function toUsageMap(
     const configId = String(row.config_id || '').trim()
     if (!configId) continue
     const usedSpace = Number(row.used_space || 0)
-    usage.set(configId, Number.isFinite(usedSpace) && usedSpace > 0 ? usedSpace : 0)
+    const normalizedUsedSpace = Number.isFinite(usedSpace) && usedSpace > 0 ? usedSpace : 0
+    usage.set(configId, (usage.get(configId) || 0) + normalizedUsedSpace)
   }
   return usage
 }
 
-async function listCompletedR2Usage(db: D1Database): Promise<Map<string, number>> {
+async function listCompletedConfigUsage(db: D1Database): Promise<Map<string, number>> {
   const rows = await db
     .prepare(
-      `SELECT SUBSTR(rest, 1, INSTR(rest, '/') - 1) AS config_id,
+      `SELECT config_id, COALESCE(SUM(size), 0) AS used_space
+         FROM files
+        WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE}
+          AND config_id IS NOT NULL
+          AND TRIM(config_id) <> ''
+        GROUP BY config_id
+       UNION ALL
+       SELECT SUBSTR(rest, 1, INSTR(rest, '/') - 1) AS config_id,
               COALESCE(SUM(size), 0) AS used_space
          FROM (
                 SELECT SUBSTR(r2_key, 9) AS rest, size
                   FROM files
                  WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE}
+                   AND (config_id IS NULL OR TRIM(config_id) = '')
                    AND r2_key LIKE 'flares3/%/%'
               )
         WHERE INSTR(rest, '/') > 0
@@ -62,7 +71,11 @@ async function listReservedConfigUsage(db: D1Database): Promise<Map<string, numb
 async function getLegacyUsedSpace(db: D1Database): Promise<number> {
   const legacyUsedSpaceRow = await db
     .prepare(
-      `SELECT COALESCE(SUM(size), 0) AS usedSpace FROM files WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE} AND r2_key NOT LIKE 'flares3/%/%'`
+      `SELECT COALESCE(SUM(size), 0) AS usedSpace
+         FROM files
+        WHERE ${ACTIVE_COMPLETED_STORAGE_USAGE_WHERE}
+          AND (config_id IS NULL OR TRIM(config_id) = '')
+          AND r2_key NOT LIKE 'flares3/%/%'`
     )
     .first('usedSpace')
   const legacyUsedSpace = Number(legacyUsedSpaceRow || 0)
@@ -83,7 +96,7 @@ export async function listAllConfigs(_request: Request, env: Env): Promise<Respo
     await Promise.all([
       measureRouteStep(timings, 'r2ConfigRows', () => listR2ConfigSummaries(env)),
       measureRouteStep(timings, 'webdavConfigRows', () => listWebDAVConfigs(env.DB)),
-      measureRouteStep(timings, 'completedUsageRows', () => listCompletedR2Usage(env.DB)),
+      measureRouteStep(timings, 'completedUsageRows', () => listCompletedConfigUsage(env.DB)),
       measureRouteStep(timings, 'reservedUsageRows', () => listReservedConfigUsage(env.DB)),
       measureRouteStep(timings, 'legacyUsageRow', () => getLegacyUsedSpace(env.DB)),
     ])
@@ -135,16 +148,17 @@ export async function listAllConfigs(_request: Request, env: Env): Promise<Respo
   }
 
   for (const cfg of webdavConfigs) {
-    const usagePercent = cfg.quotaBytes ? 0 : 0
+    const usedSpace = getMappedUsage(completedUsage, cfg.id) + getMappedUsage(reservedUsage, cfg.id)
+    const usagePercent = cfg.quotaBytes ? (usedSpace / cfg.quotaBytes) * 100 : 0
     configs.push({
       id: cfg.id,
       name: cfg.name,
       type: cfg.type,
       endpoint: cfg.endpoint,
       remote_path: cfg.remote_path,
-      usedSpace: 0,
+      usedSpace,
       totalSpace: cfg.quotaBytes,
-      usedSpaceFormatted: formatBytes(0),
+      usedSpaceFormatted: formatBytes(usedSpace),
       totalSpaceFormatted: formatBytes(cfg.quotaBytes),
       usagePercent,
     })
@@ -160,11 +174,7 @@ export async function listAllConfigs(_request: Request, env: Env): Promise<Respo
   )
 }
 
-export async function getConfigSecrets(
-  request: Request,
-  env: Env,
-  id: string
-): Promise<Response> {
+export async function getConfigSecrets(request: Request, env: Env, id: string): Promise<Response> {
   if (!id) return secretJsonResponse({ error: '配置 ID 不能为空' }, 400)
 
   const masterKey = String(env.R2_MASTER_KEY || '').trim()

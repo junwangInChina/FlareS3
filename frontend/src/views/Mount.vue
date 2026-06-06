@@ -256,6 +256,7 @@
       </section>
 
       <MountedObjectPreviewModal
+        v-if="previewModalVisible"
         v-model:show="previewModalVisible"
         :config-id="selectedConfigId"
         :object-key="previewKey"
@@ -337,7 +338,7 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, ref, watch } from 'vue'
+import { computed, h, onMounted, ref, watch, defineAsyncComponent } from 'vue'
 import {
   ArrowUp,
   Download,
@@ -368,8 +369,11 @@ import Modal from '../components/ui/modal/Modal.vue'
 import { useMessage } from '../composables/useMessage'
 import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
 import MountTableView from '../components/mount/MountTableView.vue'
-import MountCardView from '../components/mount/MountCardView.vue'
-import MountedObjectPreviewModal from '../components/mount/MountedObjectPreviewModal.vue'
+
+const MountCardView = defineAsyncComponent(() => import('../components/mount/MountCardView.vue'))
+const MountedObjectPreviewModal = defineAsyncComponent(
+  () => import('../components/mount/MountedObjectPreviewModal.vue')
+)
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const message = useMessage()

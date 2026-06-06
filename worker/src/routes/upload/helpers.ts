@@ -24,7 +24,10 @@ import {
   isUploadConfigPolicyError,
   resolveUploadConfigForUser,
 } from '../../services/uploadConfigPolicy'
-import { normalizeDeclaredFileSize, validateUploadedObjectSize } from '../../services/uploadValidation'
+import {
+  normalizeDeclaredFileSize,
+  validateUploadedObjectSize,
+} from '../../services/uploadValidation'
 import {
   createUploadError,
   fileTooLargeError,
@@ -224,14 +227,20 @@ export async function verifyUploadedObjectSizeOrReject(
   }
 }
 
-export function isUniqueConstraintError(errorMessage: string, field: 'r2_key' | 'short_code'): boolean {
+export function isUniqueConstraintError(
+  errorMessage: string,
+  field: 'r2_key' | 'short_code'
+): boolean {
   const normalized = String(errorMessage || '').toLowerCase()
   if (!normalized.includes('unique constraint failed')) return false
   return normalized.includes(`files.${field}`) || normalized.includes(field)
 }
 
 export function sanitizeDir(dir: string): string {
-  const trimmed = String(dir || '').trim().replace(/\\/g, '/').replace(/\/+/g, '/')
+  const trimmed = String(dir || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
   if (!trimmed || trimmed === '.' || trimmed === '/') return ''
   let clean = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed
   clean = clean.endsWith('/') ? clean.slice(0, -1) : clean
@@ -239,6 +248,21 @@ export function sanitizeDir(dir: string): string {
   const segments = clean.split('/')
   if (segments.some((s) => s === '..' || s === '.')) return ''
   return clean
+}
+
+export function buildProviderScopedStorageKey(configId: string, relativePath: string): string {
+  const safeConfigId = String(configId || 'unknown')
+    .trim()
+    .replace(/[\\/]+/g, '_')
+  const normalizedPath = String(relativePath || 'file')
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^\/+/, '')
+  const segments = normalizedPath
+    .split('/')
+    .filter((segment) => segment && segment !== '.' && segment !== '..')
+  const safePath = segments.length ? segments.join('/') : 'file'
+  return `storage/${safeConfigId || 'unknown'}/${safePath}`
 }
 
 export async function allocateUploadFileIdentity(
@@ -295,11 +319,10 @@ export async function createPendingUploadFileRecord(
   })
 
   const now = new Date().toISOString()
-  const result = await env.DB
-    .prepare(
-      `INSERT INTO files (id, owner_id, filename, r2_key, size, content_type, expires_in, created_at, expires_at, upload_status, short_code, require_login, config_id)
+  const result = await env.DB.prepare(
+    `INSERT INTO files (id, owner_id, filename, r2_key, size, content_type, expires_in, created_at, expires_at, upload_status, short_code, require_login, config_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`
-    )
+  )
     .bind(
       file.id,
       userId,
@@ -322,7 +345,10 @@ export async function createPendingUploadFileRecord(
 
   await releaseUploadReservation(env.DB, file.id)
   const errorMessage = formatD1ErrorMessage(result.error)
-  if (isUniqueConstraintError(errorMessage, 'r2_key') || isUniqueConstraintError(errorMessage, 'short_code')) {
+  if (
+    isUniqueConstraintError(errorMessage, 'r2_key') ||
+    isUniqueConstraintError(errorMessage, 'short_code')
+  ) {
     throw new Error('create_file_record_conflict')
   }
   throw new Error(errorMessage || 'create_file_record_failed')

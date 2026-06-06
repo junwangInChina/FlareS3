@@ -600,7 +600,7 @@ watch(
   align-items: center;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .share-form-grid {
     grid-template-columns: 1fr;
   }

@@ -521,7 +521,7 @@ const handleUpdateShow = (value) => {
   gap: var(--nb-space-sm);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .file-info-row {
     grid-template-columns: 1fr;
   }

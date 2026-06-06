@@ -132,12 +132,13 @@ npm run verify:release
   - GitHub Actions 名称：`Deploy Worker Only`
   - `push` 到 `main` 自动触发，同时保留 `workflow_dispatch`
   - 单 job 直接部署，不依赖 GitHub `staging` / `production` Environments
+  - 部署前强制执行 `npm run verify:release`（`audit:prod + lint + typecheck + test + build + worker dry-run`），失败则不会继续发布
   - 从 `worker/wrangler.full.toml` 读取 Worker 名称与 D1 数据库名，生成临时 `worker/wrangler.full.ci.toml` 并注入真实 `database_id`
 - **拆分部署手动备用链路**：`.github/workflows/deploy.yml`
   - GitHub Actions 名称：`Manual Split Pages + Worker Deploy`
   - 只在确实需要保留 `Pages + Worker` 拆分拓扑时使用
 
-建议在推送前于本地执行 `npm run verify:release` 作为预检；它仍然有价值，但不再是 `deploy-worker-only.yml` 的硬门禁。
+建议在推送前于本地执行 `npm run verify:release` 作为预检；`deploy-worker-only.yml` 也会在发布前再次强制执行同一 gate。
 
 完整运行说明见：[docs/release-runbook.md](./docs/release-runbook.md)。Day5 的联合放行记录可落到 [.trellis/tasks/04-27-project-readiness-audit/day5-go-no-go.md](./.trellis/tasks/04-27-project-readiness-audit/day5-go-no-go.md)。
 
@@ -195,14 +196,14 @@ npm run verify:release
 `Deploy Worker Only` 会依次执行：
 
 1. 安装依赖（`worker/`、`frontend/`）
-2. 构建 `frontend/dist`
+2. 执行 `npm run verify:release`（包含生产依赖审计、lint、typecheck、test、build、worker dry-run；失败则停止发布）
 3. 从 `worker/wrangler.full.toml` 解析 `name` / `database_name`，自动确保目标 D1 存在，并生成临时 `worker/wrangler.full.ci.toml`（注入真实 `database_id`）
 4. 校验目标 Worker 已存在 `R2_MASTER_KEY`
 5. 补齐历史 D1 缺失列：`node ./scripts/reconcile-legacy-d1-columns.mjs --config wrangler.full.ci.toml --database DB --remote`
 6. 应用版本化 migration：`wrangler --config wrangler.full.ci.toml d1 migrations apply DB --remote`
 7. 部署全栈 Worker：`wrangler --config wrangler.full.ci.toml deploy`
 
-> 建议在推送前自行执行 `npm run verify:release`；这仍是推荐预检，但不属于 deploy workflow 的阻塞步骤。
+> 建议在推送前自行执行 `npm run verify:release`；部署 workflow 会再次执行，作为发布前阻塞步骤。
 
 ### 部署后操作
 
