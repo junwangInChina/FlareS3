@@ -1,0 +1,2 @@
+export const FILE_SHORT_CODE_LENGTH = 12
+export const SHARE_SHORT_CODE_LENGTH = 12

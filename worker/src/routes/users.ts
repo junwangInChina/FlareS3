@@ -1,5 +1,5 @@
 import type { Env } from '../config/env'
-import { jsonResponse, parseJson, getUser } from './utils'
+import { jsonResponse, parseJson, getUser, requestBodyPolicyErrorResponse } from './utils'
 import { hashPassword } from '../services/password'
 import { logAudit, prepareAuditLogInsert } from '../services/audit'
 import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
@@ -181,6 +181,8 @@ export async function createUser(request: Request, env: Env): Promise<Response> 
 
     return jsonResponse({ success: true, user_id: id })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '创建用户失败' }, 500)
   }
 }
@@ -280,6 +282,8 @@ export async function updateUser(request: Request, env: Env, userId: string): Pr
 
     return jsonResponse({ success: true })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '更新用户失败' }, 500)
   }
 }
@@ -311,6 +315,8 @@ export async function resetPassword(request: Request, env: Env, userId: string):
 
     return jsonResponse({ success: true })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '重置密码失败' }, 500)
   }
 }

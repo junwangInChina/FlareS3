@@ -190,6 +190,7 @@
                 <Button
                   type="default"
                   size="small"
+                  :loading="editingSecretsId === row.id"
                   :disabled="row.configType === 'r2' && row.source !== 'db'"
                   :aria-label="
                     row.configType === 'r2' && row.source !== 'db'
@@ -283,6 +284,7 @@ const allConfigs = computed(() => {
 const modalVisible = ref(false)
 const modalMode = ref('create')
 const modalSubmitting = ref(false)
+const editingSecretsId = ref('')
 const editingId = ref('')
 const editingConfigType = ref('r2')
 const usageTipsVisible = ref(false)
@@ -300,21 +302,6 @@ const defaultModalInitialValue = () => ({
   password: '',
 })
 const modalInitialValue = ref(defaultModalInitialValue())
-const editingCredentials = ref({
-  access_key_id: '',
-  secret_access_key: '',
-  username: '',
-  password: '',
-})
-
-const resetEditingCredentials = () => {
-  editingCredentials.value = {
-    access_key_id: '',
-    secret_access_key: '',
-    username: '',
-    password: '',
-  }
-}
 
 const formatConfigType = (type) => {
   if (type === 'r2') return 'R2'
@@ -425,67 +412,56 @@ const openCreate = () => {
   modalMode.value = 'create'
   editingId.value = ''
   editingConfigType.value = 'r2'
-  resetEditingCredentials()
   modalInitialValue.value = defaultModalInitialValue()
   modalVisible.value = true
 }
 
-const openEdit = async (row) => {
-  modalMode.value = 'edit'
-  editingId.value = row.id
-  editingConfigType.value = row.configType
-  let credentials = null
-
-  try {
-    credentials = await api.getStorageConfigSecrets(row.id, row.configType)
-  } catch (error) {
-    message.error(error.response?.data?.error || t('setup.messages.loadSecretsFailed'))
-  }
-
-  resetEditingCredentials()
-
+const buildEditInitialValue = (row, secrets = {}) => {
   if (row.configType === 'r2') {
-    const accessKeyId = credentials?.access_key_id || row.access_key_id || ''
-    const secretAccessKey = credentials?.secret_access_key || row.secret_access_key || ''
-    editingCredentials.value = {
-      access_key_id: accessKeyId,
-      secret_access_key: secretAccessKey,
-      username: '',
-      password: '',
-    }
-    modalInitialValue.value = {
+    return {
       type: 'r2',
       name: row.name || '',
-      endpoint: row.endpoint || '',
-      bucket_name: row.bucket_name || '',
+      endpoint: secrets.endpoint || row.endpoint || '',
+      bucket_name: secrets.bucket_name || row.bucket_name || '',
       quota_gb: row.totalSpace ? formatQuotaGb(row.totalSpace) : '10',
-      access_key_id: accessKeyId,
-      secret_access_key: secretAccessKey,
+      access_key_id: secrets.access_key_id || '',
+      secret_access_key: secrets.secret_access_key || '',
       remote_path: '/',
       username: '',
       password: '',
     }
-  } else {
-    const username = credentials?.username || row.username || ''
-    const password = credentials?.password || row.password || ''
-    editingCredentials.value = {
-      access_key_id: '',
-      secret_access_key: '',
-      username,
-      password,
-    }
-    modalInitialValue.value = {
-      type: row.configType,
-      name: row.name || '',
-      endpoint: row.endpoint || '',
-      bucket_name: '',
-      quota_gb: row.totalSpace ? formatQuotaGb(row.totalSpace) : '10',
-      access_key_id: '',
-      secret_access_key: '',
-      remote_path: row.remote_path || '/',
-      username,
-      password,
-    }
+  }
+
+  return {
+    type: row.configType,
+    name: row.name || '',
+    endpoint: secrets.endpoint || row.endpoint || '',
+    bucket_name: '',
+    quota_gb: row.totalSpace ? formatQuotaGb(row.totalSpace) : '10',
+    access_key_id: '',
+    secret_access_key: '',
+    remote_path: secrets.remote_path || row.remote_path || '/',
+    username: secrets.username || '',
+    password: secrets.password || '',
+  }
+}
+
+const openEdit = async (row) => {
+  if (editingSecretsId.value) return
+
+  modalMode.value = 'edit'
+  editingId.value = row.id
+  editingConfigType.value = row.configType
+  editingSecretsId.value = row.id
+
+  try {
+    const secrets = await api.getStorageConfigSecrets(row.id, row.configType)
+    modalInitialValue.value = buildEditInitialValue(row, secrets)
+  } catch (error) {
+    modalInitialValue.value = buildEditInitialValue(row)
+    message.error(error.response?.data?.error || t('setup.messages.loadSecretsFailed'))
+  } finally {
+    editingSecretsId.value = ''
   }
 
   modalVisible.value = true
@@ -565,16 +541,10 @@ const handleSubmit = async (submittedForm) => {
           quota_bytes: quotaBytes,
         }
 
-        if (
-          submittedForm.access_key_id &&
-          submittedForm.access_key_id !== editingCredentials.value.access_key_id
-        ) {
+        if (submittedForm.access_key_id) {
           payload.access_key_id = submittedForm.access_key_id
         }
-        if (
-          submittedForm.secret_access_key &&
-          submittedForm.secret_access_key !== editingCredentials.value.secret_access_key
-        ) {
+        if (submittedForm.secret_access_key) {
           payload.secret_access_key = submittedForm.secret_access_key
         }
 
@@ -605,16 +575,10 @@ const handleSubmit = async (submittedForm) => {
           payload.remote_path = submittedForm.remote_path || '/'
         }
 
-        if (
-          submittedForm.username &&
-          submittedForm.username !== editingCredentials.value.username
-        ) {
+        if (submittedForm.username) {
           payload.username = submittedForm.username
         }
-        if (
-          submittedForm.password &&
-          submittedForm.password !== editingCredentials.value.password
-        ) {
+        if (submittedForm.password) {
           payload.password = submittedForm.password
         }
 

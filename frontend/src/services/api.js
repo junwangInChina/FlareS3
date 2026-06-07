@@ -61,9 +61,7 @@ export default {
   },
 
   getStorageConfigSecrets(configId, type) {
-    return api.get(`/storage/configs/${configId}/secrets`, {
-      params: type ? { type } : undefined,
-    })
+    return api.get(`/storage/configs/${configId}/secrets`, { params: { type } })
   },
 
   // R2 配置（多配置）
@@ -157,16 +155,18 @@ export default {
     formData.append('expires_in', String(expiresIn ?? 7))
     formData.append('require_login', String(requireLogin !== false))
     if (dir) formData.append('dir', dir)
-    return axios.post('/api/upload/server', formData, {
-      withCredentials: true,
-      timeout: 300000,
-      onUploadProgress: (progressEvent) => {
-        if (onProgress) {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          onProgress(percent, progressEvent.loaded, progressEvent.total)
-        }
-      },
-    }).then((res) => res.data)
+    return axios
+      .post('/api/upload/server', formData, {
+        withCredentials: true,
+        timeout: 300000,
+        onUploadProgress: (progressEvent) => {
+          if (onProgress) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            onProgress(percent, progressEvent.loaded, progressEvent.total)
+          }
+        },
+      })
+      .then((res) => res.data)
   },
   // 文件管理
   getFiles(page = 1, limit = 20, filters = {}) {

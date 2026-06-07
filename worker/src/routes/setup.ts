@@ -1,9 +1,10 @@
 import type { Env } from '../config/env'
-import { jsonResponse, parseJson, getUser } from './utils'
+import { jsonResponse, parseJson, getUser, requestBodyPolicyErrorResponse } from './utils'
 import { encryptString, validateBase64KeyLength } from '../services/crypto'
 import { createS3Client, summarizeS3Error, testConnection, type R2Config } from '../services/r2'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
+import { validateExternalEndpoint } from '../services/endpointPolicy'
 
 export async function status(_request: Request, env: Env): Promise<Response> {
   const endpoint = await env.DB.prepare('SELECT value FROM system_config WHERE key = ?')
@@ -49,11 +50,15 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
     if (!body.endpoint || !body.access_key_id || !body.secret_access_key || !body.bucket_name) {
       return jsonResponse({ error: '所有字段都是必填的' }, 400)
     }
+    const endpointCheck = validateExternalEndpoint(body.endpoint)
+    if (!endpointCheck.ok) {
+      return jsonResponse({ error: endpointCheck.message }, 400)
+    }
     const now = new Date().toISOString()
     const accessEnc = await encryptString(body.access_key_id, masterKey)
     const secretEnc = await encryptString(body.secret_access_key, masterKey)
     const statements = [
-      ['r2_endpoint', body.endpoint],
+      ['r2_endpoint', endpointCheck.url],
       ['r2_bucket_name', body.bucket_name],
       ['r2_access_key_id_enc', accessEnc],
       ['r2_secret_access_key_enc', secretEnc],
@@ -78,6 +83,8 @@ export async function saveConfig(request: Request, env: Env): Promise<Response> 
 
     return jsonResponse({ success: true })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '保存配置失败' }, 500)
   }
 }
@@ -93,8 +100,12 @@ export async function testConfig(request: Request): Promise<Response> {
     if (!body.endpoint || !body.access_key_id || !body.secret_access_key || !body.bucket_name) {
       return jsonResponse({ error: '所有字段都是必填的' }, 400)
     }
+    const endpointCheck = validateExternalEndpoint(body.endpoint)
+    if (!endpointCheck.ok) {
+      return jsonResponse({ success: false, message: endpointCheck.message }, 400)
+    }
     const config: R2Config = {
-      endpoint: body.endpoint,
+      endpoint: endpointCheck.url,
       accessKeyId: body.access_key_id,
       secretAccessKey: body.secret_access_key,
       bucketName: body.bucket_name,
@@ -103,6 +114,8 @@ export async function testConfig(request: Request): Promise<Response> {
     await testConnection(config)
     return jsonResponse({ success: true, message: '连接测试成功' })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     const summary = summarizeS3Error(error)
     const parts = [
       summary.code,

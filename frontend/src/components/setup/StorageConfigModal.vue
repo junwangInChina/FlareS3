@@ -32,7 +32,7 @@
         </FormItem>
 
         <FormItem :label="t('setup.labels.accessKeyId')">
-          <Input v-model="form.access_key_id" :placeholder="t('setup.placeholders.accessKeyId')" />
+          <Input v-model="form.access_key_id" :placeholder="accessKeyIdPlaceholder" />
         </FormItem>
 
         <FormItem :label="t('setup.labels.secretAccessKey')">
@@ -40,7 +40,7 @@
             v-model="form.secret_access_key"
             type="password"
             password-toggle
-            :placeholder="t('setup.placeholders.secretAccessKey')"
+            :placeholder="secretAccessKeyPlaceholder"
           />
         </FormItem>
 
@@ -81,7 +81,7 @@
             v-model="form.password"
             type="password"
             password-toggle
-            :placeholder="t('setup.placeholders.webdavPassword')"
+            :placeholder="passwordPlaceholder"
           />
         </FormItem>
 
@@ -118,7 +118,7 @@
             v-model="form.password"
             type="password"
             password-toggle
-            :placeholder="t('setup.placeholders.webdavPassword')"
+            :placeholder="passwordPlaceholder"
           />
         </FormItem>
 
@@ -183,9 +183,25 @@ const endpointPlaceholder = computed(() => {
   return t('setup.placeholders.endpoint')
 })
 
+const accessKeyIdPlaceholder = computed(() => {
+  if (normalizedMode.value === 'edit') return t('setup.placeholders.accessKeyIdKeep')
+  return t('setup.placeholders.accessKeyId')
+})
+
+const secretAccessKeyPlaceholder = computed(() => {
+  if (normalizedMode.value === 'edit') return t('setup.placeholders.secretAccessKeyKeep')
+  return t('setup.placeholders.secretAccessKey')
+})
+
 const usernamePlaceholder = computed(() => {
+  if (normalizedMode.value === 'edit') return t('setup.placeholders.usernameKeep')
   if (form.type === 'koofr') return t('setup.placeholders.koofrUsername')
   return t('setup.placeholders.webdavUsername')
+})
+
+const passwordPlaceholder = computed(() => {
+  if (normalizedMode.value === 'edit') return t('setup.placeholders.passwordKeep')
+  return t('setup.placeholders.webdavPassword')
 })
 
 const showProxy = computed({
@@ -217,7 +233,8 @@ watch(
   () => props.show,
   (show) => {
     if (show) resetForm()
-  }
+  },
+  { immediate: true }
 )
 
 watch(

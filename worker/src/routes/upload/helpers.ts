@@ -20,6 +20,7 @@ import {
 import { logAudit, prepareAuditLogInsert } from '../../services/audit'
 import { getClientIp } from '../../middleware/rateLimit'
 import { generateRandomCode } from '../../utils/random'
+import { FILE_SHORT_CODE_LENGTH } from '../../utils/codePolicy'
 import {
   isUploadConfigPolicyError,
   resolveUploadConfigForUser,
@@ -291,7 +292,7 @@ export async function allocateUploadFileIdentity(
 
     for (let i = 0; i < SHORT_CODE_MAX_ATTEMPTS; i += 1) {
       const id = crypto.randomUUID()
-      const shortCode = generateRandomCode(6)
+      const shortCode = generateRandomCode(FILE_SHORT_CODE_LENGTH)
       return { id, r2Key, shortCode, expiresAt, filename: resolvedFilename }
     }
   }

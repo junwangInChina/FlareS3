@@ -1,4 +1,5 @@
 import { jsonResponse } from '../utils/response'
+import { isRequestBodyPolicyError } from './requestBodyPolicy'
 import { summarizeS3Error } from './r2'
 
 export type UploadErrorDetails = Record<string, unknown>
@@ -57,10 +58,7 @@ export function invalidUploadRequestError(details?: UploadErrorDetails): UploadR
   })
 }
 
-export function fileTooLargeError(
-  declaredSize: number,
-  maxFileSize: number
-): UploadRouteError {
+export function fileTooLargeError(declaredSize: number, maxFileSize: number): UploadRouteError {
   return createUploadError({
     status: 413,
     code: 'UPLOAD_FILE_TOO_LARGE',
@@ -97,7 +95,9 @@ export function uploadConfigForbiddenError(message: string): UploadRouteError {
   })
 }
 
-export function uploadConfigNotFoundError(message: string = '配置不存在或不可用'): UploadRouteError {
+export function uploadConfigNotFoundError(
+  message: string = '配置不存在或不可用'
+): UploadRouteError {
   return createUploadError({
     status: 404,
     code: 'UPLOAD_CONFIG_NOT_FOUND',
@@ -225,6 +225,14 @@ export function mapUnexpectedUploadError(
 
   if (error instanceof SyntaxError || (error instanceof Error && error.message === 'empty_body')) {
     return invalidUploadRequestError()
+  }
+
+  if (isRequestBodyPolicyError(error)) {
+    return createUploadError({
+      status: error.status,
+      code: 'UPLOAD_REQUEST_BODY_INVALID',
+      message: error.message,
+    })
   }
 
   const summary = summarizeS3Error(error)

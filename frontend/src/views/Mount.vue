@@ -693,7 +693,7 @@ const openPreview = (key) => {
 const downloadObject = (key) => {
   const url = buildDownloadUrl(key)
   if (!url) return
-  window.open(url, '_blank')
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 const closeDeleteModal = () => {

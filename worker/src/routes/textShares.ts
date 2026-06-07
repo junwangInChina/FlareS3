@@ -1,6 +1,6 @@
 import type { Env } from '../config/env'
 import type { AuthUser } from '../middleware/authSession'
-import { getUser, jsonResponse, parseJson } from './utils'
+import { getUser, invalidJsonBodyResponse, jsonResponse, parseJson } from './utils'
 import { hashPassword, verifyPassword } from '../services/password'
 import {
   clearSharePasswordFailedAttempts,
@@ -12,7 +12,12 @@ import {
   consumeTextShareViewIfAllowed,
   SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE,
 } from '../services/shareViewGuard'
+import {
+  MAX_SHARE_PASSWORD_FORM_BYTES,
+  rejectInvalidContentLength,
+} from '../services/requestBodyPolicy'
 import { generateRandomCode } from '../utils/random'
+import { SHARE_SHORT_CODE_LENGTH } from '../utils/codePolicy'
 import { buildPage, escapeHtml, htmlResponse } from './sharePage'
 
 type LoadTextAuthResult =
@@ -105,8 +110,8 @@ export async function upsertTextShare(
 
   try {
     body = await parseJson(request)
-  } catch (_error) {
-    return jsonResponse({ error: '请求体无效' }, 400)
+  } catch (error) {
+    return invalidJsonBodyResponse(error)
   }
 
   const maxViewsRaw = body.max_views
@@ -159,7 +164,7 @@ export async function upsertTextShare(
     }
 
     for (let i = 0; i < 10; i += 1) {
-      const shareCode = generateRandomCode(8)
+      const shareCode = generateRandomCode(SHARE_SHORT_CODE_LENGTH)
       const result = await env.DB.prepare(
         `INSERT INTO text_shares (id, text_id, owner_id, share_code, password_hash, expires_in, expires_at, max_views, views, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
@@ -205,7 +210,7 @@ export async function upsertTextShare(
   const currentShareCode = String((existing as any).share_code)
   const currentHasPassword = Boolean((existing as any).password_hash)
 
-  const nextShareCode = regenerate ? generateRandomCode(8) : currentShareCode
+  const nextShareCode = regenerate ? generateRandomCode(SHARE_SHORT_CODE_LENGTH) : currentShareCode
 
   const updates: string[] = ['max_views = ?', 'expires_in = ?', 'expires_at = ?', 'updated_at = ?']
   const params: unknown[] = [Math.floor(maxViews), expiresIn, expiresAt, now]
@@ -226,7 +231,7 @@ export async function upsertTextShare(
 
   if (regenerate) {
     for (let i = 0; i < 10; i += 1) {
-      const code = i === 0 ? nextShareCode : generateRandomCode(8)
+      const code = i === 0 ? nextShareCode : generateRandomCode(SHARE_SHORT_CODE_LENGTH)
       const loopParams = params.slice()
       ;(loopParams as any)[0] = code
 
@@ -437,7 +442,7 @@ function renderPasswordForm({
   return htmlResponse(html, 200)
 }
 
-function renderConfirmPage({ title, meta }: { title: string; meta: string }): Response {
+export function renderConfirmPage({ title, meta }: { title: string; meta: string }): Response {
   const html = buildPage({
     title,
     body: `
@@ -565,6 +570,13 @@ export async function viewTextShare(request: Request, env: Env, code: string): P
     if (await isSharePasswordBlocked(env, normalizedCode, ip)) {
       return renderPasswordForm({ title, meta, error: '尝试次数过多，请 10 分钟后重试' })
     }
+
+    const bodySizeError = rejectInvalidContentLength(
+      request,
+      MAX_SHARE_PASSWORD_FORM_BYTES,
+      '分享口令表单'
+    )
+    if (bodySizeError) return bodySizeError
 
     let password = ''
     try {

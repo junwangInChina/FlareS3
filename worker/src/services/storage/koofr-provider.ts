@@ -9,11 +9,25 @@
 import type { StorageDownloadResult, StorageUploadResult } from './types'
 import { StorageError } from './types'
 import { WebDAVProvider, type WebDAVConfig } from './webdav-provider'
+import { readBoundedResponseJson } from '../upstreamResponsePolicy'
 
 // ── 配置类型 ──
 
 export type KoofrConfig = WebDAVConfig & {
   mountId?: string
+}
+
+type KoofrMount = {
+  id: string
+  name: string
+  isPrimary?: boolean
+}
+
+type KoofrMountsResponse = { mounts?: KoofrMount[] } | KoofrMount[]
+
+function normalizeMountsResponse(data: KoofrMountsResponse): KoofrMount[] {
+  const mounts = Array.isArray(data) ? data : data.mounts || []
+  return mounts.filter((mount) => typeof mount.id === 'string' && mount.id.trim())
 }
 
 // ── Provider 实现 ──
@@ -45,8 +59,8 @@ export class KoofrProvider extends WebDAVProvider {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': authHeader,
-        'Accept': 'application/json',
+        Authorization: authHeader,
+        Accept: 'application/json',
       },
     })
 
@@ -58,8 +72,8 @@ export class KoofrProvider extends WebDAVProvider {
       )
     }
 
-    const data = (await response.json()) as { mounts?: Array<{ id: string; name: string; isPrimary?: boolean }> } | Array<{ id: string; name: string; isPrimary?: boolean }>
-    const mounts = Array.isArray(data) ? data : (data.mounts || [])
+    const data = await readBoundedResponseJson<KoofrMountsResponse>(response)
+    const mounts = normalizeMountsResponse(data)
 
     if (mounts.length === 0) {
       throw new StorageError('Koofr 账户无可用存储挂载点')
@@ -68,6 +82,9 @@ export class KoofrProvider extends WebDAVProvider {
     // 优先选 primary，否则选第一个
     const primary = mounts.find((m) => m.isPrimary)
     const selected = primary || mounts[0]
+    if (!selected) {
+      throw new StorageError('Koofr 账户无可用存储挂载点')
+    }
     this._resolvedMountId = selected.id
     return this._resolvedMountId
   }
@@ -98,7 +115,7 @@ export class KoofrProvider extends WebDAVProvider {
       )
     }
 
-    const data = (await response.json()) as { token?: string; Token?: string }
+    const data = await readBoundedResponseJson<{ token?: string; Token?: string }>(response)
     const token = data.token || data.Token
     if (!token) {
       throw new StorageError('Koofr 认证响应缺少 token')
@@ -115,7 +132,11 @@ export class KoofrProvider extends WebDAVProvider {
 
   // ── 覆盖 download：优先分享链接 ──
 
-  async download(key: string, filename: string, expiresInSeconds: number): Promise<StorageDownloadResult> {
+  async download(
+    key: string,
+    filename: string,
+    expiresInSeconds: number
+  ): Promise<StorageDownloadResult> {
     try {
       const shareUrl = await this.createShareLink(key)
       return { kind: 'redirect', url: shareUrl }
@@ -139,7 +160,7 @@ export class KoofrProvider extends WebDAVProvider {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': authHeader,
+        Authorization: authHeader,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ path: normalizedPath }),
@@ -153,7 +174,7 @@ export class KoofrProvider extends WebDAVProvider {
       )
     }
 
-    const data = await response.json() as { id?: string; url?: string }
+    const data = await readBoundedResponseJson<{ id?: string; url?: string }>(response)
     const linkId = data.id
 
     if (!linkId) {
@@ -179,8 +200,8 @@ export class KoofrProvider extends WebDAVProvider {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': authHeader,
-        'Accept': 'application/json',
+        Authorization: authHeader,
+        Accept: 'application/json',
       },
     })
 
@@ -196,8 +217,8 @@ export class KoofrProvider extends WebDAVProvider {
     }
 
     // 如果配置了 mountId，验证其存在；否则自动检测
-    const data = (await response.json()) as { mounts?: Array<{ id: string; name: string; isPrimary?: boolean }> } | Array<{ id: string; name: string; isPrimary?: boolean }>
-    const mounts = Array.isArray(data) ? data : (data.mounts || [])
+    const data = await readBoundedResponseJson<KoofrMountsResponse>(response)
+    const mounts = normalizeMountsResponse(data)
 
     if (this._mountId) {
       const found = mounts.some((m) => m.id === this._mountId)
@@ -217,7 +238,12 @@ export class KoofrProvider extends WebDAVProvider {
 
   // ── 覆盖 upload：优先 REST API POST，回退 WebDAV PUT ──
 
-  async upload(key: string, body: ArrayBuffer, contentType: string, size: number): Promise<StorageUploadResult> {
+  async upload(
+    key: string,
+    body: ArrayBuffer,
+    contentType: string,
+    size: number
+  ): Promise<StorageUploadResult> {
     try {
       return await this.restApiUpload(key, body, contentType)
     } catch {
@@ -258,7 +284,7 @@ export class KoofrProvider extends WebDAVProvider {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': authHeader,
+        Authorization: authHeader,
       },
       body: formData,
     })

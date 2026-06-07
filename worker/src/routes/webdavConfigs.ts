@@ -5,8 +5,9 @@
  */
 
 import type { Env } from '../config/env'
-import { jsonResponse, parseJson, getUser } from './utils'
+import { jsonResponse, parseJson, getUser, requestBodyPolicyErrorResponse } from './utils'
 import { encryptString, validateBase64KeyLength } from '../services/crypto'
+import { validateExternalEndpoint } from '../services/endpointPolicy'
 import { formatBytes } from '../utils/format'
 import {
   listWebDAVConfigs,
@@ -33,6 +34,20 @@ type WebDAVConfigInputBody = {
   username: string
   password: string
   quota_bytes: number
+}
+
+function validateStorageEndpoint(type: WebDAVConfigType, endpoint: unknown): string | Response {
+  const endpointCheck = validateExternalEndpoint(endpoint)
+  if (!endpointCheck.ok) {
+    return jsonResponse({ error: endpointCheck.message }, 400)
+  }
+  if (type === 'koofr') {
+    const host = new URL(endpointCheck.url).hostname.toLowerCase()
+    if (host !== 'app.koofr.net') {
+      return jsonResponse({ error: 'Koofr endpoint 只允许 app.koofr.net' }, 400)
+    }
+  }
+  return endpointCheck.url
 }
 
 export async function listConfigs(_request: Request, env: Env): Promise<Response> {
@@ -78,6 +93,8 @@ export async function createConfig(request: Request, env: Env): Promise<Response
     if (!VALID_TYPES.includes(body.type)) {
       return jsonResponse({ error: 'type 必须为 webdav 或 koofr' }, 400)
     }
+    const endpoint = validateStorageEndpoint(body.type, body.endpoint)
+    if (endpoint instanceof Response) return endpoint
 
     // mount_id 自动检测，无需校验
 
@@ -89,7 +106,7 @@ export async function createConfig(request: Request, env: Env): Promise<Response
     const { id } = await createWebDAVConfig(env, {
       name: body.name,
       type: body.type,
-      endpoint: body.endpoint,
+      endpoint,
       mount_id: body.mount_id,
       remote_path: body.remote_path,
       username: body.username,
@@ -99,6 +116,8 @@ export async function createConfig(request: Request, env: Env): Promise<Response
 
     return jsonResponse({ success: true, id })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     if (error instanceof StorageConfigError) {
       return jsonResponse({ error: error.message }, 400)
     }
@@ -144,9 +163,20 @@ export async function updateConfig(request: Request, env: Env, id: string): Prom
       }
     }
 
+    if (body.endpoint || body.type) {
+      const existing = await loadWebDAVConfigById(env, id)
+      const nextType = body.type || existing?.type || 'webdav'
+      const nextEndpoint = body.endpoint || existing?.config.endpoint || ''
+      const endpoint = validateStorageEndpoint(nextType, nextEndpoint)
+      if (endpoint instanceof Response) return endpoint
+      body.endpoint = endpoint
+    }
+
     await updateWebDAVConfig(env, id, body)
     return jsonResponse({ success: true })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     if (error instanceof StorageConfigError) {
       if (error.message === '配置不存在') {
         return jsonResponse({ error: error.message }, 404)
@@ -164,6 +194,33 @@ export async function deleteConfig(_request: Request, env: Env, id: string): Pro
     const loaded = await loadWebDAVConfigById(env, id)
     if (!loaded) {
       return jsonResponse({ error: '配置不存在' }, 404)
+    }
+
+    const fileCount = await env.DB.prepare(
+      'SELECT COUNT(*) AS count FROM files WHERE config_id = ?'
+    )
+      .bind(id)
+      .first('count')
+    const reservationCount = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM upload_reservations WHERE r2_config_id = ? AND status = 'active'"
+    )
+      .bind(id)
+      .first('count')
+    const queueCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS count
+         FROM delete_queue dq
+         INNER JOIN files f ON f.id = dq.file_id
+        WHERE f.config_id = ? AND dq.processed_at IS NULL`
+    )
+      .bind(id)
+      .first('count')
+
+    if (
+      Number(fileCount || 0) > 0 ||
+      Number(reservationCount || 0) > 0 ||
+      Number(queueCount || 0) > 0
+    ) {
+      return jsonResponse({ error: '该配置仍有关联文件或上传预约，无法删除' }, 409)
     }
 
     await deleteWebDAVConfig(env.DB, id)

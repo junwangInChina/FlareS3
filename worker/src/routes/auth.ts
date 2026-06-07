@@ -1,5 +1,5 @@
 import type { Env } from '../config/env'
-import { jsonResponse, parseJson } from './utils'
+import { jsonResponse, parseJson, requestBodyPolicyErrorResponse } from './utils'
 import { verifyPassword } from '../services/password'
 import { recordFailedAttempt, getClientIp } from '../middleware/rateLimit'
 import { logAudit } from '../services/audit'
@@ -132,6 +132,8 @@ export async function login(request: Request, env: Env): Promise<Response> {
       { 'Set-Cookie': buildSessionCookie(request, sessionToken, SESSION_TTL_SECONDS) }
     )
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     console.error('[auth.login] failed', error)
     return jsonResponse({ error: '登录失败' }, 500)
   }

@@ -364,7 +364,7 @@ const copyUrl = (url) => {
 
 const downloadFile = () => {
   if (!downloadUrl.value) return
-  window.open(downloadUrl.value, '_blank')
+  window.open(downloadUrl.value, '_blank', 'noopener,noreferrer')
 }
 
 const handleUpdateShow = (value) => {

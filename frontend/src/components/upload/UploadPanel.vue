@@ -261,6 +261,40 @@ const ensureTaskActive = (taskState, isCancelled) => {
   }
 }
 
+const resolveSameOriginUrl = (value, fallbackPath = '') => {
+  const raw = String(value || '').trim()
+  const path = raw.startsWith('/') && !raw.startsWith('//') ? raw : fallbackPath
+  if (!path) return ''
+  if (typeof window === 'undefined') return path
+  return `${window.location.origin}${path}`
+}
+
+const resolveDownloadUrl = (value, fallbackPath = '') => {
+  const raw = String(value || '').trim()
+  if (raw) {
+    if (raw.startsWith('/') && !raw.startsWith('//')) {
+      return resolveSameOriginUrl(raw)
+    }
+    try {
+      const url = new URL(raw)
+      if (url.protocol === 'https:') {
+        return url.toString()
+      }
+    } catch {
+      // Fall through to the authenticated app download URL.
+    }
+  }
+  return resolveSameOriginUrl(fallbackPath)
+}
+
+const resolveShortUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (raw.startsWith('/s/') && !raw.startsWith('//')) {
+    return resolveSameOriginUrl(raw)
+  }
+  return ''
+}
+
 const cancelTask = async (taskState) => {
   if (taskState.cancelRequested) return
 
@@ -301,16 +335,17 @@ const resolveTaskResult = (taskFile, response, completedResult, taskState) => {
   const durationSeconds = Math.max((Date.now() - taskState.uploadStartTime) / 1000, 0.001)
   const avgSpeed = taskFile.size / durationSeconds
   const resolvedFilename = completedResult.filename || response.filename || taskFile.name
-  const downloadUrl = completedResult.download_url?.startsWith('http')
-    ? completedResult.download_url
-    : window.location.origin + (completedResult.download_url || response.download_url)
-  const shortUrlPath = completedResult.short_url || response.short_url
+  const fallbackDownloadPath = response.file_id ? `/api/files/${response.file_id}/download` : ''
+  const downloadUrl = resolveDownloadUrl(
+    completedResult.download_url || response.download_url,
+    fallbackDownloadPath
+  )
 
   return {
     success: true,
     filename: resolvedFilename,
     downloadUrl,
-    shortUrl: shortUrlPath?.startsWith('http') ? shortUrlPath : window.location.origin + shortUrlPath,
+    shortUrl: resolveShortUrl(completedResult.short_url || response.short_url),
     fileSize: formatBytes(taskFile.size),
     avgSpeed: `${formatBytes(avgSpeed)}/s`,
     duration: formatDuration(durationSeconds),
@@ -490,11 +525,9 @@ const uploadServerFile = async (taskFile, taskState, updateItem) => {
 
   const durationSeconds = Math.max((Date.now() - startTime) / 1000, 0.001)
   const avgSpeed = taskFile.size / durationSeconds
-  const downloadUrl = result.download_url?.startsWith('http')
-    ? result.download_url
-    : window.location.origin + (result.download_url || '')
-  const shortUrlPath = result.short_url
-  const shortUrl = shortUrlPath?.startsWith('http') ? shortUrlPath : window.location.origin + shortUrlPath
+  const fallbackDownloadPath = result.file_id ? `/api/files/${result.file_id}/download` : ''
+  const downloadUrl = resolveDownloadUrl(result.download_url, fallbackDownloadPath)
+  const shortUrl = resolveShortUrl(result.short_url)
 
   return {
     success: true,

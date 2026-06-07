@@ -16,6 +16,8 @@ import type {
 } from './types'
 import { StorageError } from './types'
 import { sanitizeContentDispositionFilename } from '../r2'
+import { MAX_UPSTREAM_XML_RESPONSE_BYTES, readBoundedResponseText } from '../upstreamResponsePolicy'
+import { normalizeRemotePath as normalizeConfiguredRemotePath } from './pathPolicy'
 
 // ── 配置类型 ──
 
@@ -29,9 +31,75 @@ export type WebDAVConfig = {
 // ── 路径辅助 ──
 
 function normalizeRemotePath(path?: string): string {
-  const p = (path || '/').trim()
-  if (p === '/') return ''
-  return p.startsWith('/') ? p : `/${p}`
+  const result = normalizeConfiguredRemotePath(path || '/')
+  if (!result.ok) throw new StorageError(result.message)
+  return result.remotePath === '/' ? '' : result.remotePath
+}
+
+function encodePath(path: string): string {
+  const value = String(path || '')
+  const leadingSlash = value.startsWith('/')
+  const trailingSlash = value.endsWith('/') && value.length > 1
+  const segments = value.split('/').filter((segment) => segment.length > 0)
+  const encoded = segments.map((segment) => encodeURIComponent(segment)).join('/')
+  const prefix = leadingSlash ? '/' : ''
+  const suffix = trailingSlash ? '/' : ''
+  return `${prefix}${encoded}${suffix}` || '/'
+}
+
+function combinePaths(prefix: string, path: string): string {
+  const left = String(prefix || '').replace(/\/+$/, '')
+  const right = String(path || '').replace(/^\/+/, '')
+  if (!left && !right) return '/'
+  if (!left) return `/${right}`
+  if (!right) return left.startsWith('/') ? left : `/${left}`
+  return `${left.startsWith('/') ? left : `/${left}`}/${right}`
+}
+
+function stripRemotePathFromKey(key: string, remotePath: string): string {
+  const normalizedKey = String(key || '').replace(/^\/+/, '')
+  const remotePrefix = String(remotePath || '').replace(/^\/+|\/+$/g, '')
+  if (!remotePrefix) return normalizedKey
+  if (normalizedKey === remotePrefix) return ''
+  const prefix = `${remotePrefix}/`
+  return normalizedKey.startsWith(prefix) ? normalizedKey.slice(prefix.length) : normalizedKey
+}
+
+function decodeUrlPathSegment(segment: string): string | null {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return null
+  }
+}
+
+function buildProxyDownloadHeaders(response: Response, filename: string): Headers {
+  const headers = new Headers()
+  const contentType = response.headers.get('Content-Type')
+  if (contentType) headers.set('Content-Type', contentType)
+
+  const contentLength = response.headers.get('Content-Length')
+  if (contentLength && /^\d+$/.test(contentLength)) {
+    headers.set('Content-Length', contentLength)
+  }
+
+  const acceptRanges = response.headers.get('Accept-Ranges')
+  if (acceptRanges) headers.set('Accept-Ranges', acceptRanges)
+
+  const contentRange = response.headers.get('Content-Range')
+  if (contentRange) headers.set('Content-Range', contentRange)
+
+  const etag = response.headers.get('ETag')
+  if (etag) headers.set('ETag', etag)
+
+  const lastModified = response.headers.get('Last-Modified')
+  if (lastModified) headers.set('Last-Modified', lastModified)
+
+  const safeFilename = sanitizeContentDispositionFilename(filename)
+  headers.set('Content-Disposition', `attachment; filename="${safeFilename}"`)
+  headers.set('Cache-Control', 'no-store')
+  headers.set('X-Content-Type-Options', 'nosniff')
+  return headers
 }
 
 // ── XML 解析辅助 ──
@@ -104,11 +172,7 @@ function wrapWebDAVError(error: unknown, fallbackMessage = 'WebDAV 请求失败'
 }
 
 function throwForStatus(response: Response, context: string): never {
-  throw new StorageError(
-    `${context} 失败（HTTP ${response.status}）`,
-    undefined,
-    response.status
-  )
+  throw new StorageError(`${context} 失败（HTTP ${response.status}）`, undefined, response.status)
 }
 
 // ── Provider 实现 ──
@@ -126,14 +190,14 @@ export class WebDAVProvider implements StorageProvider {
 
   protected buildUrl(path: string): string {
     const base = this.config.endpoint.replace(/\/+$/, '')
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`
-    return `${base}${this.remotePath}${normalizedPath}`
+    const normalizedPath = combinePaths(this.remotePath, path)
+    return `${base}${encodePath(normalizedPath)}`
   }
 
   protected buildRootUrl(path: string): string {
     const base = this.config.endpoint.replace(/\/+$/, '')
     const normalizedPath = path.startsWith('/') ? path : `/${path}`
-    return `${base}${normalizedPath}`
+    return `${base}${encodePath(normalizedPath)}`
   }
 
   protected authHeader(): string {
@@ -206,7 +270,11 @@ export class WebDAVProvider implements StorageProvider {
       throwForStatus(response, 'WebDAV 列表')
     }
 
-    const text = await response.text()
+    const text = await readBoundedResponseText(
+      response,
+      MAX_UPSTREAM_XML_RESPONSE_BYTES,
+      'WebDAV 列表响应'
+    )
     return this.parsePropfindResponse(text, prefix)
   }
 
@@ -214,7 +282,11 @@ export class WebDAVProvider implements StorageProvider {
     const responseBlocks = extractDavBlocks(xml, 'response')
 
     const basePath = this.config.endpoint.replace(/\/+$/, '')
-    const baseSegmentCount = new URL(basePath).pathname.replace(/\/+$/, '').split('/').filter(Boolean).length
+    const remoteSegmentCount = this.remotePath.split('/').filter(Boolean).length
+    const baseSegmentCount = new URL(basePath).pathname
+      .replace(/\/+$/, '')
+      .split('/')
+      .filter(Boolean).length
 
     const commonPrefixes: string[] = []
     const contents: StorageListItem[] = []
@@ -223,12 +295,15 @@ export class WebDAVProvider implements StorageProvider {
       const hrefRaw = extractDavValue(block, 'href')
       if (!hrefRaw) continue
 
-      const href = decodeXmlEntities(decodeURIComponent(hrefRaw))
+      const href = decodeXmlEntities(hrefRaw)
 
       // 跳过自身（请求的目录本身）
       try {
         const hrefPath = new URL(href, basePath).pathname.replace(/\/+$/, '')
-        const requestPath = new URL(this.buildUrl(requestPrefix), basePath).pathname.replace(/\/+$/, '')
+        const requestPath = new URL(this.buildUrl(requestPrefix), basePath).pathname.replace(
+          /\/+$/,
+          ''
+        )
         if (hrefPath === requestPath) continue
       } catch {
         // URL 解析失败时跳过
@@ -242,8 +317,10 @@ export class WebDAVProvider implements StorageProvider {
       try {
         const hrefUrl = new URL(href, basePath)
         const segments = hrefUrl.pathname.split('/').filter(Boolean)
-        const relativeSegments = segments.slice(baseSegmentCount)
-        key = relativeSegments.join('/')
+        const relativeSegments = segments.slice(baseSegmentCount + remoteSegmentCount)
+        const decodedSegments = relativeSegments.map(decodeUrlPathSegment)
+        if (decodedSegments.some((segment) => segment === null)) continue
+        key = stripRemotePathFromKey(decodedSegments.join('/'), this.remotePath)
       } catch {
         continue
       }
@@ -278,7 +355,11 @@ export class WebDAVProvider implements StorageProvider {
 
   // ── GET（下载） ──
 
-  async download(key: string, filename: string, _expiresInSeconds: number): Promise<StorageDownloadResult> {
+  async download(
+    key: string,
+    filename: string,
+    _expiresInSeconds: number
+  ): Promise<StorageDownloadResult> {
     const path = key.startsWith('/') ? key : `/${key}`
     let response: Response
     try {
@@ -294,10 +375,8 @@ export class WebDAVProvider implements StorageProvider {
       throwForStatus(response, 'WebDAV 下载')
     }
 
-    // 为代理响应添加 Content-Disposition 头，确保浏览器下载时文件名正确
-    const safeFilename = sanitizeContentDispositionFilename(filename)
-    const newHeaders = new Headers(response.headers)
-    newHeaders.set('Content-Disposition', `attachment; filename="${safeFilename}"`)
+    // Only pass through download-safe metadata; upstream WebDAV headers are not trusted for this origin.
+    const newHeaders = buildProxyDownloadHeaders(response, filename)
     response = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
@@ -464,13 +543,18 @@ export class WebDAVProvider implements StorageProvider {
     // 先测试根连接（不经过 remotePath 前缀）
     let response: Response
     try {
-      response = await this.webdavRequest('PROPFIND', '/', {
-        headers: {
-          'Content-Type': 'application/xml; charset=utf-8',
-          Depth: '0',
+      response = await this.webdavRequest(
+        'PROPFIND',
+        '/',
+        {
+          headers: {
+            'Content-Type': 'application/xml; charset=utf-8',
+            Depth: '0',
+          },
+          body: propfindBody,
         },
-        body: propfindBody,
-      }, { useRootPath: true })
+        { useRootPath: true }
+      )
     } catch (error) {
       throw wrapWebDAVError(error, 'WebDAV 连接测试失败')
     }
@@ -500,13 +584,18 @@ export class WebDAVProvider implements StorageProvider {
 
     let response: Response
     try {
-      response = await this.webdavRequest('PROPFIND', path, {
-        headers: {
-          'Content-Type': 'application/xml; charset=utf-8',
-          Depth: '0',
+      response = await this.webdavRequest(
+        'PROPFIND',
+        path,
+        {
+          headers: {
+            'Content-Type': 'application/xml; charset=utf-8',
+            Depth: '0',
+          },
+          body: propfindBody,
         },
-        body: propfindBody,
-      })
+        { useRootPath: true }
+      )
     } catch (error) {
       throw wrapWebDAVError(error, 'WebDAV 远程目录检查失败')
     }
@@ -522,7 +611,9 @@ export class WebDAVProvider implements StorageProvider {
         const folderPath = current.endsWith('/') ? current : `${current}/`
         let mkcolResponse: Response
         try {
-          mkcolResponse = await this.webdavRequest('MKCOL', folderPath, undefined, { useRootPath: true })
+          mkcolResponse = await this.webdavRequest('MKCOL', folderPath, undefined, {
+            useRootPath: true,
+          })
         } catch (error) {
           throw wrapWebDAVError(error, 'WebDAV 创建远程目录失败')
         }
@@ -539,7 +630,12 @@ export class WebDAVProvider implements StorageProvider {
 
   // ── PUT（上传） ──
 
-  async upload(key: string, body: ArrayBuffer, contentType: string, _size: number): Promise<StorageUploadResult> {
+  async upload(
+    key: string,
+    body: ArrayBuffer,
+    contentType: string,
+    _size: number
+  ): Promise<StorageUploadResult> {
     const path = key.startsWith('/') ? key : `/${key}`
     let response: Response
     try {

@@ -1,7 +1,8 @@
 import type { Env } from '../config/env'
 import { getUser, jsonResponse } from './utils'
-import { renderContentPage, renderMessagePage } from './textShares'
+import { renderConfirmPage, renderContentPage, renderMessagePage } from './textShares'
 import { generateRandomCode } from '../utils/random'
+import { SHARE_SHORT_CODE_LENGTH } from '../utils/codePolicy'
 
 type LoadTextAuthResult =
   | {
@@ -81,7 +82,7 @@ export async function createTextOneTimeShare(
   if (!existing) {
     const id = crypto.randomUUID()
     for (let i = 0; i < 10; i += 1) {
-      const shareCode = generateRandomCode(8)
+      const shareCode = generateRandomCode(SHARE_SHORT_CODE_LENGTH)
       const result = await env.DB.prepare(
         `INSERT INTO text_one_time_shares (id, text_id, owner_id, share_code, expires_at, consumed_at, created_at, updated_at)
 	         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`
@@ -99,7 +100,7 @@ export async function createTextOneTimeShare(
 
   const shareId = String((existing as any).id)
   for (let i = 0; i < 10; i += 1) {
-    const shareCode = generateRandomCode(8)
+    const shareCode = generateRandomCode(SHARE_SHORT_CODE_LENGTH)
     const result = await env.DB.prepare(
       `UPDATE text_one_time_shares
 	       SET share_code = ?, expires_at = ?, consumed_at = NULL, created_at = ?, updated_at = ?
@@ -189,6 +190,23 @@ export async function tryViewTextOneTimeShare(
     return renderMessagePage('分享', '链接已失效', 410)
   }
 
+  const title = String((share as any).text_title || '共享文档')
+  const content = String((share as any).text_content || '')
+  const metaParts = ['一次性链接（仅可访问 1 次）']
+  if (expiresAt) {
+    metaParts.push(`过期时间 ${formatDateTimeLocal(expiresAt)}`)
+  }
+  const meta = metaParts.join(' · ')
+  const method = request.method.toUpperCase()
+
+  if (method === 'GET') {
+    return renderConfirmPage({ title, meta })
+  }
+
+  if (method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 })
+  }
+
   const shareId = String((share as any).id)
   const nowIso = new Date().toISOString()
   const update = await env.DB.prepare(
@@ -207,12 +225,5 @@ export async function tryViewTextOneTimeShare(
     return renderMessagePage('分享', '链接已失效', 410)
   }
 
-  const title = String((share as any).text_title || '共享文档')
-  const content = String((share as any).text_content || '')
-  const metaParts = ['一次性链接（仅可访问 1 次）']
-  if (expiresAt) {
-    metaParts.push(`过期时间 ${formatDateTimeLocal(expiresAt)}`)
-  }
-
-  return renderContentPage({ title, meta: metaParts.join(' · '), content })
+  return renderContentPage({ title, meta, content })
 }

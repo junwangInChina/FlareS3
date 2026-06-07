@@ -1,5 +1,6 @@
 import type { Env } from './config/env'
 import { requestIdMiddleware } from './middleware/requestId'
+import { originGuardMiddleware } from './middleware/originGuard'
 import { rateLimitMiddleware } from './middleware/rateLimit'
 import { bootstrapAdmin } from './middleware/bootstrapAdmin'
 import { authSessionMiddleware } from './middleware/authSession'
@@ -100,11 +101,16 @@ function createRuntimeDiagnostics(): RuntimeDiagnostics {
 }
 
 function withTimingHeaders(
+  env: Env,
   response: Response,
   timings: TimingEntry[],
   requestStartedAt: number,
   runtime: RuntimeDiagnostics
 ): Response {
+  if (String(env.FLARES3_DEBUG_HEADERS || '').trim() !== '1') {
+    return response
+  }
+
   const allTimings = [
     ...timings,
     {
@@ -157,7 +163,12 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
     } else if (!isBackendPath(pathname)) {
       response = await measure(timings, 'assets', () => handleFrontendRequest(request, env))
     } else {
-      response = await measure(timings, 'rateLimit', () => rateLimitMiddleware(request, env))
+      response = await measure(timings, 'origin', () =>
+        Promise.resolve(originGuardMiddleware(request))
+      )
+      if (!response) {
+        response = await measure(timings, 'rateLimit', () => rateLimitMiddleware(request, env))
+      }
       if (!response) {
         response = await measure(timings, 'bootstrap', () =>
           shouldRunBootstrapAdmin(request, pathname)
@@ -188,7 +199,7 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
     response = new Response('Internal Server Error', { status: 500 })
   }
 
-  response = withTimingHeaders(response, timings, requestStartedAt, runtimeDiagnostics)
+  response = withTimingHeaders(env, response, timings, requestStartedAt, runtimeDiagnostics)
   logRequestFailure(request, response, requestError)
   return withCommonHeaders(request, response)
 }

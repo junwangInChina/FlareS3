@@ -13,6 +13,11 @@ import { prepareEnqueueFileDeletionIfNeeded } from '../services/deleteQueue'
 import { getClientIp } from '../middleware/rateLimit'
 import { prepareReleaseUploadReservation } from '../services/uploadReservations'
 import {
+  MAX_PREVIEW_RESPONSE_BYTES,
+  limitedPreviewResponse,
+  readBoundedResponseText,
+} from '../services/previewResponsePolicy'
+import {
   measureRouteStep,
   withRouteTimingHeaders,
   type RouteTimingEntry,
@@ -513,7 +518,7 @@ export async function previewFile(request: Request, env: Env, fileId: string): P
       if (result.kind === 'redirect') {
         return redirect(result.url, 302)
       }
-      return result.response
+      return limitedPreviewResponse(result.response, mode.responseContentType)
     } catch (error) {
       return jsonResponse({ error: `生成预览链接失败：${formatUpstreamFetchError(error)}` }, 502)
     }
@@ -540,12 +545,11 @@ export async function previewFile(request: Request, env: Env, fileId: string): P
     return redirect(previewUrl, 302)
   }
 
-  const MAX_PREVIEW_BYTES = 200 * 1024
   let response: Response
   try {
     response = await fetch(previewUrl, {
       headers: {
-        Range: `bytes=0-${MAX_PREVIEW_BYTES - 1}`,
+        Range: `bytes=0-${MAX_PREVIEW_RESPONSE_BYTES - 1}`,
       },
     })
   } catch (error) {
@@ -559,19 +563,11 @@ export async function previewFile(request: Request, env: Env, fileId: string): P
     }
   }
   if (!response.ok) {
-    const text = await response.text().catch(() => '')
+    const text = await readBoundedResponseText(response).catch(() => '')
     return jsonResponse({ error: text || '预览内容获取失败' }, response.status || 502)
   }
 
-  const headers = new Headers()
-  headers.set('Content-Type', mode.responseContentType)
-  headers.set('Cache-Control', 'no-store')
-  headers.set('X-Content-Type-Options', 'nosniff')
-
-  return new Response(response.body, {
-    status: response.status,
-    headers,
-  })
+  return limitedPreviewResponse(response, mode.responseContentType)
 }
 
 export async function restoreFile(request: Request, env: Env, fileId: string): Promise<Response> {

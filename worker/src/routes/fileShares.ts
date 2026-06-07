@@ -1,6 +1,12 @@
 import type { Env } from '../config/env'
 import type { AuthUser } from '../middleware/authSession'
-import { calcPresignedDownloadUrlTtlSeconds, getUser, jsonResponse, parseJson } from './utils'
+import {
+  calcPresignedDownloadUrlTtlSeconds,
+  getUser,
+  invalidJsonBodyResponse,
+  jsonResponse,
+  parseJson,
+} from './utils'
 import { hashPassword, verifyPassword } from '../services/password'
 import {
   clearSharePasswordFailedAttempts,
@@ -8,13 +14,28 @@ import {
   isSharePasswordBlocked,
   recordSharePasswordFailedAttempt,
 } from '../middleware/rateLimit'
-import { generateDownloadUrl, resolveR2ConfigForKey } from '../services/r2'
+import {
+  extractR2ConfigIdFromKey,
+  generateDownloadUrl,
+  resolveR2ConfigForKey,
+  sanitizeContentDispositionFilename,
+} from '../services/r2'
+import { createProvider } from '../services/storage/factory'
 import { buildPage, escapeHtml, htmlResponse } from './sharePage'
 import { generateRandomCode } from '../utils/random'
+import { SHARE_SHORT_CODE_LENGTH } from '../utils/codePolicy'
+import {
+  MAX_SHARE_PASSWORD_FORM_BYTES,
+  rejectInvalidContentLength,
+} from '../services/requestBodyPolicy'
 import {
   consumeFileShareViewIfAllowed,
   SHARE_VIEW_LIMIT_EXHAUSTED_MESSAGE,
 } from '../services/shareViewGuard'
+import {
+  MAX_UPSTREAM_ERROR_TEXT_BYTES,
+  readBoundedResponseText,
+} from '../services/upstreamResponsePolicy'
 
 type LoadFileAuthResult =
   | { response: Response }
@@ -146,8 +167,8 @@ export async function upsertFileShare(
 
   try {
     body = await parseJson(request)
-  } catch (_error) {
-    return jsonResponse({ error: '请求体无效' }, 400)
+  } catch (error) {
+    return invalidJsonBodyResponse(error)
   }
 
   const maxViewsRaw = body.max_views
@@ -200,7 +221,7 @@ export async function upsertFileShare(
     }
 
     for (let i = 0; i < 10; i += 1) {
-      const shareCode = generateRandomCode(8)
+      const shareCode = generateRandomCode(SHARE_SHORT_CODE_LENGTH)
       const result = await env.DB.prepare(
         `INSERT INTO file_shares (id, file_id, owner_id, share_code, password_hash, expires_in, expires_at, max_views, views, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
@@ -245,7 +266,7 @@ export async function upsertFileShare(
   const shareId = String((existing as any).id)
   const currentShareCode = String((existing as any).share_code)
 
-  const nextShareCode = regenerate ? generateRandomCode(8) : currentShareCode
+  const nextShareCode = regenerate ? generateRandomCode(SHARE_SHORT_CODE_LENGTH) : currentShareCode
 
   const updates: string[] = ['max_views = ?', 'expires_in = ?', 'expires_at = ?', 'updated_at = ?']
   const params: unknown[] = [Math.floor(maxViews), expiresIn, expiresAt, now]
@@ -266,7 +287,7 @@ export async function upsertFileShare(
 
   if (regenerate) {
     for (let i = 0; i < 10; i += 1) {
-      const code = i === 0 ? nextShareCode : generateRandomCode(8)
+      const code = i === 0 ? nextShareCode : generateRandomCode(SHARE_SHORT_CODE_LENGTH)
       const loopParams = params.slice()
       ;(loopParams as any)[0] = code
 
@@ -373,6 +394,7 @@ type ResolveFileShareRecordResult =
         filename: string
         r2_key: string
         expires_at: string
+        config_id: string | null
       }
     }
 
@@ -397,7 +419,7 @@ async function resolveFileShareRecord(
 ): Promise<ResolveFileShareRecordResult> {
   const row = await env.DB.prepare(
     `SELECT s.id AS share_id, s.file_id, s.share_code, s.password_hash, s.expires_at AS share_expires_at, s.max_views, s.views,
-            f.filename, f.r2_key, f.expires_at AS file_expires_at, f.upload_status, f.deleted_at,
+            f.filename, f.r2_key, f.expires_at AS file_expires_at, f.upload_status, f.deleted_at, f.config_id,
             u.status AS owner_status
      FROM file_shares s
      LEFT JOIN files f ON f.id = s.file_id
@@ -463,6 +485,7 @@ async function resolveFileShareRecord(
       filename: String(row.filename),
       r2_key: String(row.r2_key),
       expires_at: String(row.file_expires_at),
+      config_id: row.config_id ? String(row.config_id) : null,
     },
   }
 }
@@ -566,10 +589,68 @@ type SharedDownloadResult =
   | { ok: true; response: Response }
   | { ok: false; error: { status: number; message: string } }
 
+async function buildSanitizedSharedDownloadResponse(
+  upstream: Response,
+  filename: string
+): Promise<SharedDownloadResult> {
+  if (!upstream.ok) {
+    const text = await readBoundedResponseText(
+      upstream,
+      MAX_UPSTREAM_ERROR_TEXT_BYTES,
+      '共享文件下载错误响应',
+      { truncate: true }
+    ).catch(() => '')
+    return {
+      ok: false,
+      error: { status: upstream.status || 502, message: text || '文件下载失败，请稍后重试' },
+    }
+  }
+
+  const headers = new Headers()
+  headers.set('Cache-Control', 'no-store')
+  headers.set('X-Content-Type-Options', 'nosniff')
+
+  const contentType = upstream.headers.get('Content-Type')
+  if (contentType) headers.set('Content-Type', contentType)
+
+  const safeFilename = sanitizeContentDispositionFilename(filename)
+  headers.set('Content-Disposition', `attachment; filename="${safeFilename}"`)
+
+  const contentLength = upstream.headers.get('Content-Length')
+  if (contentLength && /^\d+$/.test(contentLength)) headers.set('Content-Length', contentLength)
+
+  return {
+    ok: true,
+    response: new Response(upstream.body, {
+      status: upstream.status,
+      headers,
+    }),
+  }
+}
+
 async function buildSharedDownloadResponse(
   env: Env,
-  file: { r2_key: string; filename: string; expires_at: string }
+  file: { r2_key: string; filename: string; expires_at: string; config_id?: string | null }
 ): Promise<SharedDownloadResult> {
+  const explicitProviderConfigId = String(file.config_id || '').trim()
+  if (explicitProviderConfigId && !extractR2ConfigIdFromKey(file.r2_key)) {
+    const provider = await createProvider(env, explicitProviderConfigId)
+    if (!provider) {
+      return { ok: false, error: { status: 503, message: '存储配置未找到' } }
+    }
+
+    try {
+      const result = await provider.download(file.r2_key, file.filename, 3600)
+      if (result.kind === 'redirect') {
+        const upstream = await fetch(result.url)
+        return buildSanitizedSharedDownloadResponse(upstream, file.filename)
+      }
+      return { ok: true, response: result.response }
+    } catch {
+      return { ok: false, error: { status: 502, message: '文件下载失败，请稍后重试' } }
+    }
+  }
+
   const loaded = await resolveR2ConfigForKey(env, file.r2_key)
   if (!loaded) {
     return { ok: false, error: { status: 503, message: 'R2 未配置' } }
@@ -591,34 +672,7 @@ async function buildSharedDownloadResponse(
     return { ok: false, error: { status: 502, message: '文件下载失败，请稍后重试' } }
   }
 
-  if (!upstream.ok) {
-    const text = await upstream.text().catch(() => '')
-    return {
-      ok: false,
-      error: { status: upstream.status || 502, message: text || '文件下载失败，请稍后重试' },
-    }
-  }
-
-  const headers = new Headers()
-  headers.set('Cache-Control', 'no-store')
-  headers.set('X-Content-Type-Options', 'nosniff')
-
-  const contentType = upstream.headers.get('Content-Type')
-  if (contentType) headers.set('Content-Type', contentType)
-
-  const contentDisposition = upstream.headers.get('Content-Disposition')
-  if (contentDisposition) headers.set('Content-Disposition', contentDisposition)
-
-  const contentLength = upstream.headers.get('Content-Length')
-  if (contentLength) headers.set('Content-Length', contentLength)
-
-  return {
-    ok: true,
-    response: new Response(upstream.body, {
-      status: upstream.status,
-      headers,
-    }),
-  }
+  return buildSanitizedSharedDownloadResponse(upstream, file.filename)
 }
 
 export async function viewFileShare(request: Request, env: Env, code: string): Promise<Response> {
@@ -688,6 +742,13 @@ export async function viewFileShare(request: Request, env: Env, code: string): P
     if (await isSharePasswordBlocked(env, normalized, ip)) {
       return renderFilePasswordForm({ title, meta, error: '尝试次数过多，请 10 分钟后重试' })
     }
+
+    const bodySizeError = rejectInvalidContentLength(
+      request,
+      MAX_SHARE_PASSWORD_FORM_BYTES,
+      '分享口令表单'
+    )
+    if (bodySizeError) return bodySizeError
 
     let password = ''
     try {

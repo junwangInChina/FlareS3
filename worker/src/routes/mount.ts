@@ -1,9 +1,12 @@
 import type { Env } from '../config/env'
-import { jsonResponse, redirect, getUser } from './utils'
+import { invalidJsonBodyResponse, jsonResponse, redirect, getUser, parseJson } from './utils'
 import { createProvider } from '../services/storage/factory'
 import { StorageError, type StorageProvider } from '../services/storage/types'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
+import { limitedPreviewResponse } from '../services/previewResponsePolicy'
+import { rejectInvalidContentLength } from '../services/requestBodyPolicy'
+import { normalizeStorageFilename, normalizeStoragePath } from '../services/storage/pathPolicy'
 import {
   measureRouteStep,
   withRouteTimingHeaders,
@@ -11,8 +14,11 @@ import {
 } from '../utils/routeTiming'
 
 function normalizePrefix(value: string | null): string {
-  const prefix = String(value ?? '').trim()
-  return prefix
+  const result = normalizeStoragePath(value, { allowEmpty: true, allowTrailingSlash: true })
+  if (!result.ok) {
+    throw new Error(result.message)
+  }
+  return result.key
 }
 
 function normalizeToken(value: string | null): string | null {
@@ -30,6 +36,36 @@ function getBasename(key: string): string {
   const normalized = String(key ?? '')
   const idx = normalized.lastIndexOf('/')
   return idx >= 0 ? normalized.slice(idx + 1) : normalized
+}
+
+function normalizeMountKey(
+  value: unknown,
+  options: { allowTrailingSlash?: boolean } = {}
+): { key: string } | { response: Response } {
+  const result = normalizeStoragePath(value, {
+    allowTrailingSlash: Boolean(options.allowTrailingSlash),
+  })
+  if (!result.ok) {
+    return { response: jsonResponse({ error: result.message }, 400) }
+  }
+  return { key: result.key }
+}
+
+function normalizeMountDirectory(value: unknown): { key: string } | { response: Response } {
+  const result = normalizeStoragePath(value, {
+    allowTrailingSlash: true,
+    forceTrailingSlash: true,
+  })
+  if (!result.ok) {
+    return { response: jsonResponse({ error: result.message }, 400) }
+  }
+  return { key: result.key }
+}
+
+function buildUploadKey(path: string, filename: string): string {
+  if (!path) return filename
+  const normalizedPath = path.endsWith('/') ? path : `${path}/`
+  return `${normalizedPath}${filename}`
 }
 
 function getFilenameExtension(filename: string): string {
@@ -92,7 +128,10 @@ function formatUpstreamFetchError(error: unknown): string {
   return message.slice(0, 200)
 }
 
-async function ensureMountedObjectExists(provider: StorageProvider, key: string): Promise<Response | null> {
+async function ensureMountedObjectExists(
+  provider: StorageProvider,
+  key: string
+): Promise<Response | null> {
   try {
     const exists = await provider.checkExists(key)
     if (exists) return null
@@ -111,7 +150,13 @@ export async function listMountedObjects(request: Request, env: Env): Promise<Re
     return jsonResponse({ error: '缺少 config_id' }, 400)
   }
 
-  const prefix = normalizePrefix(url.searchParams.get('prefix'))
+  let prefix = ''
+  try {
+    prefix = normalizePrefix(url.searchParams.get('prefix'))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '路径无效'
+    return jsonResponse({ error: message }, 400)
+  }
   const continuationToken = normalizeToken(url.searchParams.get('continuation_token'))
   const limit = clampNumber(url.searchParams.get('limit'), 1, 500, 100)
 
@@ -159,15 +204,19 @@ export async function listMountedObjects(request: Request, env: Env): Promise<Re
 export async function downloadMountedObject(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   const configId = String(url.searchParams.get('config_id') || '').trim()
-  const key = String(url.searchParams.get('key') || '')
+  const rawKey = String(url.searchParams.get('key') || '')
 
   if (!configId) {
     return jsonResponse({ error: '缺少 config_id' }, 400)
   }
 
-  if (!key) {
+  if (!rawKey) {
     return jsonResponse({ error: '缺少 key' }, 400)
   }
+
+  const keyResult = normalizeMountKey(rawKey)
+  if ('response' in keyResult) return keyResult.response
+  const key = keyResult.key
 
   const provider = await createProvider(env, configId)
   if (!provider) {
@@ -194,15 +243,19 @@ export async function downloadMountedObject(request: Request, env: Env): Promise
 export async function previewMountedObject(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   const configId = String(url.searchParams.get('config_id') || '').trim()
-  const key = String(url.searchParams.get('key') || '')
+  const rawKey = String(url.searchParams.get('key') || '')
 
   if (!configId) {
     return jsonResponse({ error: '缺少 config_id' }, 400)
   }
 
-  if (!key) {
+  if (!rawKey) {
     return jsonResponse({ error: '缺少 key' }, 400)
   }
+
+  const keyResult = normalizeMountKey(rawKey)
+  if ('response' in keyResult) return keyResult.response
+  const key = keyResult.key
 
   const provider = await createProvider(env, configId)
   if (!provider) {
@@ -231,7 +284,7 @@ export async function previewMountedObject(request: Request, env: Env): Promise<
       return redirect(result.url, 302)
     }
 
-    return result.response
+    return limitedPreviewResponse(result.response, mode.responseContentType)
   } catch (error) {
     return jsonResponse({ error: `生成预览链接失败：${formatUpstreamFetchError(error)}` }, 502)
   }
@@ -248,15 +301,19 @@ export async function deleteMountedObject(request: Request, env: Env): Promise<R
 
   const url = new URL(request.url)
   const configId = String(url.searchParams.get('config_id') || '').trim()
-  const key = String(url.searchParams.get('key') || '').trim()
+  const rawKey = String(url.searchParams.get('key') || '').trim()
 
   if (!configId) {
     return jsonResponse({ error: '缺少 config_id' }, 400)
   }
 
-  if (!key) {
+  if (!rawKey) {
     return jsonResponse({ error: '缺少 key' }, 400)
   }
+
+  const keyResult = normalizeMountKey(rawKey, { allowTrailingSlash: true })
+  if ('response' in keyResult) return keyResult.response
+  const key = keyResult.key
 
   const provider = await createProvider(env, configId)
   if (!provider) {
@@ -281,7 +338,10 @@ export async function deleteMountedObject(request: Request, env: Env): Promise<R
       deletedCount = 1
     }
   } catch (error) {
-    if (error instanceof StorageError && (error.httpStatusCode === 404 || error.code === 'NoSuchKey')) {
+    if (
+      error instanceof StorageError &&
+      (error.httpStatusCode === 404 || error.code === 'NoSuchKey')
+    ) {
       return jsonResponse({ error: '对象不存在' }, 404)
     }
 
@@ -315,16 +375,26 @@ export async function deleteMountedObject(request: Request, env: Env): Promise<R
 // ── 上传文件 ──
 
 const MAX_MOUNT_UPLOAD_BYTES = 100 * 1024 * 1024 // 100MB
+const MAX_MOUNT_MULTIPART_REQUEST_BYTES = MAX_MOUNT_UPLOAD_BYTES + 1024 * 1024
 
 export async function uploadMountedObject(request: Request, env: Env): Promise<Response> {
   const user = getUser(request)
   if (!user) return jsonResponse({ error: '未授权' }, 401)
 
   const contentType = String(request.headers.get('Content-Type') || '')
+  const contentLengthResponse = rejectInvalidContentLength(
+    request,
+    contentType.includes('multipart/form-data')
+      ? MAX_MOUNT_MULTIPART_REQUEST_BYTES
+      : MAX_MOUNT_UPLOAD_BYTES,
+    '上传文件'
+  )
+  if (contentLengthResponse) return contentLengthResponse
 
   let configId = ''
   let path = ''
   let file: File | null = null
+  let octetFilename = ''
 
   // 支持 multipart/form-data 和 application/octet-stream
   if (contentType.includes('multipart/form-data')) {
@@ -348,8 +418,13 @@ export async function uploadMountedObject(request: Request, env: Env): Promise<R
     if (!filename) {
       return jsonResponse({ error: '缺少 filename' }, 400)
     }
+    const filenameResult = normalizeStorageFilename(filename)
+    if (!filenameResult.ok) {
+      return jsonResponse({ error: filenameResult.message }, 400)
+    }
+    octetFilename = filenameResult.key
     const body = await request.arrayBuffer()
-    file = new File([body], filename, {
+    file = new File([body], octetFilename, {
       type: contentType || 'application/octet-stream',
     })
   }
@@ -362,14 +437,25 @@ export async function uploadMountedObject(request: Request, env: Env): Promise<R
     return jsonResponse({ error: '缺少文件' }, 400)
   }
 
+  const filenameResult = normalizeStorageFilename(file.name)
+  if (!filenameResult.ok) {
+    return jsonResponse({ error: filenameResult.message }, 400)
+  }
+  const pathResult = normalizeStoragePath(path, { allowEmpty: true, allowTrailingSlash: true })
+  if (!pathResult.ok) {
+    return jsonResponse({ error: pathResult.message }, 400)
+  }
+
   const fileSize = file.size
   if (fileSize > MAX_MOUNT_UPLOAD_BYTES) {
-    return jsonResponse({ error: `文件大小超过限制（最大 ${MAX_MOUNT_UPLOAD_BYTES / 1024 / 1024}MB）` }, 413)
+    return jsonResponse(
+      { error: `文件大小超过限制（最大 ${MAX_MOUNT_UPLOAD_BYTES / 1024 / 1024}MB）` },
+      413
+    )
   }
 
   // 构造 key: path + filename
-  const normalizedPath = path && !path.endsWith('/') ? `${path}/` : path
-  const key = `${normalizedPath}${file.name}`
+  const key = buildUploadKey(pathResult.key, filenameResult.key)
 
   const provider = await createProvider(env, configId)
   if (!provider) {
@@ -378,7 +464,12 @@ export async function uploadMountedObject(request: Request, env: Env): Promise<R
 
   try {
     const body = await file.arrayBuffer()
-    const result = await provider.upload(key, body, file.type || 'application/octet-stream', fileSize)
+    const result = await provider.upload(
+      key,
+      body,
+      file.type || 'application/octet-stream',
+      fileSize
+    )
 
     await logAudit(env.DB, {
       actorUserId: user.id,
@@ -416,11 +507,11 @@ export async function createMountedFolder(request: Request, env: Env): Promise<R
   let key = ''
 
   try {
-    const body = await request.json() as { config_id?: string; key?: string }
+    const body = await parseJson<{ config_id?: string; key?: string }>(request)
     configId = String(body.config_id || '').trim()
     key = String(body.key || '').trim()
-  } catch {
-    return jsonResponse({ error: '请求格式错误' }, 400)
+  } catch (error) {
+    return invalidJsonBodyResponse(error, '请求格式错误')
   }
 
   if (!configId) {
@@ -430,6 +521,10 @@ export async function createMountedFolder(request: Request, env: Env): Promise<R
   if (!key) {
     return jsonResponse({ error: '缺少 key' }, 400)
   }
+
+  const keyResult = normalizeMountDirectory(key)
+  if ('response' in keyResult) return keyResult.response
+  key = keyResult.key
 
   const provider = await createProvider(env, configId)
   if (!provider) {

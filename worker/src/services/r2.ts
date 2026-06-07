@@ -15,6 +15,11 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { Env } from '../config/env'
 import { DEFAULT_TOTAL_STORAGE } from '../config/env'
 import { decryptString } from './crypto'
+import {
+  MAX_UPSTREAM_ERROR_TEXT_BYTES,
+  MAX_UPSTREAM_XML_RESPONSE_BYTES,
+  readBoundedResponseText,
+} from './upstreamResponsePolicy'
 export const LEGACY_R2_CONFIG_ID = 'legacy'
 export const SYSTEM_DEFAULT_R2_CONFIG_ID_KEY = 'r2_default_config_id'
 export const SYSTEM_LEGACY_FILES_CONFIG_ID_KEY = 'r2_legacy_files_config_id'
@@ -428,6 +433,16 @@ function buildS3HttpError(status: number, bodyText: string): Error {
   return error
 }
 
+async function readS3ErrorText(response: Response): Promise<string> {
+  return readBoundedResponseText(response, MAX_UPSTREAM_ERROR_TEXT_BYTES, 'S3 错误响应', {
+    truncate: true,
+  })
+}
+
+async function readS3XmlText(response: Response, label: string): Promise<string> {
+  return readBoundedResponseText(response, MAX_UPSTREAM_XML_RESPONSE_BYTES, label)
+}
+
 async function fetchSigned(
   client: S3Client,
   command: unknown,
@@ -504,7 +519,7 @@ export async function checkObjectExists(config: R2Config, key: string): Promise<
 
   if (response.ok) return true
   if (response.status === 404) return false
-  const text = await response.text()
+  const text = await readS3ErrorText(response)
   throw buildS3HttpError(response.status, text)
 }
 
@@ -524,7 +539,7 @@ export async function getObjectSize(config: R2Config, key: string): Promise<numb
   }
 
   if (!response.ok) {
-    const text = await response.text()
+    const text = await readS3ErrorText(response)
     throw buildS3HttpError(response.status, text)
   }
 
@@ -556,11 +571,12 @@ export async function initiateMultipartUpload(
     }
   )
 
-  const text = await response.text()
   if (!response.ok) {
+    const text = await readS3ErrorText(response)
     throw buildS3HttpError(response.status, text)
   }
 
+  const text = await readS3XmlText(response, 'S3 创建分片上传响应')
   const uploadId = extractXmlValue(text, 'UploadId')
   if (!uploadId) throw new Error('missing_upload_id')
   return uploadId
@@ -583,7 +599,7 @@ export async function abortMultipartUpload(
   )
 
   if (response.ok) return
-  const text = await response.text()
+  const text = await readS3ErrorText(response)
   throw buildS3HttpError(response.status, text)
 }
 
@@ -620,11 +636,12 @@ export async function listParts(
     { method: 'GET', expiresInSeconds: 60 }
   )
 
-  const text = await response.text()
   if (!response.ok) {
+    const text = await readS3ErrorText(response)
     throw buildS3HttpError(response.status, text)
   }
 
+  const text = await readS3XmlText(response, 'S3 分片列表响应')
   const parts = extractXmlBlocks(text, 'Part')
     .map((block) => {
       const partNumber = Number(extractXmlValue(block, 'PartNumber'))
@@ -683,7 +700,7 @@ export async function completeMultipartUpload(
   )
 
   if (response.ok) return
-  const text = await response.text()
+  const text = await readS3ErrorText(response)
   throw buildS3HttpError(response.status, text)
 }
 
@@ -698,7 +715,7 @@ export async function deleteObject(config: R2Config, key: string): Promise<void>
     { method: 'DELETE', expiresInSeconds: 60 }
   )
   if (response.ok) return
-  const text = await response.text()
+  const text = await readS3ErrorText(response)
   throw buildS3HttpError(response.status, text)
 }
 
@@ -812,11 +829,12 @@ export async function listObjectsV2(
     { method: 'GET', expiresInSeconds: 60 }
   )
 
-  const text = await response.text()
   if (!response.ok) {
+    const text = await readS3ErrorText(response)
     throw buildS3HttpError(response.status, text)
   }
 
+  const text = await readS3XmlText(response, 'S3 对象列表响应')
   const decodeXmlEntities = (value: string): string => {
     const input = String(value ?? '')
     if (!input.includes('&')) return input
@@ -900,6 +918,6 @@ export async function testConnection(config: R2Config): Promise<void> {
   )
 
   if (response.ok) return
-  const text = await response.text()
+  const text = await readS3ErrorText(response)
   throw buildS3HttpError(response.status, text)
 }

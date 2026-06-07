@@ -1,5 +1,6 @@
 import type { Env } from '../config/env'
 import {
+  extractR2ConfigIdFromKey,
   resolveR2ConfigForKey,
   deleteObject,
   abortMultipartUpload,
@@ -7,13 +8,62 @@ import {
 } from '../services/r2'
 import { buildJobResult, type JobExecutionResult } from '../services/jobRuns'
 import { prepareReleaseUploadReservation } from '../services/uploadReservations'
+import { createProvider } from '../services/storage/factory'
+import { StorageError } from '../services/storage/types'
 
 const BATCH_SIZE = 100
+
+function extractProviderConfigIdFromKey(key: string): string | null {
+  const parts = String(key || '')
+    .split('/')
+    .filter(Boolean)
+  if (parts.length >= 3 && parts[0] === 'storage') {
+    return parts[1] || null
+  }
+  return null
+}
+
+function getExplicitProviderConfigId(row: {
+  r2_key?: unknown
+  config_id?: unknown
+}): string | null {
+  const r2Key = String(row.r2_key || '')
+  if (extractR2ConfigIdFromKey(r2Key)) return null
+
+  const configId = String(row.config_id || '').trim()
+  if (configId) return configId
+
+  return extractProviderConfigIdFromKey(r2Key)
+}
+
+async function deleteProviderObject(env: Env, configId: string, key: string): Promise<void> {
+  const provider = await createProvider(env, configId)
+  if (!provider) {
+    throw new Error('storage_config_unavailable')
+  }
+
+  try {
+    await provider.delete(key)
+  } catch (error) {
+    if (
+      error instanceof StorageError &&
+      (error.httpStatusCode === 404 || error.code === 'NoSuchKey')
+    ) {
+      return
+    }
+    throw error
+  }
+}
 
 export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> {
   const startedAtMs = Date.now()
   const { results } = await env.DB.prepare(
-    `SELECT id, file_id, r2_key FROM delete_queue WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT ?`
+    `SELECT dq.id, dq.file_id, dq.r2_key, f.config_id, f.multipart_upload_id
+       FROM delete_queue dq
+       LEFT JOIN files f ON f.id = dq.file_id
+      WHERE dq.processed_at IS NULL
+      ORDER BY dq.created_at ASC
+      LIMIT ?`
   )
     .bind(BATCH_SIZE)
     .all()
@@ -34,18 +84,28 @@ export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> 
     const queueId = String(row.id)
     const fileId = String(row.file_id)
     const r2Key = String(row.r2_key)
+    const explicitProviderConfigId = getExplicitProviderConfigId(row)
 
     try {
+      if (explicitProviderConfigId) {
+        await deleteProviderObject(env, explicitProviderConfigId, r2Key)
+        await env.DB.batch([
+          prepareReleaseUploadReservation(env.DB, fileId, now),
+          env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId),
+          env.DB.prepare('UPDATE delete_queue SET processed_at = ? WHERE id = ?').bind(
+            now,
+            queueId
+          ),
+        ])
+        succeeded += 1
+        continue
+      }
+
       const loaded = await resolveR2ConfigForKey(env, r2Key)
       if (!loaded) {
         throw new Error('r2_config_unavailable')
       }
-      const multipartUploadIdRow = await env.DB.prepare(
-        'SELECT multipart_upload_id FROM files WHERE id = ? LIMIT 1'
-      )
-        .bind(fileId)
-        .first('multipart_upload_id')
-      const multipartUploadId = String(multipartUploadIdRow || '').trim()
+      const multipartUploadId = String((row as any).multipart_upload_id || '').trim()
       if (multipartUploadId) {
         try {
           await abortMultipartUpload(loaded.config, r2Key, multipartUploadId)

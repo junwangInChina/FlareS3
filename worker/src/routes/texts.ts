@@ -1,5 +1,5 @@
 import type { Env } from '../config/env'
-import { jsonResponse, parseJson, getUser } from './utils'
+import { invalidJsonBodyResponse, jsonResponse, parseJson, getUser } from './utils'
 import { logAudit } from '../services/audit'
 import { getClientIp } from '../middleware/rateLimit'
 import {
@@ -119,8 +119,8 @@ export async function createText(request: Request, env: Env): Promise<Response> 
   let body: { title?: unknown; content?: unknown }
   try {
     body = await parseJson(request)
-  } catch (_error) {
-    return jsonResponse({ error: '请求体无效' }, 400)
+  } catch (error) {
+    return invalidJsonBodyResponse(error)
   }
 
   const title = clampString(normalizeString(body.title).trim(), MAX_TITLE_LENGTH)
@@ -183,8 +183,8 @@ export async function updateText(request: Request, env: Env, textId: string): Pr
   let body: { title?: unknown; content?: unknown }
   try {
     body = await parseJson(request)
-  } catch (_error) {
-    return jsonResponse({ error: '请求体无效' }, 400)
+  } catch (error) {
+    return invalidJsonBodyResponse(error)
   }
 
   const updates: string[] = []

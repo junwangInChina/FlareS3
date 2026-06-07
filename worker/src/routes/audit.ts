@@ -1,5 +1,5 @@
 import type { Env } from '../config/env'
-import { jsonResponse, parseJson } from './utils'
+import { invalidJsonBodyResponse, jsonResponse, parseJson } from './utils'
 import {
   measureRouteStep,
   withRouteTimingHeaders,
@@ -91,8 +91,8 @@ export async function batchDeleteAudit(request: Request, env: Env): Promise<Resp
   let body: { ids?: unknown }
   try {
     body = await parseJson<{ ids?: unknown }>(request)
-  } catch (_error) {
-    return jsonResponse({ error: '请求体无效' }, 400)
+  } catch (error) {
+    return invalidJsonBodyResponse(error)
   }
 
   const rawIds = Array.isArray(body.ids) ? body.ids : []

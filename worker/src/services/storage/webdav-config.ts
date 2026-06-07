@@ -7,6 +7,8 @@
 import type { Env } from '../../config/env'
 import { DEFAULT_TOTAL_STORAGE } from '../../config/env'
 import { encryptString, decryptString } from '../crypto'
+import { validateExternalEndpoint } from '../endpointPolicy'
+import { normalizeRemotePath } from './pathPolicy'
 
 // ── 类型 ──
 
@@ -119,7 +121,7 @@ export async function loadWebDAVConfigById(
         endpoint: String(row.endpoint),
         username,
         password,
-        remotePath: row.remote_path || '/',
+        remotePath: normalizeRemotePathOrThrow(row.remote_path || '/'),
         ...(row.mount_id ? { mountId: String(row.mount_id) } : {}),
       },
     }
@@ -141,7 +143,8 @@ export async function createWebDAVConfig(
   const now = new Date().toISOString()
   const usernameEnc = await encryptString(body.username, masterKey)
   const passwordEnc = await encryptString(body.password, masterKey)
-  const remotePath = body.remote_path || '/'
+  const endpoint = normalizeEndpointOrThrow(body.endpoint)
+  const remotePath = normalizeRemotePathOrThrow(body.remote_path)
 
   const result = await env.DB.prepare(
     `INSERT INTO webdav_configs (id, name, type, endpoint, mount_id, remote_path, username_enc, password_enc, quota_bytes, created_at, updated_at)
@@ -151,7 +154,7 @@ export async function createWebDAVConfig(
       id,
       body.name,
       body.type,
-      body.endpoint,
+      endpoint,
       body.type === 'koofr' && body.mount_id ? body.mount_id : null,
       remotePath,
       usernameEnc,
@@ -201,7 +204,7 @@ export async function updateWebDAVConfig(
 
   const nextName = body.name ?? String(existing.name)
   const nextType = body.type ?? String(existing.type)
-  const nextEndpoint = body.endpoint ?? String(existing.endpoint)
+  const nextEndpoint = normalizeEndpointOrThrow(body.endpoint ?? String(existing.endpoint))
 
   let nextQuotaBytes = Number(existing.quota_bytes)
   if (body.quota_bytes !== undefined) {
@@ -219,7 +222,9 @@ export async function updateWebDAVConfig(
       : null
 
   const nextRemotePath =
-    body.remote_path !== undefined ? body.remote_path || '/' : existing.remote_path || '/'
+    body.remote_path !== undefined
+      ? normalizeRemotePathOrThrow(body.remote_path)
+      : normalizeRemotePathOrThrow(existing.remote_path || '/')
 
   let usernameEnc = String(existing.username_enc)
   let passwordEnc = String(existing.password_enc)
@@ -266,4 +271,20 @@ export class StorageConfigError extends Error {
     super(message)
     this.name = 'StorageConfigError'
   }
+}
+
+function normalizeEndpointOrThrow(endpoint: unknown): string {
+  const endpointCheck = validateExternalEndpoint(endpoint)
+  if (!endpointCheck.ok) {
+    throw new StorageConfigError(endpointCheck.message)
+  }
+  return endpointCheck.url
+}
+
+function normalizeRemotePathOrThrow(remotePath: unknown): string {
+  const remotePathCheck = normalizeRemotePath(remotePath)
+  if (!remotePathCheck.ok) {
+    throw new StorageConfigError(remotePathCheck.message)
+  }
+  return remotePathCheck.remotePath
 }

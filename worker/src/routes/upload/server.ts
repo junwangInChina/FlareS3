@@ -10,9 +10,11 @@ import {
   uploadErrorResponse,
 } from '../../services/uploadErrors'
 import { createProvider } from '../../services/storage/factory'
+import { rejectInvalidContentLength } from '../../services/requestBodyPolicy'
 import { prepareConsumeUploadReservation } from '../../services/uploadReservations'
 import { resolveServerUploadConfigForUser } from '../../services/uploadConfigPolicy'
 import { generateRandomCode } from '../../utils/random'
+import { FILE_SHORT_CODE_LENGTH } from '../../utils/codePolicy'
 import {
   SHORT_CODE_MAX_ATTEMPTS,
   normalizeExpiresIn,
@@ -27,6 +29,7 @@ import {
 } from './helpers'
 
 const MAX_SERVER_UPLOAD_BYTES = 100 * 1024 * 1024
+const MAX_SERVER_UPLOAD_REQUEST_BYTES = MAX_SERVER_UPLOAD_BYTES + 1024 * 1024
 
 function formatServerError(error: unknown): { status: number; message: string } {
   if (error instanceof Error) {
@@ -49,6 +52,13 @@ export async function serverUpload(request: Request, env: Env): Promise<Response
     if (!contentType.includes('multipart/form-data')) {
       return jsonResponse({ error: '请求格式错误，需要 multipart/form-data' }, 400)
     }
+
+    const contentLengthResponse = rejectInvalidContentLength(
+      request,
+      MAX_SERVER_UPLOAD_REQUEST_BYTES,
+      '上传文件'
+    )
+    if (contentLengthResponse) return contentLengthResponse
 
     const formData = await request.formData()
     const configId = String(formData.get('config_id') || '').trim()
@@ -122,7 +132,7 @@ export async function serverUpload(request: Request, env: Env): Promise<Response
       const relativeKey = dir ? `${dir}/${resolvedFilename}` : resolvedFilename
       const r2Key = buildProviderScopedStorageKey(configId, relativeKey)
       const id = crypto.randomUUID()
-      const shortCode = generateRandomCode(6)
+      const shortCode = generateRandomCode(FILE_SHORT_CODE_LENGTH)
       uploadFile = { id, r2Key, shortCode, expiresAt, filename: resolvedFilename }
 
       const occupied = await env.DB.prepare('SELECT id FROM files WHERE r2_key = ? LIMIT 1')

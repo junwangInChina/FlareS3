@@ -1,7 +1,8 @@
 import type { Env } from '../config/env'
 import { getTotalStorage } from '../config/env'
-import { jsonResponse, parseJson, getUser } from './utils'
+import { jsonResponse, parseJson, getUser, requestBodyPolicyErrorResponse } from './utils'
 import { encryptString, validateBase64KeyLength } from '../services/crypto'
+import { validateExternalEndpoint } from '../services/endpointPolicy'
 import { formatBytes } from '../utils/format'
 import {
   LEGACY_R2_CONFIG_ID,
@@ -149,6 +150,10 @@ export async function createConfig(request: Request, env: Env): Promise<Response
     if (!Number.isFinite(quotaBytes) || quotaBytes <= 0) {
       return jsonResponse({ error: 'quota_bytes 必须为大于 0 的数字' }, 400)
     }
+    const endpointCheck = validateExternalEndpoint(body.endpoint)
+    if (!endpointCheck.ok) {
+      return jsonResponse({ error: endpointCheck.message }, 400)
+    }
 
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
@@ -162,7 +167,7 @@ export async function createConfig(request: Request, env: Env): Promise<Response
       .bind(
         id,
         body.name,
-        body.endpoint,
+        endpointCheck.url,
         body.bucket_name,
         accessEnc,
         secretEnc,
@@ -186,6 +191,8 @@ export async function createConfig(request: Request, env: Env): Promise<Response
 
     return jsonResponse({ success: true, id })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '创建配置失败' }, 500)
   }
 }
@@ -234,7 +241,7 @@ export async function updateConfig(request: Request, env: Env, id: string): Prom
     }
 
     const nextName = body.name ?? String(existing.name)
-    const nextEndpoint = body.endpoint ?? String(existing.endpoint)
+    const nextEndpointRaw = body.endpoint ?? String(existing.endpoint)
     const nextBucketName = body.bucket_name ?? String(existing.bucket_name)
     let nextQuotaBytes = Number(existing.quota_bytes)
     if (body.quota_bytes !== undefined) {
@@ -242,6 +249,10 @@ export async function updateConfig(request: Request, env: Env, id: string): Prom
     }
     if (!Number.isFinite(nextQuotaBytes) || nextQuotaBytes <= 0) {
       return jsonResponse({ error: 'quota_bytes 必须为大于 0 的数字' }, 400)
+    }
+    const endpointCheck = validateExternalEndpoint(nextEndpointRaw)
+    if (!endpointCheck.ok) {
+      return jsonResponse({ error: endpointCheck.message }, 400)
     }
 
     let accessEnc = String(existing.access_key_id_enc)
@@ -255,7 +266,7 @@ export async function updateConfig(request: Request, env: Env, id: string): Prom
       secretEnc = await encryptString(body.secret_access_key, masterKey)
     }
 
-    if (!nextName || !nextEndpoint || !nextBucketName || !accessEnc || !secretEnc) {
+    if (!nextName || !nextBucketName || !accessEnc || !secretEnc) {
       return jsonResponse({ error: '所有字段都是必填的' }, 400)
     }
 
@@ -265,11 +276,22 @@ export async function updateConfig(request: Request, env: Env, id: string): Prom
        SET name = ?, endpoint = ?, bucket_name = ?, quota_bytes = ?, access_key_id_enc = ?, secret_access_key_enc = ?, updated_at = ?
        WHERE id = ?`
     )
-      .bind(nextName, nextEndpoint, nextBucketName, nextQuotaBytes, accessEnc, secretEnc, now, id)
+      .bind(
+        nextName,
+        endpointCheck.url,
+        nextBucketName,
+        nextQuotaBytes,
+        accessEnc,
+        secretEnc,
+        now,
+        id
+      )
       .run()
 
     return jsonResponse({ success: true })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '更新配置失败' }, 500)
   }
 }
@@ -292,9 +314,18 @@ export async function deleteConfig(_request: Request, env: Env, id: string): Pro
     )
       .bind(prefix)
       .first('count')
+    const reservationCount = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM upload_reservations WHERE r2_config_id = ? AND status = 'active'"
+    )
+      .bind(id)
+      .first('count')
 
-    if (Number(fileCount || 0) > 0 || Number(queueCount || 0) > 0) {
-      return jsonResponse({ error: '该配置仍有关联文件，无法删除' }, 409)
+    if (
+      Number(fileCount || 0) > 0 ||
+      Number(queueCount || 0) > 0 ||
+      Number(reservationCount || 0) > 0
+    ) {
+      return jsonResponse({ error: '该配置仍有关联文件或上传预约，无法删除' }, 409)
     }
 
     await env.DB.prepare('DELETE FROM r2_configs WHERE id = ?').bind(id).run()
@@ -331,6 +362,8 @@ export async function setDefault(request: Request, env: Env): Promise<Response> 
     await setDefaultR2ConfigId(env, id)
     return jsonResponse({ success: true })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '设置默认配置失败' }, 500)
   }
 }
@@ -357,6 +390,8 @@ export async function setLegacyFiles(request: Request, env: Env): Promise<Respon
     await setLegacyFilesR2ConfigId(env, id)
     return jsonResponse({ success: true })
   } catch (error) {
+    const bodyError = requestBodyPolicyErrorResponse(error)
+    if (bodyError) return bodyError
     return jsonResponse({ error: '设置旧文件配置失败' }, 500)
   }
 }
