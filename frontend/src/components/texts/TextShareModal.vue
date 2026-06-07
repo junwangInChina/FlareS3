@@ -501,7 +501,8 @@ watch(
       loading.value = false
       saving.value = false
     }
-  }
+  },
+  { immediate: true }
 )
 
 watch(

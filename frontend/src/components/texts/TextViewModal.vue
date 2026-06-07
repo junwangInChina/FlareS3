@@ -143,7 +143,8 @@ watch(
     } else {
       resetView()
     }
-  }
+  },
+  { immediate: true }
 )
 </script>
 

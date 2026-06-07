@@ -271,41 +271,45 @@ const readPreviewError = async (response) => {
   return t('files.info.previewLoadFailed')
 }
 
-watch([() => props.show, previewKind, previewUrl], async ([show, kind, url], _prev, onCleanup) => {
-  previewError.value = ''
-  previewLoading.value = false
+watch(
+  [() => props.show, previewKind, previewUrl],
+  async ([show, kind, url], _prev, onCleanup) => {
+    previewError.value = ''
+    previewLoading.value = false
 
-  const shouldFetch = kind === 'text' || kind === 'markdown'
-  if (!show || !shouldFetch || !url) return
+    const shouldFetch = kind === 'text' || kind === 'markdown'
+    if (!show || !shouldFetch || !url) return
 
-  const fileId = String(props.file?.id || '').trim()
-  const cacheKey = getPreviewCacheKey(fileId, kind)
-  if (previewTextCache.has(cacheKey)) {
-    previewText.value = previewTextCache.get(cacheKey) || ''
-    return
-  }
-
-  previewText.value = ''
-  const controller = new AbortController()
-  onCleanup(() => controller.abort())
-
-  previewLoading.value = true
-  try {
-    const response = await fetch(url, { signal: controller.signal })
-    if (!response.ok) {
-      previewError.value = await readPreviewError(response)
+    const fileId = String(props.file?.id || '').trim()
+    const cacheKey = getPreviewCacheKey(fileId, kind)
+    if (previewTextCache.has(cacheKey)) {
+      previewText.value = previewTextCache.get(cacheKey) || ''
       return
     }
-    previewText.value = await response.text()
-    setPreviewCache(cacheKey, previewText.value)
-  } catch (error) {
-    if (error?.name !== 'AbortError') {
-      previewError.value = t('files.info.previewLoadFailed')
+
+    previewText.value = ''
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+
+    previewLoading.value = true
+    try {
+      const response = await fetch(url, { signal: controller.signal })
+      if (!response.ok) {
+        previewError.value = await readPreviewError(response)
+        return
+      }
+      previewText.value = await response.text()
+      setPreviewCache(cacheKey, previewText.value)
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        previewError.value = t('files.info.previewLoadFailed')
+      }
+    } finally {
+      previewLoading.value = false
     }
-  } finally {
-    previewLoading.value = false
-  }
-})
+  },
+  { immediate: true }
+)
 
 const fileInfoRows = computed(() => {
   const file = props.file

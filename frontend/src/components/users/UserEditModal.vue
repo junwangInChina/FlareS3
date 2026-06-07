@@ -32,7 +32,8 @@ watch(
   () => props.show,
   (show) => {
     if (show) resetForm()
-  }
+  },
+  { immediate: true }
 )
 
 watch(

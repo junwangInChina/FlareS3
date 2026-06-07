@@ -716,7 +716,8 @@ watch(
     } else {
       resetForm()
     }
-  }
+  },
+  { immediate: true }
 )
 
 watch(markdownPreview, async (enabled) => {

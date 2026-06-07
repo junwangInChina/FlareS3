@@ -160,48 +160,52 @@ const readPreviewError = async (response) => {
   return t('mount.preview.loadFailed')
 }
 
-watch([() => props.show, previewKind, previewUrl], async ([show, kind, url], _prev, onCleanup) => {
-  error.value = ''
-  loading.value = false
-  previewText.value = ''
-
-  const shouldFetchText = kind === 'text' || kind === 'markdown'
-  const shouldProbe = shouldProbeMountedPreviewAvailability(kind)
-  if (!show || (!shouldFetchText && !shouldProbe) || !url) return
-
-  const controller = new AbortController()
-  onCleanup(() => controller.abort())
-
-  loading.value = true
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      ...(shouldProbe
-        ? {
-            headers: {
-              Range: `bytes=0-${MAX_MEDIA_PREVIEW_PROBE_BYTES - 1}`,
-            },
-          }
-        : {}),
-    })
-    if (!response.ok) {
-      error.value = await readPreviewError(response)
-      return
-    }
-
-    if (shouldProbe) {
-      return
-    }
-
-    previewText.value = await response.text()
-  } catch (err) {
-    if (err?.name !== 'AbortError') {
-      error.value = t('mount.preview.loadFailed')
-    }
-  } finally {
+watch(
+  [() => props.show, previewKind, previewUrl],
+  async ([show, kind, url], _prev, onCleanup) => {
+    error.value = ''
     loading.value = false
-  }
-})
+    previewText.value = ''
+
+    const shouldFetchText = kind === 'text' || kind === 'markdown'
+    const shouldProbe = shouldProbeMountedPreviewAvailability(kind)
+    if (!show || (!shouldFetchText && !shouldProbe) || !url) return
+
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+
+    loading.value = true
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        ...(shouldProbe
+          ? {
+              headers: {
+                Range: `bytes=0-${MAX_MEDIA_PREVIEW_PROBE_BYTES - 1}`,
+              },
+            }
+          : {}),
+      })
+      if (!response.ok) {
+        error.value = await readPreviewError(response)
+        return
+      }
+
+      if (shouldProbe) {
+        return
+      }
+
+      previewText.value = await response.text()
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        error.value = t('mount.preview.loadFailed')
+      }
+    } finally {
+      loading.value = false
+    }
+  },
+  { immediate: true }
+)
 
 const copyKey = () => {
   const key = String(props.objectKey || '').trim()
