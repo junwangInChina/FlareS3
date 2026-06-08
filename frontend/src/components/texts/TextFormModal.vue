@@ -49,7 +49,7 @@
               class="markdown-editor-input"
             />
             <div v-if="markdownPreview" ref="markdownPreviewRef" class="markdown-preview">
-              <div class="text-viewer-markdown" v-html="markdownHtml"></div>
+              <div class="text-viewer-markdown markdown-content" v-html="markdownHtml"></div>
             </div>
           </div>
         </div>
@@ -83,8 +83,6 @@ import {
   Strikethrough,
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
-import MarkdownIt from 'markdown-it'
-import DOMPurify from 'dompurify'
 import Modal from '../ui/modal/Modal.vue'
 import FormItem from '../ui/form-item/FormItem.vue'
 import Input from '../ui/input/Input.vue'
@@ -93,6 +91,7 @@ import Switch from '../ui/switch/Switch.vue'
 import Tooltip from '../ui/tooltip/Tooltip.vue'
 import api from '../../services/api'
 import { useMessage } from '../../composables/useMessage'
+import { renderMarkdown } from '../../utils/markdown.js'
 
 const props = defineProps({
   show: Boolean,
@@ -108,12 +107,6 @@ const emit = defineEmits(['update:show', 'success'])
 
 const { t } = useI18n({ useScope: 'global' })
 const message = useMessage()
-
-const markdown = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-})
 
 const noop = () => {}
 
@@ -146,22 +139,6 @@ const markdownToolbarActions = computed(() => [
   { key: 'codeBlock', icon: Code2, label: t('texts.markdown.actions.codeBlock') },
   { key: 'hr', icon: Minus, label: t('texts.markdown.actions.hr') },
 ])
-
-const sanitizeMarkdownHtml = (html) => {
-  if (!html) return ''
-
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS: ['img'],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[/#.])/i,
-  })
-}
-
-const renderMarkdown = (value) => {
-  const source = String(value ?? '')
-  const raw = markdown.render(source)
-  return sanitizeMarkdownHtml(raw)
-}
 
 const AUTO_TITLE_MAX_CHARS = 50
 const AUTO_TITLE_ANALYSIS_MAX_CHARS = 4_000

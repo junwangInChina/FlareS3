@@ -35,7 +35,7 @@
             title="pdf-preview"
           />
           <div v-else-if="previewKind === 'markdown'" class="preview-pane">
-            <div class="preview-markdown" v-html="markdownHtml" />
+            <div class="preview-markdown markdown-content" v-html="markdownHtml" />
           </div>
           <pre v-else-if="previewKind === 'text'" class="preview-pane preview-pre">{{
             textDisplay
@@ -60,12 +60,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import MarkdownIt from 'markdown-it'
-import DOMPurify from 'dompurify'
 import Modal from '../ui/modal/Modal.vue'
 import Button from '../ui/button/Button.vue'
 import Alert from '../ui/alert/Alert.vue'
 import { useMessage } from '../../composables/useMessage'
+import { renderMarkdown } from '../../utils/markdown.js'
 import {
   getMountedPreviewKind,
   shouldProbeMountedPreviewAvailability,
@@ -116,18 +115,10 @@ const loading = ref(false)
 const error = ref('')
 const MAX_MEDIA_PREVIEW_PROBE_BYTES = 4096
 
-const sanitizeMarkdownHtml = (html) => {
-  if (!html) return ''
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS: ['img'],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[/#.])/i,
-  })
-}
-
-const md = new MarkdownIt({ html: false, linkify: false, breaks: true })
 const markdownHtml = computed(() =>
-  previewKind.value === 'markdown' ? sanitizeMarkdownHtml(md.render(previewText.value || '')) : ''
+  previewKind.value === 'markdown'
+    ? renderMarkdown(previewText.value || '', { linkify: false })
+    : ''
 )
 
 const textDisplay = computed(() => {

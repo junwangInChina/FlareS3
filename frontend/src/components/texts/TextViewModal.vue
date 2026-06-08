@@ -22,7 +22,11 @@
           <Copy :size="16" />
         </Button>
         <div class="text-viewer-body">
-          <div v-if="isMarkdown" class="text-viewer-markdown" v-html="markdownHtml"></div>
+          <div
+            v-if="isMarkdown"
+            class="text-viewer-markdown markdown-content"
+            v-html="markdownHtml"
+          ></div>
           <pre v-else class="text-viewer-content">{{ content || '-' }}</pre>
         </div>
       </div>
@@ -38,12 +42,11 @@
 import { computed, ref, watch } from 'vue'
 import { Copy } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
-import MarkdownIt from 'markdown-it'
-import DOMPurify from 'dompurify'
 import Modal from '../ui/modal/Modal.vue'
 import Button from '../ui/button/Button.vue'
 import api from '../../services/api'
 import { useMessage } from '../../composables/useMessage'
+import { isLikelyMarkdown, renderMarkdown } from '../../utils/markdown.js'
 
 const props = defineProps({
   show: Boolean,
@@ -55,51 +58,11 @@ const emit = defineEmits(['update:show'])
 const { t } = useI18n({ useScope: 'global' })
 const message = useMessage()
 
-const markdown = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-})
-
 const content = ref('')
 const loading = ref(false)
 
 const isMarkdown = computed(() => isLikelyMarkdown(content.value))
 const markdownHtml = computed(() => (isMarkdown.value ? renderMarkdown(content.value) : ''))
-
-const isLikelyMarkdown = (value) => {
-  const text = String(value ?? '')
-  if (!text.trim()) return false
-
-  let score = 0
-
-  if (/```|~~~/.test(text)) score += 3
-  if (/\[[^\]]+\]\([^)]+\)/.test(text)) score += 2
-  if (/(\*\*|__)[^\s].+?(\*\*|__)/.test(text)) score += 1
-
-  const lines = text.split(/\r?\n/)
-  if (lines.some((line) => /^#{1,6}\s+\S/.test(line))) score += 2
-  if (lines.some((line) => /^\s*>\s+\S/.test(line))) score += 1
-  if (lines.some((line) => /^\s*([-*+]|\d+\.)\s+\S/.test(line))) score += 1
-
-  return score >= 2
-}
-
-const sanitizeMarkdownHtml = (html) => {
-  if (!html) return ''
-
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS: ['img'],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[/#.])/i,
-  })
-}
-
-const renderMarkdown = (value) => {
-  const source = String(value ?? '')
-  const raw = markdown.render(source)
-  return sanitizeMarkdownHtml(raw)
-}
 
 const resetView = () => {
   content.value = ''

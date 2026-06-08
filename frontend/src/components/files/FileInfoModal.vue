@@ -49,7 +49,11 @@
               <div v-else-if="previewError" class="file-preview-placeholder">
                 {{ previewError }}
               </div>
-              <div v-else class="file-preview-markdown" v-html="previewMarkdownHtml" />
+              <div
+                v-else
+                class="file-preview-markdown markdown-content"
+                v-html="previewMarkdownHtml"
+              />
             </div>
             <pre v-else-if="previewKind === 'text'" class="file-preview-pane file-preview-pre">{{
               previewTextDisplay
@@ -98,13 +102,12 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import MarkdownIt from 'markdown-it'
-import DOMPurify from 'dompurify'
 import Modal from '../ui/modal/Modal.vue'
 import Divider from '../ui/divider/Divider.vue'
 import Input from '../ui/input/Input.vue'
 import Button from '../ui/button/Button.vue'
 import { useMessage } from '../../composables/useMessage'
+import { renderMarkdown } from '../../utils/markdown.js'
 
 const props = defineProps({
   show: Boolean,
@@ -227,21 +230,10 @@ const setPreviewCache = (key, value) => {
   previewTextCache.set(key, value)
 }
 
-const sanitizeMarkdownHtml = (html) => {
-  if (!html) return ''
-
-  // DOMPurify 默认会移除危险标签/属性（含 on* 事件、javascript: URL 等）
-  // 这里额外禁用 img，避免通过图片进行外联追踪 / 带宽消耗
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS: ['img'],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[/#.])/i,
-  })
-}
-
-const md = new MarkdownIt({ html: false, linkify: false, breaks: true })
 const previewMarkdownHtml = computed(() =>
-  previewKind.value === 'markdown' ? sanitizeMarkdownHtml(md.render(previewText.value || '')) : ''
+  previewKind.value === 'markdown'
+    ? renderMarkdown(previewText.value || '', { linkify: false })
+    : ''
 )
 const previewTextDisplay = computed(() => {
   if (previewLoading.value) return t('files.state.loading')

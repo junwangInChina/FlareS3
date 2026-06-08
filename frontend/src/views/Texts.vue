@@ -245,6 +245,7 @@ import Tooltip from '../components/ui/tooltip/Tooltip.vue'
 import TableCellText from '../components/ui/table/TableCellText.vue'
 import { useMessage } from '../composables/useMessage'
 import { useResponsiveViewMode } from '../composables/useResponsiveViewMode.js'
+import { isLikelyMarkdown } from '../utils/markdown.js'
 
 const TextsCardView = defineAsyncComponent(() => import('../components/texts/TextsCardView.vue'))
 const TextFormModal = defineAsyncComponent(() => import('../components/texts/TextFormModal.vue'))
@@ -314,24 +315,6 @@ const buildPreview = (row) => {
   const contentLength = Number(row?.content_length ?? preview.length)
   const suffix = contentLength > preview.length ? '…' : ''
   return preview ? `${preview}${suffix}` : '-'
-}
-
-const isLikelyMarkdown = (text) => {
-  const content = String(text ?? '')
-  if (!content.trim()) return false
-
-  let score = 0
-
-  if (/```|~~~/.test(content)) score += 3
-  if (/\[[^\]]+\]\([^)]+\)/.test(content)) score += 2
-  if (/(\*\*|__)[^\s].+?(\*\*|__)/.test(content)) score += 1
-
-  const lines = content.split(/\r?\n/)
-  if (lines.some((line) => /^#{1,6}\s+\S/.test(line))) score += 2
-  if (lines.some((line) => /^\s*>\s+\S/.test(line))) score += 1
-  if (lines.some((line) => /^\s*([-*+]|\d+\.)\s+\S/.test(line))) score += 1
-
-  return score >= 2
 }
 
 const detectFileType = (row) => {
