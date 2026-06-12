@@ -4,7 +4,7 @@ import { verifyPassword } from '../services/password'
 import { recordFailedAttempt, getClientIp } from '../middleware/rateLimit'
 import { logAudit } from '../services/audit'
 import { getSessionCookieName, invalidateAuthToken, type AuthUser } from '../middleware/authSession'
-import { createSignedAuthToken } from '../services/authToken'
+import { createSignedAuthToken, getAuthTokenSecret } from '../services/authToken'
 import { hashToken } from '../utils/token'
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60
@@ -29,6 +29,9 @@ export async function login(request: Request, env: Env): Promise<Response> {
     const body = await parseJson<{ username: string; password: string }>(request)
     if (!body.username || !body.password) {
       return jsonResponse({ error: '用户名或密码不能为空' }, 400)
+    }
+    if (!getAuthTokenSecret(env)) {
+      return jsonResponse({ error: '缺少 AUTH_TOKEN_SECRET' }, 500)
     }
     const user = await env.DB.prepare(
       'SELECT id, username, password_hash, role, status, quota_bytes FROM users WHERE username = ? LIMIT 1'
@@ -88,13 +91,15 @@ export async function login(request: Request, env: Env): Promise<Response> {
       status: 'active',
       quota_bytes: Number(user.quota_bytes),
     }
-    const sessionToken =
-      (await createSignedAuthToken(env, {
-        sessionId,
-        user: authUser,
-        issuedAtMs,
-        expiresAtSeconds,
-      })) || crypto.randomUUID() + crypto.randomUUID()
+    const sessionToken = await createSignedAuthToken(env, {
+      sessionId,
+      user: authUser,
+      issuedAtMs,
+      expiresAtSeconds,
+    })
+    if (!sessionToken) {
+      return jsonResponse({ error: '缺少 AUTH_TOKEN_SECRET' }, 500)
+    }
     const tokenHash = await hashToken(sessionToken)
     await env.DB.prepare(
       `INSERT INTO sessions (id, user_id, token_hash, expires_at, ip, user_agent, created_at)
