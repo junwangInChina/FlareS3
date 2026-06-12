@@ -10,10 +10,7 @@ function getChanges(result: unknown): number {
   return Number.isFinite(changes) ? Number(changes) : 0
 }
 
-export async function cleanupRetention(
-  env: Env,
-  now = new Date()
-): Promise<JobExecutionResult> {
+export async function cleanupRetention(env: Env, now = new Date()): Promise<JobExecutionResult> {
   const startedAtMs = now.getTime()
   const nowIso = now.toISOString()
   const sessionThresholdIso = new Date(now.getTime() - SESSION_RETENTION_MS).toISOString()

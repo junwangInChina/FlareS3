@@ -91,6 +91,7 @@ export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> 
         await deleteProviderObject(env, explicitProviderConfigId, r2Key)
         await env.DB.batch([
           prepareReleaseUploadReservation(env.DB, fileId, now),
+          env.DB.prepare('DELETE FROM file_shares WHERE file_id = ?').bind(fileId),
           env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId),
           env.DB.prepare('UPDATE delete_queue SET processed_at = ? WHERE id = ?').bind(
             now,
@@ -142,6 +143,7 @@ export async function cleanupDeleteQueue(env: Env): Promise<JobExecutionResult> 
 
     await env.DB.batch([
       prepareReleaseUploadReservation(env.DB, fileId, now),
+      env.DB.prepare('DELETE FROM file_shares WHERE file_id = ?').bind(fileId),
       env.DB.prepare('DELETE FROM files WHERE id = ?').bind(fileId),
       env.DB.prepare('UPDATE delete_queue SET processed_at = ? WHERE id = ?').bind(now, queueId),
     ])
