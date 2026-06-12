@@ -14,7 +14,11 @@
 ```
 ./flares3
 ├── frontend
-└── worker
+├── worker
+├── tests
+│   ├── frontend
+│   └── worker
+└── docs
 ```
 
 ## 本地开发
@@ -49,6 +53,7 @@ npx wrangler d1 migrations apply "DB" --local
 - 设置以下必需变量：
   - `BOOTSTRAP_ADMIN_USER`
   - `BOOTSTRAP_ADMIN_PASS`
+  - `AUTH_TOKEN_SECRET`（认证 Cookie / Bearer token 签名密钥；必填，不要与 `R2_MASTER_KEY` 共用）
   - `R2_MASTER_KEY`（32 字节 base64，可用 `openssl rand -base64 32` 生成；需长期保持不变，用于加密/解密 UI 保存的 R2 访问密钥）
 
 > 注意：`worker/.dev.vars` 仅用于本地 `wrangler dev`；生产环境请在 Cloudflare Dashboard 或 `wrangler secret put` 配置变量与 Secrets（不要提交/分享该文件）。  
@@ -84,6 +89,14 @@ npm run format:check
 npm run verify:release
 ```
 
+测试源码统一放在根级 `tests/`：
+
+- `tests/worker/**/*.test.cjs`：Worker 单测，按 `routes/`、`services/`、`jobs/`、`config/`、`migrations/`、`workflows/` 等架构目录分组；仍通过 `npm --prefix worker run test` 先编译到 `worker/.test-dist` 后运行。
+- `tests/frontend/**/*.test.js`：前端纯函数 / 源码结构测试，按 `components/`、`views/`、`utils/`、`composables/`、`public/` 分组；通过根脚本 `npm run test` 运行。
+- `worker/tests` 与 `frontend/tests` 不再作为测试源码目录。
+
+`npm run verify:release` 是发布前阻塞门禁，包含 `audit:prod + lint + format:check + typecheck + test + build + worker dry-run`。
+
 ## 部署到 Cloudflare
 
 本项目支持两种部署模式：
@@ -108,7 +121,7 @@ npm run verify:release
 3. 对已有库先补齐历史缺失列，再执行 migration：
    - `node ./scripts/reconcile-legacy-d1-columns.mjs --config "wrangler.toml" --database "DB" --remote`
    - `npx wrangler --config "wrangler.toml" d1 migrations apply "DB" --remote`
-4. 部署 Worker（`wrangler deploy`，部署/更新 `flares3-worker`）
+4. 部署 Worker：`npm --prefix worker run deploy`（等价于 `wrangler deploy --config wrangler.toml`，部署/更新 `flares3-worker`）
 5. Pages 绑定路由：`/api/*`、`/s/*`、`/f/*`、`/t/*`
 
 #### B) 单 Worker 全栈部署（Worker Only）
@@ -124,7 +137,7 @@ npm run verify:release
 
 ### 自动化部署（可选）
 
-仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖，并执行与 Day5 放行一致的 `npm run verify:release`（`audit:prod + lint + typecheck + test + build + worker dry-run`）。
+仓库内置基础 CI（见 `.github/workflows/ci.yml`）：分别在 `worker/` 与 `frontend/` 安装依赖，并执行与 Day5 放行一致的 `npm run verify:release`（`audit:prod + lint + format:check + typecheck + test + build + worker dry-run`）。
 
 如需 CD（由 GitHub Actions 发布），当前建议按“直接主链路 + 手动备用链路”使用：
 
@@ -132,7 +145,7 @@ npm run verify:release
   - GitHub Actions 名称：`Deploy Worker Only`
   - `push` 到 `main` 自动触发，同时保留 `workflow_dispatch`
   - 单 job 直接部署，不依赖 GitHub `staging` / `production` Environments
-  - 部署前强制执行 `npm run verify:release`（`audit:prod + lint + typecheck + test + build + worker dry-run`），失败则不会继续发布
+  - 部署前强制执行 `npm run verify:release`（`audit:prod + lint + format:check + typecheck + test + build + worker dry-run`），失败则不会继续发布
   - 从 `worker/wrangler.full.toml` 读取 Worker 名称与 D1 数据库名，生成临时 `worker/wrangler.full.ci.toml` 并注入真实 `database_id`
 - **拆分部署手动备用链路**：`.github/workflows/deploy.yml`
   - GitHub Actions 名称：`Manual Split Pages + Worker Deploy`
@@ -157,7 +170,8 @@ npm run verify:release
      - `BOOTSTRAP_ADMIN_USER`：普通变量（非敏感）
      - `BOOTSTRAP_ADMIN_PASS`：Secret（敏感，强密码）
      - `R2_MASTER_KEY`：Secret（32 字节 base64；需要长期保持不变）。
-     - GitHub Actions 部署流程只会校验该 Secret 是否存在；若不存在会直接失败，不会自动生成。
+     - `AUTH_TOKEN_SECRET`：Secret（认证签名密钥；必填，不要与 `R2_MASTER_KEY` 共用）。
+     - GitHub Actions 部署流程会校验上述两个 Worker Secret 是否存在；若不存在会直接失败，不会自动生成。
      - ⚠️ 请在首次部署前手动配置该值，且一旦生成/设置后请勿随意修改，否则历史已保存的 R2 配置（存储在 D1 内的密钥密文）将无法解密。
    - ⚠️ `worker/.dev.vars` 仅用于本地 `wrangler dev`；生产环境不要提交/分享该文件。
    - R2 访问配置（Endpoint / Access Key / Secret Key / Bucket）请部署后访问 `/setup` 在 UI 中创建/管理（写入 D1）。
@@ -196,9 +210,9 @@ npm run verify:release
 `Deploy Worker Only` 会依次执行：
 
 1. 安装依赖（`worker/`、`frontend/`）
-2. 执行 `npm run verify:release`（包含生产依赖审计、lint、typecheck、test、build、worker dry-run；失败则停止发布）
+2. 执行 `npm run verify:release`（包含生产依赖审计、lint、format:check、typecheck、test、build、worker dry-run；失败则停止发布）
 3. 从 `worker/wrangler.full.toml` 解析 `name` / `database_name`，自动确保目标 D1 存在，并生成临时 `worker/wrangler.full.ci.toml`（注入真实 `database_id`）
-4. 校验目标 Worker 已存在 `R2_MASTER_KEY`
+4. 校验目标 Worker 已存在 `R2_MASTER_KEY` 与 `AUTH_TOKEN_SECRET`
 5. 补齐历史 D1 缺失列：`node ./scripts/reconcile-legacy-d1-columns.mjs --config wrangler.full.ci.toml --database DB --remote`
 6. 应用版本化 migration：`wrangler --config wrangler.full.ci.toml d1 migrations apply DB --remote`
 7. 部署全栈 Worker：`wrangler --config wrangler.full.ci.toml deploy`
