@@ -5,12 +5,7 @@
       :class="{ 'is-disabled': isUploadEntryDisabled }"
       :aria-disabled="isUploadEntryDisabled ? 'true' : 'false'"
     >
-      <Upload
-        ref="uploadRef"
-        multiple
-        @file-selected="handleUpload"
-        @before-upload="beforeUpload"
-      >
+      <Upload ref="uploadRef" multiple @file-selected="handleUpload" @before-upload="beforeUpload">
         <p class="upload-hint">{{ uploadHintText }}</p>
       </Upload>
     </div>
@@ -23,14 +18,22 @@
 
     <div class="upload-options">
       <div class="upload-options-row">
-        <FormItem v-if="uploadConfigOptions.length > 1" :label="t('upload.uploadConfig')" class="upload-options-row-item">
+        <FormItem
+          v-if="uploadConfigOptions.length > 1"
+          :label="t('upload.uploadConfig')"
+          class="upload-options-row-item"
+        >
           <Select
             v-model="selectedConfigId"
             :options="uploadConfigOptions"
             :disabled="configOptionsLoading"
           />
         </FormItem>
-        <FormItem v-else-if="uploadConfigOptions.length === 1" :label="t('upload.uploadConfig')" class="upload-options-row-item">
+        <FormItem
+          v-else-if="uploadConfigOptions.length === 1"
+          :label="t('upload.uploadConfig')"
+          class="upload-options-row-item"
+        >
           <div class="selected-config-label">{{ selectedConfigLabel }}</div>
         </FormItem>
 
@@ -116,6 +119,13 @@ import UploadQueueList from './UploadQueueList.vue'
 import { useMessage } from '../../composables/useMessage'
 import { useUploadQueue } from '../../composables/useUploadQueue.js'
 import { resolveUploadErrorMessage } from '../../utils/uploadErrors.js'
+import {
+  createCancelledError,
+  formatBytes,
+  isCancelledError,
+  resolveDownloadUrl,
+  resolveShortUrl,
+} from '../../utils/uploadPanel.js'
 
 const emit = defineEmits(['uploaded'])
 
@@ -135,16 +145,21 @@ const hasAvailableUploadConfig = computed(() => uploadConfigOptions.value.length
 const isSelectedConfigValid = computed(() =>
   uploadConfigOptions.value.some((option) => option.value === selectedConfigId.value)
 )
-const selectedConfigType = computed(() =>
-  uploadConfigOptions.value.find((option) => option.value === selectedConfigId.value)?.type || 'r2'
+const selectedConfigType = computed(
+  () =>
+    uploadConfigOptions.value.find((option) => option.value === selectedConfigId.value)?.type ||
+    'r2'
 )
 const selectedConfigLabel = computed(
-  () => uploadConfigOptions.value.find((option) => option.value === selectedConfigId.value)?.label || ''
+  () =>
+    uploadConfigOptions.value.find((option) => option.value === selectedConfigId.value)?.label || ''
 )
 const resolvedUploadConfigId = computed(() =>
   isSelectedConfigValid.value ? selectedConfigId.value : ''
 )
-const isUploadEntryDisabled = computed(() => configOptionsLoading.value || !hasAvailableUploadConfig.value)
+const isUploadEntryDisabled = computed(
+  () => configOptionsLoading.value || !hasAvailableUploadConfig.value
+)
 const uploadHintText = computed(() => {
   if (selectedConfigType.value === 'r2') {
     return t('upload.hint5gb')
@@ -183,22 +198,6 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024
 const MAX_SERVER_UPLOAD_SIZE = 100 * 1024 * 1024
 const MULTIPART_THRESHOLD = 100 * 1024 * 1024
 const PART_UPLOAD_RETRY_COUNT = 3
-
-const createCancelledError = () => new Error('UPLOAD_CANCELLED')
-
-const isCancelledError = (error) =>
-  error?.code === 'ERR_CANCELED' ||
-  error?.name === 'CanceledError' ||
-  error?.message === 'UPLOAD_CANCELLED'
-
-const formatBytes = (bytes) => {
-  const value = Number(bytes)
-  if (!Number.isFinite(value) || value <= 0) return '0 B'
-  const unit = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const index = Math.min(Math.floor(Math.log(value) / Math.log(unit)), sizes.length - 1)
-  return `${(value / Math.pow(unit, index)).toFixed(2)} ${sizes[index]}`
-}
 
 const formatDuration = (seconds) => {
   if (seconds < 60) return t('upload.seconds', { value: Number(seconds).toFixed(1) })
@@ -261,40 +260,6 @@ const ensureTaskActive = (taskState, isCancelled) => {
   }
 }
 
-const resolveSameOriginUrl = (value, fallbackPath = '') => {
-  const raw = String(value || '').trim()
-  const path = raw.startsWith('/') && !raw.startsWith('//') ? raw : fallbackPath
-  if (!path) return ''
-  if (typeof window === 'undefined') return path
-  return `${window.location.origin}${path}`
-}
-
-const resolveDownloadUrl = (value, fallbackPath = '') => {
-  const raw = String(value || '').trim()
-  if (raw) {
-    if (raw.startsWith('/') && !raw.startsWith('//')) {
-      return resolveSameOriginUrl(raw)
-    }
-    try {
-      const url = new URL(raw)
-      if (url.protocol === 'https:') {
-        return url.toString()
-      }
-    } catch {
-      // Fall through to the authenticated app download URL.
-    }
-  }
-  return resolveSameOriginUrl(fallbackPath)
-}
-
-const resolveShortUrl = (value) => {
-  const raw = String(value || '').trim()
-  if (raw.startsWith('/s/') && !raw.startsWith('//')) {
-    return resolveSameOriginUrl(raw)
-  }
-  return ''
-}
-
 const cancelTask = async (taskState) => {
   if (taskState.cancelRequested) return
 
@@ -316,7 +281,8 @@ const cancelTask = async (taskState) => {
 const updateUploadStats = (taskState, taskFile, updateItem, loaded, total) => {
   const totalBytes = Number(total || taskFile.size || 0)
   const uploadedBytes = Math.max(0, Number(loaded || 0))
-  const progress = totalBytes > 0 ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)) : 0
+  const progress =
+    totalBytes > 0 ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)) : 0
   const elapsedSeconds = Math.max((Date.now() - taskState.uploadStartTime) / 1000, 0.001)
   const avgSpeed = uploadedBytes / elapsedSeconds
   const remainingSeconds = avgSpeed > 0 ? (totalBytes - uploadedBytes) / avgSpeed : Number.NaN
@@ -327,7 +293,9 @@ const updateUploadStats = (taskState, taskFile, updateItem, loaded, total) => {
     totalBytes,
     speed: uploadedBytes > 0 ? `${formatBytes(avgSpeed)}/s` : t('upload.preparing'),
     remainingTime:
-      uploadedBytes >= totalBytes ? t('upload.secondsOnly', { value: 0 }) : formatRemainingTime(remainingSeconds),
+      uploadedBytes >= totalBytes
+        ? t('upload.secondsOnly', { value: 0 })
+        : formatRemainingTime(remainingSeconds),
   })
 }
 
@@ -673,7 +641,8 @@ onMounted(async () => {
     const result = await api.getUploadOptions()
     const options = Array.isArray(result.options) ? result.options : []
     uploadConfigOptions.value = options.map((option) => {
-      const typeLabel = option.type === 'koofr' ? 'Koofr' : option.type === 'webdav' ? 'WebDAV' : 'R2'
+      const typeLabel =
+        option.type === 'koofr' ? 'Koofr' : option.type === 'webdav' ? 'WebDAV' : 'R2'
       return {
         label: `${option.name} (${typeLabel})`,
         value: option.id,
