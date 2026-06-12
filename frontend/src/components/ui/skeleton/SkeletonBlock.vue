@@ -43,7 +43,9 @@ const skeletonStyle = computed(() => ({
       transparent 100%
     ),
     color-mix(in srgb, var(--nb-border, #d4d4d8) 72%, var(--nb-surface, #ffffff));
-  background-size: 220% 100%, 100% 100%;
+  background-size:
+    220% 100%,
+    100% 100%;
   animation: skeleton-shimmer 1.15s ease-in-out infinite;
 }
 
@@ -56,16 +58,22 @@ const skeletonStyle = computed(() => ({
       transparent 100%
     ),
     color-mix(in oklab, var(--muted, #f1f5f9) 82%, var(--border, #e2e8f0));
-  background-size: 220% 100%, 100% 100%;
+  background-size:
+    220% 100%,
+    100% 100%;
 }
 
 @keyframes skeleton-shimmer {
   0% {
-    background-position: 120% 0, 0 0;
+    background-position:
+      120% 0,
+      0 0;
   }
 
   100% {
-    background-position: -120% 0, 0 0;
+    background-position:
+      -120% 0,
+      0 0;
   }
 }
 

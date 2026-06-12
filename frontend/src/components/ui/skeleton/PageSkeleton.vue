@@ -42,7 +42,9 @@ const tableStyle = computed(() => ({
   '--page-skeleton-columns': columnItems.value.length,
   '--page-skeleton-min-width': `${columnItems.value.length * 112}px`,
 }))
-const cardsStyle = computed(() => ({ '--page-skeleton-card-min': normalizeSize(props.minCardWidth) }))
+const cardsStyle = computed(() => ({
+  '--page-skeleton-card-min': normalizeSize(props.minCardWidth),
+}))
 
 const tableCellWidth = (columnIndex, rowIndex) => {
   const widths = ['68%', '88%', '54%', '72%', '46%', '62%', '80%']
@@ -62,7 +64,11 @@ const cardLineWidth = (lineIndex, cardIndex) => {
     aria-hidden="true"
   >
     <section class="dashboard-skeleton-overview">
-      <div v-for="card in 4" :key="`overview-${card}`" class="skeleton-surface dashboard-overview-card">
+      <div
+        v-for="card in 4"
+        :key="`overview-${card}`"
+        class="skeleton-surface dashboard-overview-card"
+      >
         <SkeletonBlock width="46%" height="13px" />
         <SkeletonBlock width="72%" height="34px" radius="10px" />
         <SkeletonBlock width="58%" height="13px" />
@@ -76,7 +82,12 @@ const cardLineWidth = (lineIndex, cardIndex) => {
           <div class="dashboard-ring-row">
             <SkeletonBlock width="176px" height="176px" radius="999px" />
             <div class="dashboard-ring-lines">
-              <SkeletonBlock v-for="line in 4" :key="`ring-line-${line}`" width="100%" height="16px" />
+              <SkeletonBlock
+                v-for="line in 4"
+                :key="`ring-line-${line}`"
+                width="100%"
+                height="16px"
+              />
             </div>
           </div>
         </div>
@@ -103,7 +114,12 @@ const cardLineWidth = (lineIndex, cardIndex) => {
           <SkeletonBlock width="36%" height="18px" radius="8px" />
           <SkeletonBlock width="100%" height="10px" />
           <div class="dashboard-freshness-lines">
-            <SkeletonBlock v-for="line in 3" :key="`freshness-${line}`" width="100%" height="16px" />
+            <SkeletonBlock
+              v-for="line in 3"
+              :key="`freshness-${line}`"
+              width="100%"
+              height="16px"
+            />
           </div>
         </div>
       </div>
