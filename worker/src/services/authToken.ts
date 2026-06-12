@@ -29,7 +29,7 @@ export type VerifiedAuthToken = {
 }
 
 export function getAuthTokenSecret(env: Env): string {
-  return String(env.AUTH_TOKEN_SECRET || env.R2_MASTER_KEY || '').trim()
+  return String(env.AUTH_TOKEN_SECRET || '').trim()
 }
 
 export function isLikelySignedAuthToken(token: string): boolean {
