@@ -6,7 +6,7 @@ export type Env = {
   BOOTSTRAP_ADMIN_USER?: string
   BOOTSTRAP_ADMIN_PASS?: string
   /**
-   * 用于签名认证 Cookie / Bearer token。未设置时回退使用 R2_MASTER_KEY。
+   * 用于签名认证 Cookie / Bearer token。必填，不得回退到 R2_MASTER_KEY。
    */
   AUTH_TOKEN_SECRET?: string
   FLARES3_DEBUG_HEADERS?: string
