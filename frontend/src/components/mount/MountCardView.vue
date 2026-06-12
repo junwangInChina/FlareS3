@@ -244,7 +244,10 @@ const { t } = useI18n({ useScope: 'global' })
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: max-width 0.2s ease, margin-left 0.2s ease, opacity 0.2s ease;
+  transition:
+    max-width 0.2s ease,
+    margin-left 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .mount-card:hover :deep(.header-extra),
