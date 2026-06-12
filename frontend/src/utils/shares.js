@@ -10,6 +10,8 @@ function normalizeText(value) {
   return String(value ?? '').trim()
 }
 
+export { normalizeText as normalizeShareText }
+
 function normalizeSearchText(value) {
   return normalizeText(value).toLowerCase()
 }
@@ -42,7 +44,9 @@ function applyDateRangeParams(params, startDateValue, endDateValue, fromKey, toK
   }
 
   if (fromDate && toDate && fromDate > toDate) {
-    [fromDate, toDate] = [toDate, fromDate]
+    const earlierDate = toDate
+    toDate = fromDate
+    fromDate = earlierDate
   }
 
   const fromIso = fromDate ? toIsoStartOfDay(fromDate) : null
@@ -72,6 +76,8 @@ function applyDateRangeParams(params, startDateValue, endDateValue, fromKey, toK
 
 export const DEFAULT_SHARE_SORT_KEY = 'updated_at__desc'
 export const EXPIRED_GOVERNANCE_SORT_KEY = 'expires_at__asc'
+export const SHARE_FILTERS_STORAGE_KEY = 'flares3:shares:filters'
+export const BATCH_DISABLE_SHARE_ACTION_KEY = 'batch_disable'
 const DEFAULT_SHARE_FILTERS = Object.freeze({
   q: '',
   type: '',
@@ -250,6 +256,43 @@ export function buildExpiringGovernanceFilters(filters = {}) {
   }
 }
 
+export function hasActiveShareFilters(filters = {}, { isAdmin = false } = {}) {
+  const normalizedFilters = normalizeShareFilters(filters)
+  const queryActive = Boolean(normalizedFilters.q)
+  const ownerActive = isAdmin && Boolean(normalizedFilters.owner_id)
+  const expiresRangeActive = Boolean(
+    normalizedFilters.expires_from_date || normalizedFilters.expires_to_date
+  )
+
+  return Boolean(
+    queryActive ||
+    normalizedFilters.type ||
+    normalizedFilters.status ||
+    expiresRangeActive ||
+    ownerActive
+  )
+}
+
+export function isExpiredShareGovernanceActive(filters = {}) {
+  const normalizedFilters = normalizeShareFilters(filters)
+  return (
+    normalizedFilters.status === 'expired' &&
+    normalizedFilters.sort_key === EXPIRED_GOVERNANCE_SORT_KEY &&
+    !normalizedFilters.expires_from_date &&
+    !normalizedFilters.expires_to_date
+  )
+}
+
+export function isExpiringShareGovernanceActive(filters = {}) {
+  const normalizedFilters = normalizeShareFilters(filters)
+  return (
+    normalizedFilters.status === 'active' &&
+    normalizedFilters.sort_key === EXPIRED_GOVERNANCE_SORT_KEY &&
+    !normalizedFilters.expires_from_date &&
+    !normalizedFilters.expires_to_date
+  )
+}
+
 export function getShareConfirmMeta(action, record = {}) {
   const resourceName = normalizeText(record.resource_name)
   const typeLabelKey = toShareTypeLabelKey(record.type)
@@ -302,7 +345,9 @@ export function toShareSelectionKey(record = {}) {
 }
 
 export function collectSelectedShares(items = [], selectedIds = []) {
-  const selectedKeySet = new Set((selectedIds || []).map((value) => normalizeText(value)).filter(Boolean))
+  const selectedKeySet = new Set(
+    (selectedIds || []).map((value) => normalizeText(value)).filter(Boolean)
+  )
   if (!selectedKeySet.size) {
     return []
   }
@@ -316,14 +361,33 @@ export function collectSelectedShares(items = [], selectedIds = []) {
   })
 }
 
-export function getBatchDisableFeedbackMeta({
-  total = 0,
-  successCount = 0,
-  failedCount = 0,
-} = {}) {
+export function buildShareSelectedIdSet(selectedIds = []) {
+  return new Set((selectedIds || []).map((id) => normalizeText(id)).filter(Boolean))
+}
+
+export function updateShareSelection(selectedIds = [], rowId = '', checked = false) {
+  const id = normalizeText(rowId)
+  if (!id) {
+    return selectedIds
+  }
+
+  const next = buildShareSelectedIdSet(selectedIds)
+  if (checked) {
+    next.add(id)
+  } else {
+    next.delete(id)
+  }
+  return Array.from(next)
+}
+
+export function getBatchDisableFeedbackMeta({ total = 0, successCount = 0, failedCount = 0 } = {}) {
   const safeTotal = Number.isFinite(Number(total)) ? Math.max(0, Number(total)) : 0
-  const safeSuccessCount = Number.isFinite(Number(successCount)) ? Math.max(0, Number(successCount)) : 0
-  const safeFailedCount = Number.isFinite(Number(failedCount)) ? Math.max(0, Number(failedCount)) : 0
+  const safeSuccessCount = Number.isFinite(Number(successCount))
+    ? Math.max(0, Number(successCount))
+    : 0
+  const safeFailedCount = Number.isFinite(Number(failedCount))
+    ? Math.max(0, Number(failedCount))
+    : 0
 
   if (safeSuccessCount > 0 && safeFailedCount === 0) {
     return {
@@ -370,7 +434,9 @@ export function filterShareOwners(owners = [], query = '', selectedOwnerId = '')
     return matches
   }
 
-  const selectedOwner = owners.find((owner) => normalizeText(owner?.id) === normalizedSelectedOwnerId)
+  const selectedOwner = owners.find(
+    (owner) => normalizeText(owner?.id) === normalizedSelectedOwnerId
+  )
   if (!selectedOwner) {
     return matches
   }
@@ -383,4 +449,85 @@ export function filterShareOwners(owners = [], query = '', selectedOwnerId = '')
   }
 
   return [selectedOwner, ...matches]
+}
+
+export function buildAbsoluteShareUrl(path, origin) {
+  const normalizedPath = normalizeText(path)
+  if (!normalizedPath) return ''
+
+  const baseOrigin =
+    origin ?? (typeof window !== 'undefined' ? normalizeText(window.location?.origin) : '')
+  if (!baseOrigin) return normalizedPath
+  return `${baseOrigin}${normalizedPath}`
+}
+
+export function formatShareDateTime(isoString, locale) {
+  const value = normalizeText(isoString)
+  if (!value) return '-'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString(locale || undefined)
+}
+
+export function getSharePasswordText(record = {}, t = (key) => key) {
+  if (normalizeType(record?.type) === 'text_one_time') {
+    return '-'
+  }
+  return record?.has_password ? t('shares.password.set') : t('shares.password.unset')
+}
+
+export function getShareActionKey(action, record = {}) {
+  const actionName = String(action ?? '')
+  if (actionName === BATCH_DISABLE_SHARE_ACTION_KEY) {
+    return BATCH_DISABLE_SHARE_ACTION_KEY
+  }
+  return `${actionName}:${normalizeType(record?.type)}:${normalizeText(record?.resource_id)}`
+}
+
+export function isShareActionLoading(activeAction, action, record = {}) {
+  return normalizeText(activeAction) === getShareActionKey(action, record)
+}
+
+function getBrowserLocalStorage() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  return window.localStorage || null
+}
+
+export function restoreShareFiltersFromStorage(
+  storage = getBrowserLocalStorage(),
+  key = SHARE_FILTERS_STORAGE_KEY
+) {
+  const fallback = createDefaultShareFilters()
+  if (!storage || typeof storage.getItem !== 'function') {
+    return fallback
+  }
+
+  const stored = storage.getItem(key)
+  if (!stored) {
+    return fallback
+  }
+
+  try {
+    return restorePersistedShareFilters(JSON.parse(stored))
+  } catch (_error) {
+    if (typeof storage.removeItem === 'function') {
+      storage.removeItem(key)
+    }
+    return fallback
+  }
+}
+
+export function persistShareFiltersToStorage(
+  value,
+  storage = getBrowserLocalStorage(),
+  key = SHARE_FILTERS_STORAGE_KEY
+) {
+  if (!storage || typeof storage.setItem !== 'function') {
+    return
+  }
+
+  storage.setItem(key, JSON.stringify(toPersistedShareFilters(value)))
 }
