@@ -231,8 +231,8 @@ const getFileStatus = (row) => {
   const text = deleted
     ? t('files.status.invalid')
     : expired
-    ? t('files.status.expired')
-    : t('files.status.valid')
+      ? t('files.status.expired')
+      : t('files.status.valid')
   const tagType = deleted ? 'danger' : expired ? 'warning' : 'success'
 
   return { deleted, expired, text, tagType }
