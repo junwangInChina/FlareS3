@@ -41,7 +41,14 @@ SECRETS_JSON="$(npx wrangler --config "${CONFIG_PATH}" secret list --format json
 HAS_KEY="$(echo "${SECRETS_JSON}" | jq -r --arg key "${SECRET_NAME}" '[.[] | select(.name==$key)] | length')"
 
 if [ "${HAS_KEY}" = "0" ]; then
-  echo "::error::${SECRET_NAME} is missing for worker ${WORKER_NAME}. Provision it in Cloudflare before deploying so existing R2 credentials remain decryptable."
+  if [ "${SECRET_NAME}" = "R2_MASTER_KEY" ]; then
+    REASON="so existing storage credentials remain decryptable"
+  elif [ "${SECRET_NAME}" = "AUTH_TOKEN_SECRET" ]; then
+    REASON="so auth cookies and Bearer tokens can be signed"
+  else
+    REASON="because it is required by this Worker"
+  fi
+  echo "::error::${SECRET_NAME} is missing for worker ${WORKER_NAME}. Provision it in Cloudflare before deploying ${REASON}."
   exit 1
 fi
 
