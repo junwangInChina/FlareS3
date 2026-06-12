@@ -8,10 +8,12 @@ import { jsonResponse } from '../utils/response'
 
 export { jsonResponse }
 export { requestBodyPolicyErrorResponse } from '../services/requestBodyPolicy'
+export {
+  calcPresignedDownloadUrlTtlSeconds,
+  MAX_PRESIGNED_DOWNLOAD_URL_TTL_SECONDS,
+} from '../services/presignedUrlTtl'
 
 export type AuthedRequest = Request & { user?: AuthUser; sessionId?: string }
-
-export const MAX_PRESIGNED_DOWNLOAD_URL_TTL_SECONDS = 24 * 60 * 60
 
 export function redirect(location: string, status: number = 302): Response {
   const headers = new Headers()
@@ -35,17 +37,4 @@ export function invalidJsonBodyResponse(error: unknown, fallbackMessage = 'è¯·æ±
 
 export function getUser(request: Request): AuthUser | undefined {
   return (request as AuthedRequest).user
-}
-
-export function calcPresignedDownloadUrlTtlSeconds(
-  expiresAt: Date,
-  nowMs: number = Date.now()
-): number {
-  const expiresAtMs = expiresAt.getTime()
-  if (!Number.isFinite(expiresAtMs)) {
-    return MAX_PRESIGNED_DOWNLOAD_URL_TTL_SECONDS
-  }
-  const remainingMs = expiresAtMs - nowMs
-  const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000))
-  return Math.min(MAX_PRESIGNED_DOWNLOAD_URL_TTL_SECONDS, remainingSeconds)
 }
