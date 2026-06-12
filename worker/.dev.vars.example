@@ -11,3 +11,6 @@ R2_BUCKET=flares3-r2
 # 加密主密钥（32字节 base64，可用：openssl rand -base64 32）
 # 用于加密/解密 UI 保存的 R2 Access Key / Secret Key，需长期保持不变
 R2_MASTER_KEY=
+
+# 认证签名密钥（必填；不要与 R2_MASTER_KEY 共用，可用：openssl rand -base64 32）
+AUTH_TOKEN_SECRET=
