@@ -52,7 +52,11 @@ export class R2Provider implements StorageProvider {
     }
   }
 
-  async download(key: string, filename: string, expiresInSeconds: number): Promise<StorageDownloadResult> {
+  async download(
+    key: string,
+    filename: string,
+    expiresInSeconds: number
+  ): Promise<StorageDownloadResult> {
     try {
       const url = await generateDownloadUrl(this.config, key, filename, expiresInSeconds)
       return { kind: 'redirect', url }
@@ -68,7 +72,13 @@ export class R2Provider implements StorageProvider {
     responseContentType?: string
   ): Promise<StoragePreviewResult> {
     try {
-      const url = await generatePreviewUrl(this.config, key, filename, expiresInSeconds, responseContentType)
+      const url = await generatePreviewUrl(
+        this.config,
+        key,
+        filename,
+        expiresInSeconds,
+        responseContentType
+      )
       return { kind: 'redirect', url }
     } catch (error) {
       throw wrapS3Error(error)
@@ -119,7 +129,12 @@ export class R2Provider implements StorageProvider {
     }
   }
 
-  async upload(key: string, _body: ArrayBuffer, contentType: string, _size: number): Promise<StorageUploadResult> {
+  async upload(
+    key: string,
+    _body: ArrayBuffer,
+    contentType: string,
+    _size: number
+  ): Promise<StorageUploadResult> {
     try {
       const url = await generateUploadUrl(this.config, key, contentType, 3600)
       return { kind: 'redirect', url }
