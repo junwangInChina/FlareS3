@@ -119,8 +119,7 @@ router.get(
   withAdmin(
     lazyRoute(
       () => import('./routes/storageConfigs'),
-      (module, request, env) =>
-        module.getConfigSecrets(request, env, (request as any).params.id)
+      (module, request, env) => module.getConfigSecrets(request, env, (request as any).params.id)
     )
   )
 )
@@ -316,7 +315,7 @@ router.get(
   '/api/files',
   withAuth(
     lazyRoute(
-      () => import('./routes/files'),
+      () => import('./routes/fileListing'),
       (module, request, env) => module.listFiles(request, env)
     )
   )
@@ -325,7 +324,7 @@ router.get(
   '/api/files/trash',
   withAuth(
     lazyRoute(
-      () => import('./routes/files'),
+      () => import('./routes/fileListing'),
       (module, request, env) => module.listTrashFiles(request, env)
     )
   )
