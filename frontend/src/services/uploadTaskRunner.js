@@ -1,0 +1,293 @@
+import { resolveUploadErrorMessage } from '../utils/uploadErrors.js'
+import {
+  createCancelledError,
+  formatBytes,
+  isCancelledError,
+  resolveDownloadUrl,
+  resolveShortUrl,
+} from '../utils/uploadPanel.js'
+
+const MULTIPART_THRESHOLD = 100 * 1024 * 1024
+const PART_UPLOAD_RETRY_COUNT = 3
+
+const createTaskState = () => ({
+  uploadStartTime: Date.now(),
+  activeMultipart: null,
+  cancelRequested: false,
+  inFlightControllers: new Set(),
+})
+
+const registerController = (taskState) => {
+  const controller = new AbortController()
+  taskState.inFlightControllers.add(controller)
+  return controller
+}
+
+const abortInFlightRequests = (taskState) => {
+  for (const controller of taskState.inFlightControllers) {
+    try {
+      controller.abort()
+    } catch {
+      // ignore
+    }
+  }
+  taskState.inFlightControllers.clear()
+}
+
+const ensureTaskActive = (taskState, isCancelled) => {
+  if (taskState.cancelRequested || isCancelled()) {
+    throw createCancelledError()
+  }
+}
+
+export function createUploadTaskRunner({ api, t, onUploaded }) {
+  const formatDuration = (seconds) => {
+    if (seconds < 60) return t('upload.seconds', { value: Number(seconds).toFixed(1) })
+    if (seconds < 3600) {
+      return t('upload.minutesSeconds', {
+        minutes: Math.floor(seconds / 60),
+        seconds: Math.round(seconds % 60),
+      })
+    }
+    return t('upload.hoursMinutes', {
+      hours: Math.floor(seconds / 3600),
+      minutes: Math.round((seconds % 3600) / 60),
+    })
+  }
+
+  const formatRemainingTime = (seconds) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return t('upload.calculating')
+    if (seconds < 60) return t('upload.secondsOnly', { value: Math.round(seconds) })
+    if (seconds < 3600) return t('upload.minutesOnly', { value: Math.round(seconds / 60) })
+    return t('upload.hoursOnly', { value: (seconds / 3600).toFixed(1) })
+  }
+
+  const cancelTask = async (taskState) => {
+    if (taskState.cancelRequested) return
+    taskState.cancelRequested = true
+    abortInFlightRequests(taskState)
+
+    const multipart = taskState.activeMultipart
+    if (!multipart?.file_id) return
+    try {
+      await api.abortMultipartUpload({ file_id: multipart.file_id })
+    } catch {
+      // ignore
+    } finally {
+      taskState.activeMultipart = null
+    }
+  }
+
+  const updateUploadStats = (taskState, taskFile, updateItem, loaded, total) => {
+    const totalBytes = Number(total || taskFile.size || 0)
+    const uploadedBytes = Math.max(0, Number(loaded || 0))
+    const elapsedSeconds = Math.max((Date.now() - taskState.uploadStartTime) / 1000, 0.001)
+    const avgSpeed = uploadedBytes / elapsedSeconds
+    updateItem({
+      progress: totalBytes > 0 ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)) : 0,
+      uploadedBytes,
+      totalBytes,
+      speed: uploadedBytes > 0 ? `${formatBytes(avgSpeed)}/s` : t('upload.preparing'),
+      remainingTime:
+        uploadedBytes >= totalBytes
+          ? t('upload.secondsOnly', { value: 0 })
+          : formatRemainingTime(
+              avgSpeed > 0 ? (totalBytes - uploadedBytes) / avgSpeed : Number.NaN
+            ),
+    })
+  }
+
+  const resolveTaskResult = (taskFile, response, completedResult, taskState) => {
+    const durationSeconds = Math.max((Date.now() - taskState.uploadStartTime) / 1000, 0.001)
+    const fallbackDownloadPath = response.file_id ? `/api/files/${response.file_id}/download` : ''
+    return {
+      success: true,
+      filename: completedResult.filename || response.filename || taskFile.name,
+      downloadUrl: resolveDownloadUrl(
+        completedResult.download_url || response.download_url,
+        fallbackDownloadPath
+      ),
+      shortUrl: resolveShortUrl(completedResult.short_url || response.short_url),
+      fileSize: formatBytes(taskFile.size),
+      avgSpeed: `${formatBytes(taskFile.size / durationSeconds)}/s`,
+      duration: formatDuration(durationSeconds),
+      expiresIn: taskFile.expiresIn,
+    }
+  }
+
+  const uploadSmallFile = async (taskFile, taskState, updateItem, isCancelled) => {
+    const response = await api.getUploadURL({
+      filename: taskFile.name,
+      content_type: taskFile.type || 'application/octet-stream',
+      size: taskFile.size,
+      expires_in: taskFile.expiresIn,
+      require_login: taskFile.requireLogin,
+      config_id: taskFile.configId || undefined,
+      dir: taskFile.dir || undefined,
+    })
+    ensureTaskActive(taskState, isCancelled)
+
+    const controller = registerController(taskState)
+    try {
+      await api.uploadToR2(
+        response.upload_url,
+        taskFile.rawFile,
+        (_percent, loaded, total) =>
+          updateUploadStats(taskState, taskFile, updateItem, loaded, total),
+        { signal: controller.signal }
+      )
+    } finally {
+      taskState.inFlightControllers.delete(controller)
+    }
+
+    ensureTaskActive(taskState, isCancelled)
+    const confirmResult = await api.confirmUpload(response.file_id)
+    ensureTaskActive(taskState, isCancelled)
+    return resolveTaskResult(taskFile, response, confirmResult, taskState)
+  }
+
+  const uploadLargeFile = async (taskFile, taskState, updateItem, isCancelled) => {
+    let fileId = ''
+    try {
+      const initResponse = await api.initMultipartUpload({
+        filename: taskFile.name,
+        content_type: taskFile.type || 'application/octet-stream',
+        size: taskFile.size,
+        expires_in: taskFile.expiresIn,
+        require_login: taskFile.requireLogin,
+        config_id: taskFile.configId || undefined,
+        dir: taskFile.dir || undefined,
+      })
+      const { file_id, upload_id, part_size, total_parts } = initResponse
+      fileId = file_id
+      taskState.activeMultipart = { file_id, upload_id }
+
+      for (let partIndex = 0; partIndex < total_parts; partIndex += 1) {
+        ensureTaskActive(taskState, isCancelled)
+        const partNumber = partIndex + 1
+        const start = partIndex * part_size
+        const end = Math.min(start + part_size, taskFile.size)
+        const chunk = taskFile.rawFile.slice(start, end)
+        let lastError = null
+
+        for (let attempt = 1; attempt <= PART_UPLOAD_RETRY_COUNT; attempt += 1) {
+          try {
+            ensureTaskActive(taskState, isCancelled)
+            const presignResponse = await api.getMultipartUploadURL({
+              file_id,
+              upload_id,
+              part_number: partNumber,
+            })
+            ensureTaskActive(taskState, isCancelled)
+
+            const controller = registerController(taskState)
+            try {
+              const uploadResponse = await api.uploadToR2(
+                presignResponse.upload_url,
+                chunk,
+                (_percent, loaded) =>
+                  updateUploadStats(taskState, taskFile, updateItem, start + loaded, taskFile.size),
+                { signal: controller.signal }
+              )
+              let etag = uploadResponse.headers?.etag || ''
+              if (!etag) throw new Error(t('upload.errors.partMissingEtag', { partNumber }))
+              if (!etag.startsWith('"')) etag = `"${etag}"`
+              updateUploadStats(taskState, taskFile, updateItem, end, taskFile.size)
+              initResponse.parts = [
+                ...(initResponse.parts || []),
+                { part_number: partNumber, etag },
+              ]
+              lastError = null
+              break
+            } finally {
+              taskState.inFlightControllers.delete(controller)
+            }
+          } catch (error) {
+            if (isCancelledError(error) || taskState.cancelRequested || isCancelled()) {
+              throw createCancelledError()
+            }
+            lastError = error
+            if (attempt < PART_UPLOAD_RETRY_COUNT) {
+              await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+            }
+          }
+        }
+        if (lastError) throw lastError
+      }
+
+      ensureTaskActive(taskState, isCancelled)
+      const completeResult = await api.completeMultipartUpload({
+        file_id,
+        upload_id,
+        parts: initResponse.parts || [],
+      })
+      ensureTaskActive(taskState, isCancelled)
+      return resolveTaskResult(taskFile, initResponse, completeResult, taskState)
+    } catch (error) {
+      if (fileId) {
+        try {
+          await api.abortMultipartUpload({ file_id: fileId })
+        } catch {
+          // ignore
+        } finally {
+          if (taskState.activeMultipart?.file_id === fileId) taskState.activeMultipart = null
+        }
+      }
+      throw error
+    } finally {
+      if (fileId && taskState.activeMultipart?.file_id === fileId) taskState.activeMultipart = null
+    }
+  }
+
+  const uploadServerFile = async (taskFile, taskState, updateItem) => {
+    updateItem({
+      progress: 0,
+      uploadedBytes: 0,
+      totalBytes: taskFile.size,
+      speed: t('upload.preparing'),
+      remainingTime: t('upload.calculating'),
+    })
+    const result = await api.serverUpload({
+      configId: taskFile.configId,
+      file: taskFile.rawFile,
+      filename: taskFile.name,
+      expiresIn: taskFile.expiresIn,
+      requireLogin: taskFile.requireLogin,
+      dir: taskFile.dir || undefined,
+      onProgress: (_percent, loaded, total) =>
+        updateUploadStats(taskState, taskFile, updateItem, loaded, total),
+    })
+    return resolveTaskResult(taskFile, result, result, taskState)
+  }
+
+  return async (item, { updateItem, setCancel, isCancelled }) => {
+    const taskFile = item.file
+    const taskState = createTaskState()
+    updateItem({
+      progress: 0,
+      uploadedBytes: 0,
+      totalBytes: taskFile.size,
+      speed: t('upload.preparing'),
+      remainingTime: t('upload.calculating'),
+    })
+    setCancel(() => void cancelTask(taskState))
+
+    try {
+      const result =
+        taskFile.configType !== 'r2'
+          ? await uploadServerFile(taskFile, taskState, updateItem)
+          : taskFile.size < MULTIPART_THRESHOLD
+            ? await uploadSmallFile(taskFile, taskState, updateItem, isCancelled)
+            : await uploadLargeFile(taskFile, taskState, updateItem, isCancelled)
+      onUploaded(taskFile)
+      return result
+    } catch (error) {
+      if (isCancelledError(error) || taskState.cancelRequested || isCancelled()) {
+        throw createCancelledError()
+      }
+      throw new Error(resolveUploadErrorMessage(error, t('upload.uploadFailed')))
+    } finally {
+      abortInFlightRequests(taskState)
+    }
+  }
+}
