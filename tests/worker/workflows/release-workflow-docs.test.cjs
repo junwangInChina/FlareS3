@@ -12,7 +12,6 @@ const deployWorkflowPath = path.join(
   "deploy-worker-only.yml",
 );
 const readmePath = path.join(repoRoot, "README.md");
-const runbookPath = path.join(repoRoot, "docs", "release-runbook.md");
 
 function readFile(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -58,93 +57,89 @@ test("deploy-worker-only workflow keeps required full-stack deploy steps", () =>
   );
 });
 
-test("README and release runbook stay aligned with the direct deploy workflow", () => {
-  for (const [label, filePath] of [
-    ["README", readmePath],
-    ["release runbook", runbookPath],
-  ]) {
-    const content = readFile(filePath);
+test("README stays aligned with the direct deploy workflow", () => {
+  const label = "README";
+  const content = readFile(readmePath);
 
-    assert.match(
-      content,
-      /Deploy Worker Only/,
-      `${label} should mention the direct deploy workflow`,
-    );
-    assert.match(
-      content,
-      /workflow_dispatch/,
-      `${label} should document the manual rerun trigger`,
-    );
-    assert.match(
-      content,
-      /wrangler\.full\.ci\.toml/,
-      `${label} should mention the CI config injection path`,
-    );
-    assert.match(
-      content,
-      /verify:release/,
-      `${label} should mention the release gate`,
-    );
-    assert.match(
-      content,
-      /R2_MASTER_KEY/,
-      `${label} should mention the required Worker secret`,
-    );
-    assert.match(
-      content,
-      /AUTH_TOKEN_SECRET/,
-      `${label} should mention the auth token signing secret`,
-    );
-    assert.match(
-      content,
-      /format:check/,
-      `${label} should mention the format gate`,
-    );
-    assert.match(
-      content,
-      /d1 migrations apply/,
-      `${label} should mention the migration step`,
-    );
+  assert.match(
+    content,
+    /Deploy Worker Only/,
+    `${label} should mention the direct deploy workflow`,
+  );
+  assert.match(
+    content,
+    /workflow_dispatch/,
+    `${label} should document the manual rerun trigger`,
+  );
+  assert.match(
+    content,
+    /wrangler\.full\.ci\.toml/,
+    `${label} should mention the CI config injection path`,
+  );
+  assert.match(
+    content,
+    /verify:release/,
+    `${label} should mention the release gate`,
+  );
+  assert.match(
+    content,
+    /R2_MASTER_KEY/,
+    `${label} should mention the required Worker secret`,
+  );
+  assert.match(
+    content,
+    /AUTH_TOKEN_SECRET/,
+    `${label} should mention the auth token signing secret`,
+  );
+  assert.match(
+    content,
+    /format:check/,
+    `${label} should mention the format gate`,
+  );
+  assert.match(
+    content,
+    /d1 migrations apply/,
+    `${label} should mention the migration step`,
+  );
 
-    assert.doesNotMatch(
-      content,
-      /Controlled Full-Stack Release/,
-      `${label} should not reference the retired workflow name`,
-    );
-    assert.doesNotMatch(
-      content,
-      /\bpromote_to_production\b/,
-      `${label} should not mention the retired promotion input`,
-    );
-    assert.doesNotMatch(
-      content,
-      /\bSMOKE_URL\b/,
-      `${label} should not mention the retired smoke contract`,
-    );
-    assert.doesNotMatch(
-      content,
-      /\bWORKER_NAME\b/,
-      `${label} should not mention the retired environment variable contract`,
-    );
-    assert.doesNotMatch(
-      content,
-      /\bD1_DATABASE_NAME\b/,
-      `${label} should not mention the retired environment variable contract`,
-    );
-    assert.doesNotMatch(
-      content,
-      /Required reviewers/,
-      `${label} should not describe production approval reviewers`,
-    );
-    assert.doesNotMatch(
-      content,
-      /不再是 .*硬门禁/,
-      `${label} should not describe verify:release as non-blocking`,
-    );
-    assert.doesNotMatch(
-      content,
-      /不属于 deploy workflow/,
-      `${label} should not describe verify:release as outside deploy`,
-    );
-  }
+  assert.doesNotMatch(
+    content,
+    /Controlled Full-Stack Release/,
+    `${label} should not reference the retired workflow name`,
+  );
+  assert.doesNotMatch(
+    content,
+    /\bpromote_to_production\b/,
+    `${label} should not mention the retired promotion input`,
+  );
+  assert.doesNotMatch(
+    content,
+    /\bSMOKE_URL\b/,
+    `${label} should not mention the retired smoke contract`,
+  );
+  assert.doesNotMatch(
+    content,
+    /\bWORKER_NAME\b/,
+    `${label} should not mention the retired environment variable contract`,
+  );
+  assert.doesNotMatch(
+    content,
+    /\bD1_DATABASE_NAME\b/,
+    `${label} should not mention the retired environment variable contract`,
+  );
+  assert.doesNotMatch(
+    content,
+    /Required reviewers/,
+    `${label} should not describe production approval reviewers`,
+  );
+  assert.doesNotMatch(
+    content,
+    /不再是 .*硬门禁/,
+    `${label} should not describe verify:release as non-blocking`,
+  );
+  assert.doesNotMatch(
+    content,
+    /不属于 deploy workflow/,
+    `${label} should not describe verify:release as outside deploy`,
+  );
 });

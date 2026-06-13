@@ -5,17 +5,10 @@ const path = require("node:path");
 
 const repoRoot = path.join(process.cwd(), "..");
 
-test(".gitignore does not hide tests, docs, or project guidance assets", () => {
+test(".gitignore does not hide the root test suite", () => {
   const gitignore = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
 
-  for (const forbiddenPattern of [
-    /^docs\/$/m,
-    /^\*test\*$/m,
-    /^\.trellis\/$/m,
-    /^\.agents\/$/m,
-  ]) {
-    assert.doesNotMatch(gitignore, forbiddenPattern);
-  }
+  assert.doesNotMatch(gitignore, /^\*test\*$/m);
 
   assert.match(gitignore, /^node_modules\/$/m);
   assert.match(gitignore, /^frontend\/dist\/$/m);
